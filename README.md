@@ -1,87 +1,133 @@
-# Welcome to React Router!
+# ClickSafe - Phishing Protection SaaS for Gyms
 
-A modern, production-ready template for building full-stack React applications using React Router.
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness centers. Built with React Router v7 and TypeScript.
 
 ## Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- **Login Page**: Simple email/password authentication form
+- **Signup Page**: Registration form with gym details (gym name, owner name, email, password)
+- **Dashboard Page**:
+  - Email monitoring table showing 5 business emails
+  - Status indicators (Connected/Disconnected)
+  - Alert counts for phishing emails detected
+  - "Mark Safe" buttons for flagged emails
+  - Interactive bar chart showing phishing alerts over 7 days
+  - Recent activity feed
+- **Landing Page**: Marketing homepage with features and call-to-action
+
+## Tech Stack
+
+- [React Router v7](https://reactrouter.com) - File-based routing
+- [React 19](https://react.dev) - UI library with hooks
+- [TypeScript](https://www.typescriptlang.org) - Type safety
+- [Vite](https://vitejs.dev) - Build tool and dev server
 
 ## Getting Started
 
-### Installation
+1. **Install dependencies:**
 
-Install the dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm install
+2. **Start the development server:**
+
+   ```bash
+   npm run dev
+   ```
+
+3. **Open your browser:**
+
+   Navigate to [http://localhost:5173](http://localhost:5173) to see the application.
+
+## Project Structure
+
+```text
+├── app/
+│   ├── routes/
+│   │   ├── home.tsx         # Landing page with marketing content
+│   │   ├── login.tsx        # Login form
+│   │   ├── signup.tsx       # Registration form
+│   │   └── dashboard.tsx    # Main dashboard with monitoring
+│   ├── root.tsx             # Root layout component
+│   ├── app.css              # Global styles
+│   └── routes.ts            # Route configuration
+├── public/                  # Static assets
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+└── react-router.config.ts
 ```
 
-### Development
+## Pages Overview
 
-Start the development server with HMR:
+### Landing Page (`/`)
 
-```bash
-npm run dev
-```
+- Hero section with value proposition
+- Features showcase
+- Call-to-action sections
+- Navigation to login/signup
 
-Your application will be available at `http://localhost:5173`.
+### Login Page (`/login`)
 
-## Building for Production
+- Email and password fields
+- Remember me checkbox
+- Forgot password link
+- Link to signup page
 
-Create a production build:
+### Signup Page (`/signup`)
+
+- Gym name field
+- Owner name field
+- Email and password fields
+- Password confirmation
+- Terms of service agreement
+- Link to login page
+
+### Dashboard Page (`/dashboard`)
+
+- **Stats Cards**: Monitored emails, total alerts, protection status
+- **Email Monitoring Table**:
+  - 5 sample gym emails
+  - Connection status with color-coded badges
+  - Alert counts with color coding
+  - "Mark Safe" buttons for emails with alerts
+- **Phishing Alerts Chart**: 7-day bar chart showing daily alert counts
+- **Recent Activity Feed**: Timeline of security events
+- **Navigation**: Links to dashboard and logout
+
+## Mock Data
+
+The application uses mock data for demonstration:
+
+- 5 sample gym email addresses
+- Simulated connection statuses
+- Mock alert counts
+- Sample 7-day chart data
+- Recent activity events
+
+## Styling
+
+- **Responsive Design**: Mobile-first approach
+- **Color Scheme**: Blue primary, gray neutrals
+- **Components**: Cards, tables, forms, buttons
+- **Icons**: Emoji-based icons for simplicity
+
+## Development
+
+- **TypeScript**: Full type safety
+- **React Hooks**: Functional components with useState
+- **React Router**: Client-side routing
+- **Hot Reload**: Vite development server
+
+## Build
 
 ```bash
 npm run build
 ```
 
-## Deployment
+## Learn More
 
-### Docker Deployment
-
-To build and run using Docker:
-
-```bash
-docker build -t my-app .
-
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+- [React Router v7 Documentation](https://reactrouter.com)
+- [React Documentation](https://react.dev)
+- [Vite Documentation](https://vitejs.dev)
