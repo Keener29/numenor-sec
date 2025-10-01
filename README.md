@@ -30,7 +30,15 @@ A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness 
    npm install
    ```
 
-2. **Start the development server:**
+2. **Generate TypeScript types:**
+
+   ```bash
+   npm run typecheck
+   ```
+
+   This generates the required React Router v7 type definitions that are needed for the application to compile properly.
+
+3. **Start the development server:**
 
    ```bash
    npm run dev
