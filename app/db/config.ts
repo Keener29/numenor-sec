@@ -1,6 +1,9 @@
 import { config } from 'dotenv';
 
-// Load environment variables
+// Loads environment variables from .env file
+// Provides TypeScript interface for database config
+// Sets sensible defaults for development
+// Enables SSL for production
 config();
 
 export interface DatabaseConfig {
