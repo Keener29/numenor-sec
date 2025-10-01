@@ -21,6 +21,8 @@ A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness 
 - [React 19](https://react.dev) - UI library with hooks
 - [TypeScript](https://www.typescriptlang.org) - Type safety
 - [Vite](https://vitejs.dev) - Build tool and dev server
+- [PostgreSQL](https://postgresql.org) - Database
+- [Node.js pg](https://node-postgres.com) - PostgreSQL client for Node.js
 
 ## Getting Started
 
@@ -38,7 +40,25 @@ A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness 
 
    This generates the required React Router v7 type definitions that are needed for the application to compile properly.
 
-3. **Start the development server:**
+3. **Set up the database:**
+
+   First, make sure PostgreSQL 15 is installed and running on your system.
+
+   ```bash
+   # Create the database
+   createdb numenor_security
+   
+   # Copy environment variables
+   cp .env.example .env
+   
+   # Edit .env with your database credentials
+   # Then run migrations to set up the schema
+   npm run db:migrate
+   ```
+
+   **Note:** The database schema includes tables for users, gyms, monitored emails, phishing alerts, security events, and email scans with proper indexes and foreign key relationships.
+
+4. **Start the development server:**
 
    ```bash
    npm run dev
@@ -52,6 +72,11 @@ A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness 
 
 ```text
 ├── app/
+│   ├── db/
+│   │   ├── config.ts        # Database configuration
+│   │   ├── connection.ts    # Database connection and utilities
+│   │   ├── migrate.ts       # Database migration runner
+│   │   └── schema.sql       # Database schema
 │   ├── routes/
 │   │   ├── home.tsx         # Landing page with marketing content
 │   │   ├── login.tsx        # Login form
