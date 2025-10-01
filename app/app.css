@@ -286,6 +286,10 @@ body {
   max-width: 80rem;
 }
 
+.max-w-8xl {
+  max-width: 96rem;
+}
+
 .max-w-\[300px\] {
   max-width: 300px;
 }
