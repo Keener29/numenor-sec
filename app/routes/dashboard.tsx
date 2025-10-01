@@ -5,7 +5,7 @@ import type { Route } from "./+types/dashboard";
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
   return [
-    { title: "Dashboard - ClickSafe" },
+    { title: "Dashboard - Numenor Security" },
     { name: "description", content: "Monitor your gym's email security" },
   ];
 }
@@ -91,7 +91,7 @@ export default function Dashboard() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/dashboard" className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-gray-900">ClickSafe</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
               </Link>
             </div>
             <div className="flex items-center space-x-4">

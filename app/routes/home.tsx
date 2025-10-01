@@ -3,8 +3,8 @@ import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "ClickSafe - Phishing Protection for Gyms" },
-    { name: "description", content: "Protect your gym from phishing attacks with ClickSafe" },
+    { title: "Numenor Security - Phishing Protection for Gyms" },
+    { name: "description", content: "Protect your gym from phishing attacks with Numenor Security" },
   ];
 }
 
@@ -16,7 +16,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">ClickSafe</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -47,7 +47,7 @@ export default function Home() {
                   <span className="block text-blue-600 xl:inline">Phishing Attacks</span>
                 </h1>
                 <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
-                  ClickSafe provides comprehensive email security monitoring specifically designed for gyms and fitness centers. 
+                  Numenor Security provides comprehensive email security monitoring specifically designed for gyms and fitness centers. 
                   Keep your business and members safe from phishing threats.
                 </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
@@ -173,9 +173,9 @@ export default function Home() {
       <footer className="bg-white">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-900">ClickSafe</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Numenor Security</h3>
             <p className="mt-2 text-sm text-gray-500">
-              © 2025 ClickSafe. All rights reserved.
+              © 2025 Numenor Security. All rights reserved.
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-# ClickSafe - Phishing Protection SaaS for Gyms
+# Numenor Security - Phishing Protection SaaS for Gyms
 
 A React dashboard MVP for a phishing protection SaaS targeting gyms and fitness centers. Built with React Router v7 and TypeScript.
 

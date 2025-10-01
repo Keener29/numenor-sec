@@ -4,8 +4,8 @@ import type { Route } from "./+types/login";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Login - ClickSafe" },
-    { name: "description", content: "Login to your ClickSafe dashboard" },
+    { title: "Login - Numenor Security" },
+    { name: "description", content: "Login to your Numenor Security dashboard" },
   ];
 }
 
@@ -34,7 +34,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900">ClickSafe</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Numenor Security</h1>
           <p className="mt-2 text-sm text-gray-600">Phishing Protection for Gyms</p>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
