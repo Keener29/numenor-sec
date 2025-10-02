@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
+import { emailsAPI, alertsAPI, authAPI } from "../utils/api";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -10,77 +11,110 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-// Mock data for the dashboard
-const mockEmails = [
-  {
-    id: 1,
-    email: "info@goldengym.com",
-    status: "Connected",
-    alerts: 3,
-    lastChecked: "2 hours ago",
-  },
-  {
-    id: 2,
-    email: "membership@goldengym.com",
-    status: "Connected",
-    alerts: 1,
-    lastChecked: "1 hour ago",
-  },
-  {
-    id: 3,
-    email: "billing@goldengym.com",
-    status: "Disconnected",
-    alerts: 0,
-    lastChecked: "3 days ago",
-  },
-  {
-    id: 4,
-    email: "support@goldengym.com",
-    status: "Connected",
-    alerts: 7,
-    lastChecked: "30 minutes ago",
-  },
-  {
-    id: 5,
-    email: "admin@goldengym.com",
-    status: "Connected",
-    alerts: 2,
-    lastChecked: "1 hour ago",
-  },
-];
-
-// Mock data for the chart (last 7 days)
-const chartData = [
-  { day: "Mon", alerts: 2 },
-  { day: "Tue", alerts: 4 },
-  { day: "Wed", alerts: 1 },
-  { day: "Thu", alerts: 6 },
-  { day: "Fri", alerts: 3 },
-  { day: "Sat", alerts: 2 },
-  { day: "Sun", alerts: 1 },
-];
+// Function to process daily alerts data for the chart
+const processChartData = (dailyAlerts: any[]) => {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const today = new Date();
+  
+  // Create a map of date to count for quick lookup
+  const alertsMap = new Map();
+  dailyAlerts.forEach(alert => {
+    // Convert ISO date to YYYY-MM-DD format for consistent lookup
+    const dateString = new Date(alert.date).toISOString().split('T')[0];
+    alertsMap.set(dateString, alert.count);
+  });
+    
+  // Generate chart data for the last 7 days
+  const chartData = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateString = date.toISOString().split('T')[0];
+    const dayIndex = date.getDay();
+    const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1]; // Adjust for Monday start
+    
+    const alertCount = alertsMap.get(dateString) || 0;
+    console.log(`Date: ${dateString}, Day: ${dayName}, Alerts: ${alertCount}`);
+    
+    chartData.push({
+      day: dayName,
+      alerts: alertCount
+    });
+  }
+  
+  return chartData;
+};
 
 export default function Dashboard() {
-  const [emails, setEmails] = useState(mockEmails);
+  const navigate = useNavigate();
+  const [emails, setEmails] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>({});
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handleMarkSafe = (emailId: number) => {
-    setEmails(emails.map(email => 
-      email.id === emailId 
-        ? { ...email, alerts: Math.max(0, email.alerts - 1) }
-        : email
-    ));
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      // Load emails, alerts, and stats in parallel
+      const [emailsResponse, alertsResponse, emailStats, alertStats] = await Promise.all([
+        emailsAPI.getEmails({ limit: 10 }),
+        alertsAPI.getAlerts({ limit: 10 }),
+        emailsAPI.getEmailStats(),
+        alertsAPI.getAlertStats(),
+      ]);
+
+      console.log('Emails data:', emailsResponse.emails);
+      console.log('Alerts data:', alertsResponse.alerts);
+      
+      setEmails(emailsResponse.emails || []);
+      setAlerts(alertsResponse.alerts || []);
+      setStats({
+        ...emailStats.stats,
+        ...alertStats.stats,
+      });
+
+      // Process daily alerts data for the chart
+      const dailyAlerts = alertStats.stats?.dailyAlerts || [];
+      console.log('Daily alerts data:', dailyAlerts);
+      const processedChartData = processChartData(dailyAlerts);
+      console.log('Processed chart data:', processedChartData);
+      setChartData(processedChartData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      console.error("Dashboard error:", err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const getStatusColor = (status: string) => {
-    return status === "Connected" 
-      ? "bg-green-100 text-green-800" 
-      : "bg-red-100 text-red-800";
+  const handleMarkSafe = async (alertId: number) => {
+    try {
+      await alertsAPI.updateAlert(alertId, { status: "safe" });
+      // Reload alerts to get updated data
+      const alertsResponse = await alertsAPI.getAlerts({ limit: 10 });
+      setAlerts(alertsResponse.alerts || []);
+    } catch (err) {
+      console.error("Failed to mark alert as safe:", err);
+    }
   };
 
-  const getAlertColor = (alerts: number) => {
-    if (alerts === 0) return "text-gray-500";
-    if (alerts <= 2) return "text-yellow-600";
-    return "text-red-600";
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout();
+      navigate("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+      // Still navigate to login even if logout API fails
+      navigate("/login");
+    }
   };
 
   return (
@@ -90,23 +124,15 @@ export default function Dashboard() {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <Link to="/dashboard" className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
-              </Link>
+              <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Link
-                to="/dashboard"
-                className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/login"
-                className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+              <button
+                onClick={handleLogout}
+                className="text-gray-700 px-3 py-2 rounded-md text-base font-medium bg-white border-0 cursor-pointer"
               >
                 Logout
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -121,6 +147,20 @@ export default function Dashboard() {
           </p>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="mx-4 mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+            {error}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="mx-4 mb-8 flex justify-center">
+            <div className="text-gray-500">Loading dashboard data...</div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -134,10 +174,10 @@ export default function Dashboard() {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Monitored Emails
+                      Connected Emails
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {emails.filter(e => e.status === "Connected").length}
+                      {stats.connectedEmails || 0}
                     </dd>
                   </dl>
                 </div>
@@ -159,7 +199,7 @@ export default function Dashboard() {
                       Total Alerts This Week
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
-                      {emails.reduce((sum, email) => sum + email.alerts, 0)}
+                      {stats.totalAlerts || 0}
                     </dd>
                   </dl>
                 </div>
@@ -180,7 +220,9 @@ export default function Dashboard() {
                     <dt className="text-sm font-medium text-gray-500 truncate">
                       Protection Status
                     </dt>
-                    <dd className="text-lg font-medium text-gray-900">Active</dd>
+                    <dd className="text-lg font-medium text-gray-900">
+                      {stats.connectedEmails > 0 ? "Active" : "Inactive"}
+                    </dd>
                   </dl>
                 </div>
               </div>
@@ -206,7 +248,7 @@ export default function Dashboard() {
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Alerts
+                        Pending Alerts
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Action
@@ -217,27 +259,25 @@ export default function Dashboard() {
                     {emails.map((email) => (
                       <tr key={email.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {email.email}
+                          {email.emailAddress}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(email.status)}`}>
-                            {email.status}
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {email.isConnected ? 'Connected' : 'Disconnected'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`text-sm font-medium ${getAlertColor(email.alerts)}`}>
-                            {email.alerts}
+                          <span className="text-sm font-medium text-gray-900">
+                            {alerts.filter(alert => alert.emailId === email.id && alert.status !== 'safe').length}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {email.alerts > 0 && (
-                            <button
-                              onClick={() => handleMarkSafe(email.id)}
-                              className="bg-white text-blue-600 hover:text-blue-900 px-3 py-1 rounded border-0 hover:bg-blue-50"
-                            >
-                              Mark Safe
-                            </button>
-                          )}
+                          <button
+                            onClick={() => handleMarkSafe(email.id)}
+                            className="bg-white text-blue-600 hover:text-blue-900 px-3 py-1 rounded border-0 hover:bg-blue-50 cursor-pointer"
+                          >
+                            Mark Safe
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -254,8 +294,8 @@ export default function Dashboard() {
                 Phishing Alerts (Last 7 Days)
               </h3>
               <div className="h-64 flex justify-between space-x-4 items-end">
-                {chartData.map((data, index) => {
-                  const maxAlerts = Math.max(...chartData.map(d => d.alerts));
+                {chartData.length > 0 ? chartData.map((data, index) => {
+                  const maxAlerts = Math.max(...chartData.map(d => d.alerts), 1);
                   const height = (data.alerts / maxAlerts) * 200;
                   
                   return (
@@ -268,7 +308,11 @@ export default function Dashboard() {
                       <div className="text-xs font-medium text-gray-900">{data.alerts}</div>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="flex items-center justify-center w-full h-full text-gray-500">
+                    No alert data available
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -281,33 +325,46 @@ export default function Dashboard() {
               Recent Activity
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center text-sm">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                </div>
-                <div className="ml-3">
-                  <span className="text-gray-900">Phishing attempt blocked for info@goldengym.com</span>
-                  <span className="text-gray-500 ml-2">2 hours ago</span>
-                </div>
-              </div>
-              <div className="flex items-center text-sm">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                </div>
-                <div className="ml-3">
-                  <span className="text-gray-900">Suspicious email flagged for support@goldengym.com</span>
-                  <span className="text-gray-500 ml-2">4 hours ago</span>
-                </div>
-              </div>
-              <div className="flex items-center text-sm">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                </div>
-                <div className="ml-3">
-                  <span className="text-gray-900">Email security scan completed</span>
-                  <span className="text-gray-500 ml-2">6 hours ago</span>
-                </div>
-              </div>
+              {alerts.length > 0 ? alerts.slice(0, 5).map((alert) => {
+                const getAlertColor = (threatLevel: string) => {
+                  switch (threatLevel) {
+                    case 'critical': return 'bg-red-500';
+                    case 'high': return 'bg-red-500';
+                    case 'medium': return 'bg-yellow-500';
+                    case 'low': return 'bg-green-500';
+                    default: return 'bg-gray-500';
+                  }
+                };
+                
+                const formatDate = (dateString: string) => {
+                  const date = new Date(dateString);
+                  const now = new Date();
+                  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+                  
+                  if (diffInHours < 1) return 'Just now';
+                  if (diffInHours < 24) return `${diffInHours} hours ago`;
+                  const diffInDays = Math.floor(diffInHours / 24);
+                  return `${diffInDays} days ago`;
+                };
+                
+                return (
+                  <div key={alert.id} className="flex items-center text-sm">
+                    <div className="flex-shrink-0">
+                      <div className={`w-2 h-2 ${getAlertColor(alert.threatLevel)} rounded-full`}></div>
+                    </div>
+                    <div className="ml-3">
+                      <span className="text-gray-900">
+                        {alert.alertType} - {alert.subject}
+                      </span>
+                      <span className="text-gray-500 ml-2">
+                        {formatDate(alert.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="text-gray-500 text-sm">No recent alerts</div>
+              )}
             </div>
           </div>
         </div>
