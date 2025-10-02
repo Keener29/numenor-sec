@@ -195,6 +195,22 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 - `DELETE /:id` - Remove email from monitoring
 - `GET /stats` - Get email monitoring statistics
 
+#### Email Connection Status
+
+**Connected Email:**
+- The email address is **actively being monitored** for phishing attempts
+- The system can **receive and analyze emails** sent to this address
+- **Real-time scanning** is enabled for incoming messages
+- The email is **integrated with your security monitoring system**
+
+**Disconnected Email:**
+- The email address is **not currently being monitored**
+- The system **cannot scan incoming emails** to this address
+- **No real-time protection** against phishing attempts
+- The email exists in your system but is **inactive for security purposes**
+
+This connection status determines whether the email security system is actively protecting that inbox from phishing threats.
+
 ### Phishing Alerts (`/api/alerts`)
 - `GET /` - List alerts (with filtering & pagination)
 - `GET /:id` - Get specific alert details
@@ -207,11 +223,38 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 The PostgreSQL database includes:
 
 - **Users**: User accounts with authentication
+  - Stores gym owners/administrators who can access the system
+  - Contains login credentials, personal info, and gym association
+  - One user per gym (gym owner/administrator)
+
 - **Gyms**: Gym information and settings
+  - Business information for each fitness center
+  - Contains gym name, address, contact details, and settings
+  - Each gym has one owner (user) and multiple monitored emails
+
 - **Monitored Emails**: Email addresses being monitored
+  - **What it is**: The actual email inboxes that the system watches for phishing attempts
+  - **Purpose**: Tracks which email addresses belong to each gym and their connection status
+  - **Contains**: Email address, connection status (connected/disconnected), last scan time
+  - **Example**: `info@goldengym.com`, `support@goldengym.com`, `admin@goldengym.com`
+
 - **Phishing Alerts**: Detected threats with metadata
+  - **What it is**: Individual phishing attempts that were caught by the system
+  - **Purpose**: Records each suspicious email that was sent to monitored addresses
+  - **Contains**: Email details (sender, subject, content), threat level, alert type, status
+  - **Example**: "Suspicious login attempt from unknown IP", "Fake invoice attachment detected"
+
 - **Security Events**: Audit log of all activities
+  - **What it is**: System activity log for compliance and monitoring
+  - **Purpose**: Tracks all user actions and system events for security auditing
+  - **Contains**: User actions (login, logout, password changes), system events, IP addresses
+  - **Example**: "User logged in from 192.168.1.100", "Password changed", "Email added to monitoring"
+
 - **Email Scans**: Monitoring operation logs
+  - **What it is**: Technical logs of the email scanning process
+  - **Purpose**: Tracks the health and performance of email monitoring operations
+  - **Contains**: Scan timestamps, success/failure status, processing times, error messages
+  - **Example**: "Scan completed for info@goldengym.com at 2025-01-02 10:30:00", "Connection timeout error"
 
 All tables include proper indexes, foreign key relationships, and automatic timestamp updates.
 
