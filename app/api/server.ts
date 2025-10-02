@@ -1,10 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import { config } from 'dotenv';
+import dotenv from 'dotenv';
 
 // Load environment variables
-config();
+dotenv.config();
 
 // Import routes
 import authRoutes from './routes/auth.js';
