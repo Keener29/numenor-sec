@@ -22,21 +22,21 @@ export default function Dropdown({
   return (
     <div className={`border border-gray-200 rounded-lg ${className}`}>
       {/* Header - Clickable */}
-      <div className="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center justify-between">
+      <div className="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-stretch justify-between">
         <button
           onClick={onToggle}
-          className="flex items-center space-x-6 flex-1 min-w-0 border-0 cursor-pointer bg-transparent h-full"
+          className="flex items-center space-x-6 flex-1 min-w-0 border-0 cursor-pointer bg-transparent -mx-4 -my-3 px-4 py-3 rounded-lg"
         >
           <div className="text-sm font-medium text-gray-900 truncate">
             {title}
           </div>
           {headerContent}
         </button>
-        <div className="flex items-center space-x-3 flex-shrink-0 h-full">
+        <div className="flex items-center space-x-3 flex-shrink-0">
           {rightAction}
           <button
             onClick={onToggle}
-            className="border-0 cursor-pointer bg-transparent p-1"
+            className="border-0 cursor-pointer bg-transparent p-1 -mx-1 -my-3 px-1 py-3 rounded"
           >
             <svg
               className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
