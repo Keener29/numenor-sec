@@ -4,28 +4,43 @@
 
 /* Custom base styles */
 @layer base {
+html,
+body {
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@media (prefers-color-scheme: dark) {
   html,
   body {
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    color-scheme: dark;
   }
-
-  @media (prefers-color-scheme: dark) {
-    html,
-    body {
-      color-scheme: dark;
-    }
-  }
+}
 }
 
 /* Custom components */
 @layer components {
   /* Form input styles */
   .form-input {
-    @apply appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm;
+    @apply appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white;
   }
   
   .form-input-error {
     @apply border-red-300 focus:ring-red-500 focus:border-red-500;
+  }
+
+  /* Checkbox styles */
+  .form-checkbox {
+    @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-500 rounded bg-white;
+    background-color: white !important;
+    border: 2px solid #6b7280 !important;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+  }
+  
+  .form-checkbox:checked {
+    background-color: #2563eb !important;
+    background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m13.854 3.646-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6 10.293l7.146-7.147a.5.5 0 0 1 .708.708z'/%3e%3c/svg%3e");
   }
   
   /* Button styles */

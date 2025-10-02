@@ -123,7 +123,7 @@ export default function Signup() {
                   required
                   value={formData.gymName}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="form-input"
                   placeholder="Enter your gym name"
                 />
               </div>
@@ -141,7 +141,7 @@ export default function Signup() {
                   required
                   value={formData.ownerName}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="form-input"
                   placeholder="Enter your full name"
                 />
               </div>
@@ -160,7 +160,7 @@ export default function Signup() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="form-input"
                   placeholder="Enter your email"
                 />
               </div>
@@ -179,7 +179,7 @@ export default function Signup() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="form-input"
                   placeholder="Create a password"
                 />
               </div>
@@ -215,7 +215,7 @@ export default function Signup() {
                 name="agree-terms"
                 type="checkbox"
                 required
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="form-checkbox"
               />
               <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-900">
                 I agree to the{" "}
