@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation.js';
-import { authenticateToken, requireGym, type AuthRequest } from '../middleware/auth.js';
+import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { addEmailSchema, updateEmailSchema, emailParamsSchema, emailQuerySchema } from '../schemas/email.js';
 import { query } from '../../db/connection.js';
 
 const router = Router();
 
-// Get all monitored emails for the gym
-router.get('/', authenticateToken, requireGym, validateQuery(emailQuerySchema), async (req: AuthRequest, res, next) => {
+// Get all monitored emails for the business
+router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const { page, limit, connected } = req.query as any;
 
     const offset = (page - 1) * limit;
-    let whereClause = 'WHERE gym_id = $1';
-    const queryParams = [gymId];
+    let whereClause = 'WHERE business_id = $1';
+    const queryParams = [businessId];
 
     // connected refers to the connection status of a monitored email address 
     // if connected is true, only show emails that are connected
@@ -69,15 +69,15 @@ router.get('/', authenticateToken, requireGym, validateQuery(emailQuerySchema), 
 });
 
 // Add new email to monitor
-router.post('/', authenticateToken, requireGym, validateBody(addEmailSchema), async (req: AuthRequest, res, next) => {
+router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const { emailAddress } = req.body;
 
-    // Check if email already exists for this gym
+    // Check if email already exists for this business
     const existingResult = await query(
-      'SELECT id FROM monitored_emails WHERE gym_id = $1 AND email_address = $2',
-      [gymId, emailAddress]
+      'SELECT id FROM monitored_emails WHERE business_id = $1 AND email_address = $2',
+      [businessId, emailAddress]
     );
 
     if (existingResult.rows.length > 0) {
@@ -86,19 +86,19 @@ router.post('/', authenticateToken, requireGym, validateBody(addEmailSchema), as
 
     // Add the email
     const result = await query(
-      `INSERT INTO monitored_emails (gym_id, email_address, is_connected)
+      `INSERT INTO monitored_emails (business_id, email_address, is_connected)
        VALUES ($1, $2, $3)
        RETURNING id, email_address, is_connected, last_checked, created_at, updated_at`,
-      [gymId, emailAddress, false]
+      [businessId, emailAddress, false]
     );
 
     const email = result.rows[0];
 
     // Log the event
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'email_added', 'Email address added for monitoring: $2', $3, $4)`,
-      [gymId, emailAddress, req.ip, req.get('User-Agent')]
+      [businessId, emailAddress, req.ip, req.get('User-Agent')]
     );
 
     res.status(201).json({
@@ -118,16 +118,16 @@ router.post('/', authenticateToken, requireGym, validateBody(addEmailSchema), as
 });
 
 // Update email connection status
-router.put('/:id', authenticateToken, requireGym, validateParams(emailParamsSchema), validateBody(updateEmailSchema), async (req: AuthRequest, res, next) => {
+router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParamsSchema), validateBody(updateEmailSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const emailId = req.params.id;
     const { isConnected } = req.body;
 
-    // Verify the email belongs to this gym
+    // Verify the email belongs to this business
     const verifyResult = await query(
-      'SELECT id, email_address FROM monitored_emails WHERE id = $1 AND gym_id = $2',
-      [emailId, gymId]
+      'SELECT id, email_address FROM monitored_emails WHERE id = $1 AND business_id = $2',
+      [emailId, businessId]
     );
 
     if (verifyResult.rows.length === 0) {
@@ -138,18 +138,18 @@ router.put('/:id', authenticateToken, requireGym, validateParams(emailParamsSche
     const result = await query(
       `UPDATE monitored_emails 
        SET is_connected = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2 AND gym_id = $3
+       WHERE id = $2 AND business_id = $3
        RETURNING id, email_address, is_connected, last_checked, created_at, updated_at`,
-      [isConnected, emailId, gymId]
+      [isConnected, emailId, businessId]
     );
 
     const email = result.rows[0];
 
     // Log the event
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'email_connection_updated', 'Email connection status updated for $2: $3', $4, $5)`,
-      [gymId, email.email_address, isConnected ? 'connected' : 'disconnected', req.ip, req.get('User-Agent')]
+      [businessId, email.email_address, isConnected ? 'connected' : 'disconnected', req.ip, req.get('User-Agent')]
     );
 
     res.json({
@@ -169,15 +169,15 @@ router.put('/:id', authenticateToken, requireGym, validateParams(emailParamsSche
 });
 
 // Remove email from monitoring
-router.delete('/:id', authenticateToken, requireGym, validateParams(emailParamsSchema), async (req: AuthRequest, res, next) => {
+router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailParamsSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const emailId = req.params.id;
 
     // Get email info before deletion for logging
     const emailResult = await query(
-      'SELECT email_address FROM monitored_emails WHERE id = $1 AND gym_id = $2',
-      [emailId, gymId]
+      'SELECT email_address FROM monitored_emails WHERE id = $1 AND business_id = $2',
+      [emailId, businessId]
     );
 
     if (emailResult.rows.length === 0) {
@@ -187,13 +187,13 @@ router.delete('/:id', authenticateToken, requireGym, validateParams(emailParamsS
     const emailAddress = emailResult.rows[0].email_address;
 
     // Delete the email
-    await query('DELETE FROM monitored_emails WHERE id = $1 AND gym_id = $2', [emailId, gymId]);
+    await query('DELETE FROM monitored_emails WHERE id = $1 AND business_id = $2', [emailId, businessId]);
 
     // Log the event
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'email_removed', 'Email address removed from monitoring: $2', $3, $4)`,
-      [gymId, emailAddress, req.ip, req.get('User-Agent')]
+      [businessId, emailAddress, req.ip, req.get('User-Agent')]
     );
 
     res.json({ message: 'Email address removed from monitoring' });
@@ -203,26 +203,26 @@ router.delete('/:id', authenticateToken, requireGym, validateParams(emailParamsS
 });
 
 // Get email monitoring statistics
-router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
+router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
 
     // Get total emails count
     const totalResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE gym_id = $1',
-      [gymId]
+      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1',
+      [businessId]
     );
 
     // Get connected emails count
     const connectedResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE gym_id = $1 AND is_connected = true',
-      [gymId]
+      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND is_connected = true',
+      [businessId]
     );
 
     // Get emails with recent activity (last 24 hours)
     const recentResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE gym_id = $1 AND last_checked >= NOW() - INTERVAL \'24 hours\'',
-      [gymId]
+      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND last_checked >= NOW() - INTERVAL \'24 hours\'',
+      [businessId]
     );
 
     const stats = {

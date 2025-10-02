@@ -48,7 +48,7 @@ export default function Login() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Numenor Security</h1>
-          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Gyms</p>
+          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Small & Medium Businesses</p>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account

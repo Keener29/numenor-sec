@@ -1,39 +1,39 @@
 import { Router } from 'express';
 import { validateBody, validateParams } from '../middleware/validation.js';
-import { authenticateToken, requireGym, type AuthRequest } from '../middleware/auth.js';
-import { updateGymSchema, gymParamsSchema } from '../schemas/gym.js';
+import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
+import { updateBusinessSchema, businessParamsSchema } from '../schemas/business.js';
 import { query } from '../../db/connection.js';
 
 const router = Router();
 
-// Get gym information
-router.get('/', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
+// Get business information
+router.get('/', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
 
     const result = await query(
       `SELECT id, name, address, phone, website, member_count, is_active, created_at, updated_at
-       FROM gyms 
+       FROM businesses 
        WHERE id = $1`,
-      [gymId]
+      [businessId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Gym not found' });
+      return res.status(404).json({ error: 'Business not found' });
     }
 
-    const gym = result.rows[0];
+    const business = result.rows[0];
     res.json({
-      gym: {
-        id: gym.id,
-        name: gym.name,
-        address: gym.address,
-        phone: gym.phone,
-        website: gym.website,
-        memberCount: gym.member_count,
-        isActive: gym.is_active,
-        createdAt: gym.created_at,
-        updatedAt: gym.updated_at
+      business: {
+        id: business.id,
+        name: business.name,
+        address: business.address,
+        phone: business.phone,
+        website: business.website,
+        memberCount: business.member_count,
+        isActive: business.is_active,
+        createdAt: business.created_at,
+        updatedAt: business.updated_at
       }
     });
   } catch (error) {
@@ -41,10 +41,10 @@ router.get('/', authenticateToken, requireGym, async (req: AuthRequest, res, nex
   }
 });
 
-// Update gym information
-router.put('/', authenticateToken, requireGym, validateBody(updateGymSchema), async (req: AuthRequest, res, next) => {
+// Update business information
+router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const updates = req.body;
 
     // Build dynamic update query
@@ -77,9 +77,9 @@ router.put('/', authenticateToken, requireGym, validateBody(updateGymSchema), as
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    values.push(gymId);
+    values.push(businessId);
     const queryText = `
-      UPDATE gyms 
+      UPDATE businesses 
       SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramCount}
       RETURNING id, name, address, phone, website, member_count, is_active, created_at, updated_at
@@ -88,30 +88,30 @@ router.put('/', authenticateToken, requireGym, validateBody(updateGymSchema), as
     const result = await query(queryText, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Gym not found' });
+      return res.status(404).json({ error: 'Business not found' });
     }
 
-    const gym = result.rows[0];
+    const business = result.rows[0];
 
     // Log the update event
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'gym_updated', 'Gym information updated', $2, $3)`,
-      [gymId, req.ip, req.get('User-Agent')]
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+       VALUES ($1, 'business_updated', 'Business information updated', $2, $3)`,
+      [businessId, req.ip, req.get('User-Agent')]
     );
 
     res.json({
-      message: 'Gym updated successfully',
-      gym: {
-        id: gym.id,
-        name: gym.name,
-        address: gym.address,
-        phone: gym.phone,
-        website: gym.website,
-        memberCount: gym.member_count,
-        isActive: gym.is_active,
-        createdAt: gym.created_at,
-        updatedAt: gym.updated_at
+      message: 'Business updated successfully',
+      business: {
+        id: business.id,
+        name: business.name,
+        address: business.address,
+        phone: business.phone,
+        website: business.website,
+        memberCount: business.member_count,
+        isActive: business.is_active,
+        createdAt: business.created_at,
+        updatedAt: business.updated_at
       }
     });
   } catch (error) {
@@ -119,39 +119,39 @@ router.put('/', authenticateToken, requireGym, validateBody(updateGymSchema), as
   }
 });
 
-// Get gym statistics
-router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
+// Get business statistics
+router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
 
     // Get monitored emails count
     const emailsResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE gym_id = $1',
-      [gymId]
+      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1',
+      [businessId]
     );
 
     // Get total alerts count
     const alertsResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1',
-      [gymId]
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE business_id = $1',
+      [businessId]
     );
 
     // Get pending alerts count
     const pendingAlertsResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1 AND status = $2',
-      [gymId, 'pending']
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE business_id = $1 AND status = $2',
+      [businessId, 'pending']
     );
 
     // Get recent alerts (last 7 days)
     const recentAlertsResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
-      [gymId]
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE business_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
+      [businessId]
     );
 
     // Get connected emails count
     const connectedEmailsResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE gym_id = $1 AND is_connected = true',
-      [gymId]
+      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND is_connected = true',
+      [businessId]
     );
 
     res.json({

@@ -7,8 +7,8 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
-  gym_name: string;
-  gym_id?: number;
+  business_name: string;
+  business_id?: number;
 }
 
 export const hashPassword = async (password: string): Promise<string> => {
@@ -30,7 +30,7 @@ export const generateToken = (user: User): string => {
     {
       id: user.id,
       email: user.email,
-      gym_id: user.gym_id
+      business_id: user.business_id
     },
     jwtSecret,
     { expiresIn: '1d' }
@@ -39,9 +39,9 @@ export const generateToken = (user: User): string => {
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.business_name, g.id as business_id
      FROM users u
-     LEFT JOIN gyms g ON g.owner_id = u.id
+     LEFT JOIN businesses g ON g.owner_id = u.id
      WHERE u.email = $1 AND u.is_active = true`,
     [email]
   );
@@ -55,9 +55,9 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 
 export const getUserById = async (id: number): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.business_name, g.id as business_id
      FROM users u
-     LEFT JOIN gyms g ON g.owner_id = u.id
+     LEFT JOIN businesses g ON g.owner_id = u.id
      WHERE u.id = $1 AND u.is_active = true`,
     [id]
   );
@@ -74,15 +74,15 @@ export const createUser = async (
   password: string,
   firstName: string,
   lastName: string,
-  gymName: string
+  businessName: string
 ): Promise<User> => {
   const hashedPassword = await hashPassword(password);
   
   const result = await query(
-    `INSERT INTO users (email, password_hash, first_name, last_name, gym_name)
+    `INSERT INTO users (email, password_hash, first_name, last_name, business_name)
      VALUES ($1, $2, $3, $4, $5)
-     RETURNING id, email, first_name, last_name, gym_name`,
-    [email, hashedPassword, firstName, lastName, gymName]
+     RETURNING id, email, first_name, last_name, business_name`,
+    [email, hashedPassword, firstName, lastName, businessName]
   );
 
   return result.rows[0];
@@ -90,9 +90,9 @@ export const createUser = async (
 
 export const verifyUserPassword = async (email: string, password: string): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, u.business_name, g.id as business_id
      FROM users u
-     LEFT JOIN gyms g ON g.owner_id = u.id
+     LEFT JOIN businesses g ON g.owner_id = u.id
      WHERE u.email = $1 AND u.is_active = true`,
     [email]
   );

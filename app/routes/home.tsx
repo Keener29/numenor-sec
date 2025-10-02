@@ -3,8 +3,8 @@ import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Numenor Security - Phishing Protection for Gyms" },
-    { name: "description", content: "Protect your gym from phishing attacks with Numenor Security" },
+    { title: "Numenor Security - Phishing Protection for Small & Medium Businesses" },
+    { name: "description", content: "Protect your business from phishing attacks with Numenor Security" },
   ];
 }
 
@@ -43,14 +43,14 @@ export default function Home() {
             {/* Left side - Text content */}
             <div className="flex-1 py-12 lg:py-20">
               <div className="max-w-2xl">
-                <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-                  <span className="block xl:inline">Protect Your Gym from</span>{" "}
-                  <span className="block text-blue-600 xl:inline">Phishing Attacks</span>
-                </h1>
-                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg md:mt-5 md:text-xl">
-                  Numenor Security provides comprehensive email security monitoring specifically designed for gyms and fitness centers. 
-                  Keep your business and members safe from phishing threats.
-                </p>
+                  <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                    <span className="block xl:inline">Protect Your Business from</span>{" "}
+                    <span className="block text-blue-600 xl:inline">Phishing Attacks</span>
+                  </h1>
+                  <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg md:mt-5 md:text-xl">
+                    Numenor Security provides comprehensive email security monitoring designed for small to medium businesses.
+                    Keep your business and customers safe from phishing threats.
+                  </p>
                 <div className="mt-5 sm:mt-8 sm:flex sm:justify-start">
                   <div className="rounded-md shadow">
                     <Link
@@ -77,8 +77,8 @@ export default function Home() {
               <div className="h-64 w-full bg-blue-600 sm:h-80 md:h-96 lg:h-[500px] flex items-center justify-center rounded-lg shadow-2xl">
                 <div className="text-white text-center">
                   <div className="text-6xl mb-4">🛡️</div>
-                  <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
-                  <p className="mt-2">Monitor and protect your gym's communications</p>
+                    <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
+                    <p className="mt-2">Monitor and protect your business communications</p>
                 </div>
               </div>
             </div>
@@ -95,7 +95,7 @@ export default function Home() {
               Everything you need to stay secure
             </p>
             <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
-              Our comprehensive security suite is designed specifically for gyms and fitness centers.
+              Our comprehensive security suite is designed specifically for small and medium businesses.
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export default function Home() {
                   <p className="ml-16 mb-0 text-lg leading-6 font-medium text-gray-900">Email Monitoring</p>
                 </dt>
                 <dd className="ml-16 text-base text-gray-500">
-                  Monitor all your gym's email addresses for suspicious activity and phishing attempts.
+                  Monitor all your company's email addresses for suspicious activity and phishing attempts.
                 </dd>
               </div>
 
@@ -133,7 +133,7 @@ export default function Home() {
                   <p className="ml-16 mb-0 text-lg leading-6 font-medium text-gray-900">Analytics Dashboard</p>
                 </dt>
                 <dd className="mt-2 ml-16 text-base text-gray-500">
-                  Track security trends and get insights into your gym's email security posture.
+                  Track security trends and get insights into your company's email security posture.
                 </dd>
               </div>
 
@@ -157,7 +157,7 @@ export default function Home() {
       <div className="bg-blue-700">
         <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-            <span className="block">Ready to protect your gym?</span>
+            <span className="block">Ready to protect your business?</span>
             <span className="block">Start your free trial today.</span>
           </h2>
           <p className="mt-4 text-lg leading-6 text-blue-200">

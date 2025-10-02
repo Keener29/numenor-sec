@@ -10,7 +10,7 @@ const router = Router();
 // Register new user
 router.post('/register', validateBody(registerSchema), async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName, gymName } = req.body;
+    const { email, password, firstName, lastName, businessName } = req.body;
 
     // Check if user already exists
     const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -18,27 +18,27 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
       return res.status(409).json({ error: 'User with this email already exists' });
     }
 
-    // Check if gym name already exists
-    const existingGym = await query('SELECT id FROM gyms WHERE name = $1', [gymName]);
-    if (existingGym.rows.length > 0) {
-      return res.status(409).json({ error: 'A gym with this name already exists' });
+    // Check if business name already exists
+    const existingBusiness = await query('SELECT id FROM businesses WHERE name = $1', [businessName]);
+    if (existingBusiness.rows.length > 0) {
+      return res.status(409).json({ error: 'A business with this name already exists' });
     }
 
     // Create user
-    const user = await createUser(email, password, firstName, lastName, gymName);
+    const user = await createUser(email, password, firstName, lastName, businessName);
 
-    // Create gym for the user
-    const gymResult = await query(
-      `INSERT INTO gyms (name, owner_id) 
+    // Create business for the user
+    const businessResult = await query(
+      `INSERT INTO businesses (name, owner_id) 
        VALUES ($1, $2) 
        RETURNING id`,
-      [gymName, user.id]
+      [businessName, user.id]
     );
 
-    const gymId = gymResult.rows[0].id;
+    const businessId = businessResult.rows[0].id;
 
     // Generate JWT token
-    const token = generateToken({ ...user, gym_id: gymId });
+    const token = generateToken({ ...user, business_id: businessId });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -47,8 +47,8 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        gymName: user.gym_name,
-        gymId
+        businessName: user.business_name,
+        businessId
       },
       token
     });
@@ -76,8 +76,8 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        gymName: user.gym_name,
-        gymId: user.gym_id
+        businessName: user.business_name,
+        businessId: user.business_id
       },
       token
     });
@@ -100,8 +100,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res, next) => {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        gymName: user.gym_name,
-        gymId: user.gym_id
+        businessName: user.business_name,
+        businessId: user.business_id
       }
     });
   } catch (error) {
@@ -142,9 +142,9 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res, next) =>
   try {
     // Log the logout event
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'logout', 'User logged out', $2, $3)`,
-      [req.user!.gym_id, req.ip, req.get('User-Agent')]
+      [req.user!.business_id, req.ip, req.get('User-Agent')]
     );
 
     res.json({ message: 'Logout successful' });

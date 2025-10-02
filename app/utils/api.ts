@@ -48,7 +48,7 @@ export const authAPI = {
     password: string;
     firstName: string;
     lastName: string;
-    gymName: string;
+    businessName: string;
   }) => {
     const response = await apiRequest('/auth/register', {
       method: 'POST',
@@ -206,28 +206,28 @@ export const alertsAPI = {
   },
 };
 
-// Gym API functions
-export const gymAPI = {
-  // Get gym information
-  getGym: async () => {
-    return apiRequest('/gym');
+// Business API functions
+export const businessAPI = {
+  // Get business information
+  getBusiness: async () => {
+    return apiRequest('/business');
   },
 
-  // Update gym information
-  updateGym: async (updates: {
+  // Update business information
+  updateBusiness: async (updates: {
     name?: string;
     address?: string;
     phone?: string;
     website?: string;
   }) => {
-    return apiRequest('/gym', {
+    return apiRequest('/business', {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
   },
 
-  // Get gym statistics
-  getGymStats: async () => {
-    return apiRequest('/gym/stats');
+  // Get business statistics
+  getBusinessStats: async () => {
+    return apiRequest('/business/stats');
   },
 };

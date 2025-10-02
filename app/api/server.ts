@@ -8,7 +8,7 @@ dotenv.config();
 
 // Import routes
 import authRoutes from './routes/auth.js';
-import gymRoutes from './routes/gym.js';
+import businessRoutes from './routes/business.js';
 import emailRoutes from './routes/emails.js';
 import alertRoutes from './routes/alerts.js';
 
@@ -50,7 +50,7 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/gym', gymRoutes);
+app.use('/api/business', businessRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/alerts', alertRoutes);
 
@@ -67,10 +67,10 @@ app.get('/api', (req, res) => {
         'POST /api/auth/change-password': 'Change user password',
         'POST /api/auth/logout': 'Logout user'
       },
-      gym: {
-        'GET /api/gym': 'Get gym information',
-        'PUT /api/gym': 'Update gym information',
-        'GET /api/gym/stats': 'Get gym statistics'
+      business: {
+        'GET /api/business': 'Get business information',
+        'PUT /api/business': 'Update business information',
+        'GET /api/business/stats': 'Get business statistics'
       },
       emails: {
         'GET /api/emails': 'Get monitored emails',

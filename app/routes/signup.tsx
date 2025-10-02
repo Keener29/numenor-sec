@@ -13,7 +13,7 @@ export function meta({}: Route.MetaArgs) {
 export default function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    gymName: "",
+    businessName: "",
     ownerName: "",
     email: "",
     password: "",
@@ -48,7 +48,7 @@ export default function Signup() {
         password: formData.password,
         firstName,
         lastName,
-        gymName: formData.gymName,
+        businessName: formData.businessName,
       });
       
       console.log("Registration successful:", response);
@@ -87,7 +87,7 @@ export default function Signup() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Numenor Security</h1>
-          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Gyms</p>
+          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Small & Medium Businesses</p>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Create your account
@@ -112,26 +112,26 @@ export default function Signup() {
           )}
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="gymName" className="block text-sm font-medium text-gray-700">
-                Gym Name
+              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
+                Business Name
               </label>
               <div className="mt-1">
                 <input
-                  id="gymName"
-                  name="gymName"
+                  id="businessName"
+                  name="businessName"
                   type="text"
                   required
-                  value={formData.gymName}
+                  value={formData.businessName}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Enter your gym name"
+                  placeholder="Enter your business name"
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="ownerName" className="block text-sm font-medium text-gray-700">
-                Owner Name
+                Contact Name
               </label>
               <div className="mt-1">
                 <input

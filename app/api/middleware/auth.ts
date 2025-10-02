@@ -5,7 +5,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: number;
     email: string;
-    gym_id?: number;
+    business_id?: number; // Note: Still using business_id for database compatibility
   };
 }
 
@@ -27,14 +27,14 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
     req.user = user;
-    next(); // jump to require gym middleware
+    next(); // jump to require business middleware
   });
 };
 
-// checks if the user belongs to a gym
-export const requireGym = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (!req.user?.gym_id) {
-    return res.status(403).json({ error: 'Gym access required' });
+// checks if the user belongs to a business
+export const requireBusiness = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user?.business_id) {
+    return res.status(403).json({ error: 'Business access required' });
   }
   next(); // jump to the route handler
 };

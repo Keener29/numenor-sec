@@ -1,20 +1,20 @@
 import { Router } from 'express';
 import { validateBody, validateParams, validateQuery } from '../middleware/validation.js';
-import { authenticateToken, requireGym, type AuthRequest } from '../middleware/auth.js';
+import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { updateAlertSchema, alertParamsSchema, alertQuerySchema, createAlertSchema } from '../schemas/alerts.js';
 import { query } from '../../db/connection.js';
 
 const router = Router();
 
-// Get all alerts for the gym
-router.get('/', authenticateToken, requireGym, validateQuery(alertQuerySchema), async (req: AuthRequest, res, next) => {
+// Get all alerts for the business
+router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const { page, limit, status, threatLevel, emailId, startDate, endDate } = req.query as any;
 
     const offset = ((page - 1) * limit);
-    let whereClause = 'WHERE pa.gym_id = $1';
-    const queryParams = [gymId];
+    let whereClause = 'WHERE pa.business_id = $1';
+    const queryParams = [businessId];
     let paramCount = 2;
 
     if (status) {
@@ -91,48 +91,48 @@ router.get('/', authenticateToken, requireGym, validateQuery(alertQuerySchema), 
 });
 
 // Get alert statistics
-router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
+router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
 
     // Get total alerts count
     const totalResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1',
-      [gymId]
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE business_id = $1',
+      [businessId]
     );
 
     // Get alerts by status
     const statusResult = await query(
       `SELECT status, COUNT(*) as count 
        FROM phishing_alerts 
-       WHERE gym_id = $1 
+       WHERE business_id = $1 
        GROUP BY status`,
-      [gymId]
+      [businessId]
     );
 
     // Get alerts by threat level
     const threatLevelResult = await query(
       `SELECT threat_level, COUNT(*) as count 
        FROM phishing_alerts 
-       WHERE gym_id = $1 
+       WHERE business_id = $1 
        GROUP BY threat_level`,
-      [gymId]
+      [businessId]
     );
 
     // Get recent alerts (last 7 days)
     const recentResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
-      [gymId]
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE business_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
+      [businessId]
     );
 
     // Get alerts by day (last 7 days)
     const dailyResult = await query(
       `SELECT DATE(created_at) as date, COUNT(*) as count 
        FROM phishing_alerts 
-       WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+       WHERE business_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
        GROUP BY DATE(created_at)
        ORDER BY date`,
-      [gymId]
+      [businessId]
     );
 
     const statusCounts = statusResult.rows.reduce((acc: any, row: any) => {
@@ -168,9 +168,9 @@ router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res
 });
 
 // Get specific alert
-router.get('/:id', authenticateToken, requireGym, validateParams(alertParamsSchema), async (req: AuthRequest, res, next) => {
+router.get('/:id', authenticateToken, requireBusiness, validateParams(alertParamsSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const alertId = req.params.id;
 
     const result = await query(
@@ -179,8 +179,8 @@ router.get('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
               pa.created_at, pa.updated_at, me.email_address
        FROM phishing_alerts pa
        LEFT JOIN monitored_emails me ON me.id = pa.email_id
-       WHERE pa.id = $1 AND pa.gym_id = $2`,
-      [alertId, gymId]
+       WHERE pa.id = $1 AND pa.business_id = $2`,
+      [alertId, businessId]
     );
 
     if (result.rows.length === 0) {
@@ -211,16 +211,16 @@ router.get('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
 });
 
 // Update alert status
-router.put('/:id', authenticateToken, requireGym, validateParams(alertParamsSchema), validateBody(updateAlertSchema), async (req: AuthRequest, res, next) => {
+router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParamsSchema), validateBody(updateAlertSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const alertId = req.params.id;
     const updates = req.body;
 
-    // Verify the alert belongs to this gym
+    // Verify the alert belongs to this business
     const verifyResult = await query(
-      'SELECT id, status FROM phishing_alerts WHERE id = $1 AND gym_id = $2',
-      [alertId, gymId]
+      'SELECT id, status FROM phishing_alerts WHERE id = $1 AND business_id = $2',
+      [alertId, businessId]
     );
 
     if (verifyResult.rows.length === 0) {
@@ -245,11 +245,11 @@ router.put('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
       return res.status(400).json({ error: 'No valid fields to update' });
     }
 
-    values.push(alertId, gymId);
+    values.push(alertId, businessId);
     const queryText = `
       UPDATE phishing_alerts 
       SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${paramCount} AND gym_id = $${paramCount + 1}
+      WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
       RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at
     `;
 
@@ -269,9 +269,9 @@ router.put('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
                      'unknown';
     
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'alert_updated', $2, $3, $4)`,
-      [gymId, `Alert ${alertId} status updated to ${updates.status || 'modified'}`, clientIP, req.get('User-Agent') || null]
+      [businessId, `Alert ${alertId} status updated to ${updates.status || 'modified'}`, clientIP, req.get('User-Agent') || null]
     );
 
     res.json({
@@ -297,27 +297,27 @@ router.put('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
 });
 
 // Create new alert (for testing or manual entry)
-router.post('/', authenticateToken, requireGym, validateBody(createAlertSchema), async (req: AuthRequest, res, next) => {
+router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSchema), async (req: AuthRequest, res, next) => {
   try {
-    const gymId = req.user!.gym_id!;
+    const businessId = req.user!.business_id!;
     const { emailId, subject, senderEmail, recipientEmail, threatLevel, alertType, description, rawEmailData } = req.body;
 
-    // Verify the email belongs to this gym
+    // Verify the email belongs to this business
     const emailResult = await query(
-      'SELECT id FROM monitored_emails WHERE id = $1 AND gym_id = $2',
-      [emailId, gymId]
+      'SELECT id FROM monitored_emails WHERE id = $1 AND business_id = $2',
+      [emailId, businessId]
     );
 
     if (emailResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Email not found or does not belong to your gym' });
+      return res.status(404).json({ error: 'Email not found or does not belong to your business' });
     }
 
     // Create the alert
     const result = await query(
-      `INSERT INTO phishing_alerts (gym_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description, raw_email_data)
+      `INSERT INTO phishing_alerts (business_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description, raw_email_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at`,
-      [gymId, parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
+      [businessId, parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
     );
 
     const alert = result.rows[0];
@@ -330,9 +330,9 @@ router.post('/', authenticateToken, requireGym, validateBody(createAlertSchema),
                      'unknown';
     
     await query(
-      `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
+      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'alert_created', $2, $3, $4)`,
-      [gymId, `New phishing alert created: ${alertType}`, clientIP, req.get('User-Agent') || null]
+      [businessId, `New phishing alert created: ${alertType}`, clientIP, req.get('User-Agent') || null]
     );
 
     res.status(201).json({

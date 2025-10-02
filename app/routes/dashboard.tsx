@@ -8,7 +8,7 @@ export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
   return [
     { title: "Dashboard - Numenor Security" },
-    { name: "description", content: "Monitor your gym's email security" },
+    { name: "description", content: "Monitor your business email security" },
   ];
 }
 
@@ -155,7 +155,7 @@ export default function Dashboard() {
         <div className="px-4 py-6 sm:px-0">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="mt-2 text-gray-600">
-            Monitor your gym's email security and phishing protection status
+            Monitor your business's email security and phishing protection status
           </p>
         </div>
 

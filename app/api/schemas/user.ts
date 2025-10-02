@@ -5,7 +5,7 @@ export const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  gymName: z.string().min(1, 'Gym name is required')
+  businessName: z.string().min(1, 'Business name is required')
 });
 
 export const loginSchema = z.object({
@@ -16,7 +16,7 @@ export const loginSchema = z.object({
 export const updateUserSchema = z.object({
   firstName: z.string().min(1, 'First name is required').optional(),
   lastName: z.string().min(1, 'Last name is required').optional(),
-  gymName: z.string().min(1, 'Gym name is required').optional()
+  businessName: z.string().min(1, 'Business name is required').optional()
 });
 
 export const changePasswordSchema = z.object({

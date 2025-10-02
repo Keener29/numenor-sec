@@ -1,12 +1,12 @@
-# Numenor Security - Phishing Protection SaaS for Gyms
+# Numenor Security - Phishing Protection SaaS for Small & Medium Businesses
 
-A full-stack phishing protection SaaS targeting gyms and fitness centers. Built with React Router v7, Express.js, and PostgreSQL.
+A full-stack phishing protection SaaS designed for small to medium businesses. Built with React Router v7, Express.js, and PostgreSQL.
 
 ## Features
 
 ### Frontend
 - **Login Page**: JWT-based authentication with secure login
-- **Signup Page**: User registration with gym details and automatic gym creation
+- **Signup Page**: User registration with business details and automatic business creation
 - **Dashboard Page**:
   - Real-time email monitoring with connection status
   - Phishing alert management with threat level classification
@@ -18,7 +18,7 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 ### Backend API
 - **Authentication System**: JWT-based auth with password hashing
 - **User Management**: Registration, login, profile management
-- **Gym Management**: Gym information and statistics
+- **Business Management**: Business information and statistics
 - **Email Monitoring**: Add, remove, and manage monitored email addresses
 - **Phishing Alerts**: Create, update, and track phishing threats
 - **Security Logging**: Comprehensive audit trail of all activities
@@ -76,7 +76,7 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
    npm run db:migrate
    ```
 
-   **Note:** The database schema includes tables for users, gyms, monitored emails, phishing alerts, security events, and email scans with proper indexes and foreign key relationships.
+   **Note:** The database schema includes tables for users, businesses, monitored emails, phishing alerts, security events, and email scans with proper indexes and foreign key relationships.
 
 4. **Start the development servers:**
 
@@ -106,12 +106,12 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 │   │   │   └── errorHandler.ts # Error handling
 │   │   ├── routes/          # API routes
 │   │   │   ├── auth.ts      # Authentication endpoints
-│   │   │   ├── gym.ts       # Gym management
+│   │   │   ├── business.ts  # Business management
 │   │   │   ├── emails.ts    # Email monitoring
 │   │   │   └── alerts.ts    # Phishing alerts
 │   │   ├── schemas/         # Validation schemas
 │   │   │   ├── user.ts      # User validation
-│   │   │   ├── gym.ts       # Gym validation
+│   │   │   ├── business.ts  # Business validation
 │   │   │   ├── email.ts     # Email validation
 │   │   │   └── alerts.ts    # Alert validation
 │   │   ├── utils/           # Utility functions
@@ -160,8 +160,8 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 
 ### Signup Page (`/signup`)
 
-- Gym name field
-- Owner name field
+- Business name field
+- Contact name field
 - Email and password fields
 - Password confirmation with real-time validation
 - Terms of service agreement
@@ -184,16 +184,16 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 ## API Endpoints
 
 ### Authentication (`/api/auth`)
-- `POST /register` - Register new user and create gym
+- `POST /register` - Register new user and create business
 - `POST /login` - User authentication with JWT
 - `GET /me` - Get current user profile
 - `POST /change-password` - Change user password
 - `POST /logout` - Logout and log security event
 
-### Gym Management (`/api/gym`)
-- `GET /` - Get gym information
-- `PUT /` - Update gym details
-- `GET /stats` - Get gym statistics (emails, alerts, etc.)
+### Business Management (`/api/business`)
+- `GET /` - Get business information
+- `PUT /` - Update business details
+- `GET /stats` - Get business statistics (emails, alerts, etc.)
 
 ### Email Monitoring (`/api/emails`)
 - `GET /` - List monitored emails (with pagination)
@@ -230,20 +230,20 @@ This connection status determines whether the email security system is actively 
 The PostgreSQL database includes:
 
 - **Users**: User accounts with authentication
-  - Stores gym owners/administrators who can access the system
-  - Contains login credentials, personal info, and gym association
-  - One user per gym (gym owner/administrator)
+  - Stores business owners/administrators who can access the system
+  - Contains login credentials, personal info, and business association
+  - One user per business (business owner/administrator)
 
-- **Gyms**: Gym information and settings
-  - Business information for each fitness center
-  - Contains gym name, address, contact details, and settings
-  - Each gym has one owner (user) and multiple monitored emails
+- **Businesses**: Business information and settings
+  - Business information for each company
+  - Contains business name, address, contact details, and settings
+  - Each business has one owner (user) and multiple monitored emails
 
 - **Monitored Emails**: Email addresses being monitored
   - **What it is**: The actual email inboxes that the system watches for phishing attempts
-  - **Purpose**: Tracks which email addresses belong to each gym and their connection status
+  - **Purpose**: Tracks which email addresses belong to each business and their connection status
   - **Contains**: Email address, connection status (connected/disconnected), last scan time
-  - **Example**: `info@goldengym.com`, `support@goldengym.com`, `admin@goldengym.com`
+  - **Example**: `info@mybusiness.com`, `support@mybusiness.com`, `admin@mybusiness.com`
 
 - **Phishing Alerts**: Detected threats with metadata
   - **What it is**: Individual phishing attempts that were caught by the system
@@ -261,7 +261,7 @@ The PostgreSQL database includes:
   - **What it is**: Technical logs of the email scanning process
   - **Purpose**: Tracks the health and performance of email monitoring operations
   - **Contains**: Scan timestamps, success/failure status, processing times, error messages
-  - **Example**: "Scan completed for info@goldengym.com at 2025-01-02 10:30:00", "Connection timeout error"
+  - **Example**: "Scan completed for info@mybusiness.com at 2025-01-02 10:30:00", "Connection timeout error"
 
 All tables include proper indexes, foreign key relationships, and automatic timestamp updates.
 
