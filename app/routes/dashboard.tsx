@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI } from "../utils/api";
+import Dropdown from "../components/Dropdown";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadDashboardData();
@@ -117,6 +119,16 @@ export default function Dashboard() {
     }
   };
 
+  const toggleEmailExpansion = (emailId: number) => {
+    const newExpanded = new Set(expandedEmails);
+    if (newExpanded.has(emailId)) {
+      newExpanded.delete(emailId);
+    } else {
+      newExpanded.add(emailId);
+    }
+    setExpandedEmails(newExpanded);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -124,7 +136,7 @@ export default function Dashboard() {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -231,58 +243,145 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Email Monitoring Table */}
+          {/* Email Monitoring */}
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
                 Email Monitoring
               </h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email Address
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pending Alerts
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {emails.map((email) => (
-                      <tr key={email.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {email.emailAddress}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {email.isConnected ? 'Connected' : 'Disconnected'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="text-sm font-medium text-gray-900">
-                            {alerts.filter(alert => alert.emailId === email.id && alert.status !== 'safe').length}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <div className="space-y-3">
+                {emails.map((email) => {
+                  const emailAlerts = alerts.filter(alert => alert.emailId === email.id);
+                  const pendingAlerts = emailAlerts.filter(alert => alert.status !== 'safe');
+                  const isExpanded = expandedEmails.has(email.id);
+                  
+                  const headerContent = (
+                    <>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {email.isConnected ? 'Connected' : 'Disconnected'}
+                      </span>
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {pendingAlerts.length} Pending
+                      </span>
+                      {emailAlerts.length > 0 && (
+                        <span className="text-xs text-gray-500">
+                          {emailAlerts.length} alert{emailAlerts.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </>
+                  );
+
+                  const alertContent = emailAlerts.length > 0 ? (
+                    <div className="space-y-3">
+                      {emailAlerts.map((alert) => {
+                        const getThreatColor = (threatLevel: string) => {
+                          switch (threatLevel) {
+                            case 'critical': return 'bg-red-100 text-red-800';
+                            case 'high': return 'bg-red-100 text-red-800';
+                            case 'medium': return 'bg-yellow-100 text-yellow-800';
+                            case 'low': return 'bg-green-100 text-green-800';
+                            default: return 'bg-gray-100 text-gray-800';
+                          }
+                        };
+                        
+                        const getStatusColor = (status: string) => {
+                          switch (status) {
+                            case 'safe': return 'bg-green-100 text-green-800';
+                            case 'pending': return 'bg-yellow-100 text-yellow-800';
+                            case 'reviewed': return 'bg-blue-100 text-blue-800';
+                            case 'threat': return 'bg-red-100 text-red-800';
+                            default: return 'bg-gray-100 text-gray-800';
+                          }
+                        };
+                        
+                        return (
+                          <div key={alert.id} className={`border rounded-lg p-3 ${alert.status === 'safe' ? 'bg-gray-50' : 'bg-white'}`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getThreatColor(alert.threatLevel)}`}>
+                                    {alert.threatLevel.toUpperCase()}
+                                  </span>
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(alert.status)}`}>
+                                    {alert.status}
+                                  </span>
+                                </div>
+                                
+                                <div className="space-y-1 text-sm">
+                                  <div>
+                                    <span className="font-medium text-gray-700">Subject:</span>
+                                    <span className="ml-2 text-gray-900">{alert.subject}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">From:</span>
+                                    <span className="ml-2 text-gray-900">{alert.senderEmail}</span>
+                                  </div>
+                                  <div>
+                                    <span className="font-medium text-gray-700">Type:</span>
+                                    <span className="ml-2 text-gray-900">{alert.alertType}</span>
+                                  </div>
+                                  {alert.description && (
+                                    <div>
+                                      <span className="font-medium text-gray-700">Description:</span>
+                                      <span className="ml-2 text-gray-900">{alert.description}</span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="font-medium text-gray-700">Detected:</span>
+                                    <span className="ml-2 text-gray-900">
+                                      {new Date(alert.createdAt).toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {alert.status !== 'safe' && (
+                                <button
+                                  onClick={() => handleMarkSafe(alert.id)}
+                                  className="ml-4 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 cursor-pointer"
+                                >
+                                  Mark Safe
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-500 text-sm">
+                      No alerts for this email address
+                    </div>
+                  );
+                  
+                  return (
+                    <div key={email.id} className="relative">
+                      <Dropdown
+                        title={email.emailAddress}
+                        isExpanded={isExpanded}
+                        onToggle={() => toggleEmailExpansion(email.id)}
+                        headerContent={headerContent}
+                      >
+                        {alertContent}
+                      </Dropdown>
+                      
+                      {/* Mark All Safe Button */}
+                      {pendingAlerts.length > 0 && (
+                        <div className="absolute top-3 right-12 z-10">
                           <button
-                            onClick={() => handleMarkSafe(email.id)}
-                            className="bg-white text-blue-600 hover:text-blue-900 px-3 py-1 rounded border-0 hover:bg-blue-50 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              pendingAlerts.forEach(alert => handleMarkSafe(alert.id));
+                            }}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 cursor-pointer"
                           >
-                            Mark Safe
+                            Mark All Safe
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -349,18 +448,18 @@ export default function Dashboard() {
                 
                 return (
                   <div key={alert.id} className="flex items-center text-sm">
-                    <div className="flex-shrink-0">
+                <div className="flex-shrink-0">
                       <div className={`w-2 h-2 ${getAlertColor(alert.threatLevel)} rounded-full`}></div>
-                    </div>
-                    <div className="ml-3">
+                </div>
+                <div className="ml-3">
                       <span className="text-gray-900">
                         {alert.alertType} - {alert.subject}
                       </span>
                       <span className="text-gray-500 ml-2">
                         {formatDate(alert.createdAt)}
                       </span>
-                    </div>
-                  </div>
+                </div>
+              </div>
                 );
               }) : (
                 <div className="text-gray-500 text-sm">No recent alerts</div>
