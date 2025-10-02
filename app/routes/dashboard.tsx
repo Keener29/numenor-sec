@@ -256,7 +256,7 @@ export default function Dashboard() {
                   const isExpanded = expandedEmails.has(email.id);
                   
                   const headerContent = (
-                    <>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {email.isConnected ? 'Connected' : 'Disconnected'}
                       </span>
@@ -268,8 +268,20 @@ export default function Dashboard() {
                           {emailAlerts.length} alert{emailAlerts.length !== 1 ? 's' : ''}
                         </span>
                       )}
-                    </>
+                    </div>
                   );
+
+                  const rightAction = pendingAlerts.length > 0 ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        pendingAlerts.forEach(alert => handleMarkSafe(alert.id));
+                      }}
+                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 cursor-pointer whitespace-nowrap"
+                    >
+                      Mark All Safe
+                    </button>
+                  ) : null;
 
                   const alertContent = emailAlerts.length > 0 ? (
                     <div className="space-y-3">
@@ -361,24 +373,10 @@ export default function Dashboard() {
                         isExpanded={isExpanded}
                         onToggle={() => toggleEmailExpansion(email.id)}
                         headerContent={headerContent}
+                        rightAction={rightAction}
                       >
                         {alertContent}
                       </Dropdown>
-                      
-                      {/* Mark All Safe Button */}
-                      {pendingAlerts.length > 0 && (
-                        <div className="absolute top-3 right-12 z-10">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              pendingAlerts.forEach(alert => handleMarkSafe(alert.id));
-                            }}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 cursor-pointer"
-                          >
-                            Mark All Safe
-                          </button>
-                        </div>
-                      )}
                     </div>
                   );
                 })}

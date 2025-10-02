@@ -7,6 +7,7 @@ interface DropdownProps {
   onToggle: () => void;
   className?: string;
   headerContent?: ReactNode;
+  rightAction?: ReactNode;
 }
 
 export default function Dropdown({ 
@@ -15,30 +16,34 @@ export default function Dropdown({
   isExpanded, 
   onToggle, 
   className = "",
-  headerContent 
+  headerContent,
+  rightAction
 }: DropdownProps) {
   return (
     <div className={`border border-gray-200 rounded-lg ${className}`}>
       {/* Header - Clickable */}
-      <button
-        onClick={onToggle}
-        className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center justify-between border-0 cursor-pointer"
-      >
-        <div className="flex items-center space-x-6">
-          <div className="text-sm font-medium text-gray-900">
+      <div className="px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center justify-between">
+        <button
+          onClick={onToggle}
+          className="flex items-center space-x-6 flex-1 min-w-0 border-0 cursor-pointer bg-transparent"
+        >
+          <div className="text-sm font-medium text-gray-900 truncate">
             {title}
           </div>
           {headerContent}
+        </button>
+        <div className="flex items-center space-x-3 flex-shrink-0">
+          {rightAction}
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </div>
       
       {/* Collapsible Content */}
       {isExpanded && (
