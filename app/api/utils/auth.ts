@@ -1,0 +1,114 @@
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { query } from '../../db/connection.js';
+
+export interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  gym_name: string;
+  gym_id?: number;
+}
+
+export const hashPassword = async (password: string): Promise<string> => {
+  const saltRounds = 12;
+  return await bcrypt.hash(password, saltRounds);
+};
+
+export const comparePassword = async (password: string, hash: string): Promise<boolean> => {
+  return await bcrypt.compare(password, hash);
+};
+
+export const generateToken = (user: User): string => {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET not configured');
+  }
+
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      gym_id: user.gym_id
+    },
+    jwtSecret,
+    { expiresIn: '1d' }
+  );
+};
+
+export const getUserByEmail = async (email: string): Promise<User | null> => {
+  const result = await query(
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+     FROM users u
+     LEFT JOIN gyms g ON g.owner_id = u.id
+     WHERE u.email = $1 AND u.is_active = true`,
+    [email]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+};
+
+export const getUserById = async (id: number): Promise<User | null> => {
+  const result = await query(
+    `SELECT u.id, u.email, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+     FROM users u
+     LEFT JOIN gyms g ON g.owner_id = u.id
+     WHERE u.id = $1 AND u.is_active = true`,
+    [id]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+};
+
+export const createUser = async (
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string,
+  gymName: string
+): Promise<User> => {
+  const hashedPassword = await hashPassword(password);
+  
+  const result = await query(
+    `INSERT INTO users (email, password_hash, first_name, last_name, gym_name)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, email, first_name, last_name, gym_name`,
+    [email, hashedPassword, firstName, lastName, gymName]
+  );
+
+  return result.rows[0];
+};
+
+export const verifyUserPassword = async (email: string, password: string): Promise<User | null> => {
+  const result = await query(
+    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, u.gym_name, g.id as gym_id
+     FROM users u
+     LEFT JOIN gyms g ON g.owner_id = u.id
+     WHERE u.email = $1 AND u.is_active = true`,
+    [email]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const user = result.rows[0];
+  const isValidPassword = await comparePassword(password, user.password_hash);
+
+  if (!isValidPassword) {
+    return null;
+  }
+
+  // Remove password_hash from returned user object
+  delete user.password_hash;
+  return user;
+};
