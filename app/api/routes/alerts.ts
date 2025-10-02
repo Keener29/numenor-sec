@@ -90,6 +90,83 @@ router.get('/', authenticateToken, requireGym, validateQuery(alertQuerySchema), 
   }
 });
 
+// Get alert statistics
+router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
+  try {
+    const gymId = req.user!.gym_id!;
+
+    // Get total alerts count
+    const totalResult = await query(
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1',
+      [gymId]
+    );
+
+    // Get alerts by status
+    const statusResult = await query(
+      `SELECT status, COUNT(*) as count 
+       FROM phishing_alerts 
+       WHERE gym_id = $1 
+       GROUP BY status`,
+      [gymId]
+    );
+
+    // Get alerts by threat level
+    const threatLevelResult = await query(
+      `SELECT threat_level, COUNT(*) as count 
+       FROM phishing_alerts 
+       WHERE gym_id = $1 
+       GROUP BY threat_level`,
+      [gymId]
+    );
+
+    // Get recent alerts (last 7 days)
+    const recentResult = await query(
+      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
+      [gymId]
+    );
+
+    // Get alerts by day (last 7 days)
+    const dailyResult = await query(
+      `SELECT DATE(created_at) as date, COUNT(*) as count 
+       FROM phishing_alerts 
+       WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+       GROUP BY DATE(created_at)
+       ORDER BY date`,
+      [gymId]
+    );
+
+    const statusCounts = statusResult.rows.reduce((acc: any, row: any) => {
+      acc[row.status] = parseInt(row.count);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const threatLevelCounts = threatLevelResult.rows.reduce((acc: any, row: any) => {
+      acc[row.threat_level] = parseInt(row.count);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const stats = {
+      totalAlerts: parseInt(totalResult.rows[0].count),
+      recentAlerts: parseInt(recentResult.rows[0].count),
+      statusCounts,
+      threatLevelCounts,
+      dailyAlerts: dailyResult.rows.map((row: any) => ({
+        date: row.date,
+        count: parseInt(row.count)
+      }))
+    };
+    
+    console.log('Alert stats response:', stats);
+    console.log('Daily alerts raw data:', dailyResult.rows);
+    
+    res.json({
+      stats
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get specific alert
 router.get('/:id', authenticateToken, requireGym, validateParams(alertParamsSchema), async (req: AuthRequest, res, next) => {
   try {
@@ -185,10 +262,16 @@ router.put('/:id', authenticateToken, requireGym, validateParams(alertParamsSche
     const alert = result.rows[0];
 
     // Log the event
+    const clientIP = req.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
+                     req.get('X-Real-IP') || 
+                     req.get('CF-Connecting-IP') || 
+                     req.ip || 
+                     'unknown';
+    
     await query(
       `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'alert_updated', 'Alert $2 status updated to $3', $4, $5)`,
-      [gymId, alertId, updates.status || 'modified', req.ip, req.get('User-Agent')]
+       VALUES ($1, 'alert_updated', $2, $3, $4)`,
+      [gymId, `Alert ${alertId} status updated to ${updates.status || 'modified'}`, clientIP, req.get('User-Agent') || null]
     );
 
     res.json({
@@ -234,16 +317,22 @@ router.post('/', authenticateToken, requireGym, validateBody(createAlertSchema),
       `INSERT INTO phishing_alerts (gym_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description, raw_email_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at`,
-      [gymId, emailId, subject, senderEmail, recipientEmail, threatLevel, alertType, description, rawEmailData]
+      [gymId, parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
     );
 
     const alert = result.rows[0];
 
     // Log the event
+    const clientIP = req.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
+                     req.get('X-Real-IP') || 
+                     req.get('CF-Connecting-IP') || 
+                     req.ip || 
+                     'unknown';
+    
     await query(
       `INSERT INTO security_events (gym_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'alert_created', 'New phishing alert created: $2', $3, $4)`,
-      [gymId, alertType, req.ip, req.get('User-Agent')]
+       VALUES ($1, 'alert_created', $2, $3, $4)`,
+      [gymId, `New phishing alert created: ${alertType}`, clientIP, req.get('User-Agent') || null]
     );
 
     res.status(201).json({
@@ -261,78 +350,6 @@ router.post('/', authenticateToken, requireGym, validateBody(createAlertSchema),
         rawEmailData: alert.raw_email_data,
         createdAt: alert.created_at,
         updatedAt: alert.updated_at
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Get alert statistics
-router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res, next) => {
-  try {
-    const gymId = req.user!.gym_id!;
-
-    // Get total alerts count
-    const totalResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1',
-      [gymId]
-    );
-
-    // Get alerts by status
-    const statusResult = await query(
-      `SELECT status, COUNT(*) as count 
-       FROM phishing_alerts 
-       WHERE gym_id = $1 
-       GROUP BY status`,
-      [gymId]
-    );
-
-    // Get alerts by threat level
-    const threatLevelResult = await query(
-      `SELECT threat_level, COUNT(*) as count 
-       FROM phishing_alerts 
-       WHERE gym_id = $1 
-       GROUP BY threat_level`,
-      [gymId]
-    );
-
-    // Get recent alerts (last 7 days)
-    const recentResult = await query(
-      'SELECT COUNT(*) as count FROM phishing_alerts WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL \'7 days\'',
-      [gymId]
-    );
-
-    // Get alerts by day (last 7 days)
-    const dailyResult = await query(
-      `SELECT DATE(created_at) as date, COUNT(*) as count 
-       FROM phishing_alerts 
-       WHERE gym_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
-       GROUP BY DATE(created_at)
-       ORDER BY date`,
-      [gymId]
-    );
-
-    const statusCounts = statusResult.rows.reduce((acc: any, row: any) => {
-      acc[row.status] = parseInt(row.count);
-      return acc;
-    }, {} as Record<string, number>);
-
-    const threatLevelCounts = threatLevelResult.rows.reduce((acc: any, row: any) => {
-      acc[row.threat_level] = parseInt(row.count);
-      return acc;
-    }, {} as Record<string, number>);
-
-    res.json({
-      stats: {
-        totalAlerts: parseInt(totalResult.rows[0].count),
-        recentAlerts: parseInt(recentResult.rows[0].count),
-        statusCounts,
-        threatLevelCounts,
-        dailyAlerts: dailyResult.rows.map((row: any) => ({
-          date: row.date,
-          count: parseInt(row.count)
-        }))
       }
     });
   } catch (error) {
