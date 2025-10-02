@@ -22,12 +22,45 @@ export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [passwordLengthError, setPasswordLengthError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setPasswordError("");
+    setPasswordLengthError("");
+
+    // Client-side validation
+    if (!formData.businessName.trim()) {
+      setError("Business name is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.ownerName.trim()) {
+      setError("Contact name is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      setError("Email address is required");
+      setIsLoading(false);
+      return;
+    }
+
+    if (!formData.email.includes('@')) {
+      setError("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setIsLoading(false);
+      return;
+    }
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
@@ -73,7 +106,17 @@ export default function Signup() {
     if (name === "password" || name === "confirmPassword") {
       const password = name === "password" ? value : formData.password;
       const confirmPassword = name === "confirmPassword" ? value : formData.confirmPassword;
-      
+
+      // Check password length
+      if (name === "password") {
+        if (value.length > 0 && value.length < 8) {
+          setPasswordLengthError("Password must be at least 8 characters");
+        } else {
+          setPasswordLengthError("");
+        }
+      }
+
+      // Check password match
       if (confirmPassword && password !== confirmPassword) {
         setPasswordError("Passwords do not match");
       } else {
@@ -179,9 +222,14 @@ export default function Signup() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="form-input"
+                  className={`form-input ${passwordLengthError ? 'form-input-error' : ''}`}
                   placeholder="Create a password"
                 />
+                {passwordLengthError && (
+                  <div className="error-message">
+                    {passwordLengthError}
+                  </div>
+                )}
               </div>
             </div>
 
