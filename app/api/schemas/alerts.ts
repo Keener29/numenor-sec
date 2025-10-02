@@ -9,15 +9,22 @@ export const alertParamsSchema = z.object({
   id: z.string().regex(/^\d+$/, 'Invalid alert ID').transform(Number)
 });
 
-export const alertQuerySchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).optional().default(1),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional().default(10),
+export const alertQuerySchema = z.preprocess((data: any) => {
+  // Ensure page and limit are strings with defaults
+  return {
+    ...data,
+    page: data.page || '1',
+    limit: data.limit || '10'
+  };
+}, z.object({
+  page: z.string().regex(/^\d+$/).transform(Number),
+  limit: z.string().regex(/^\d+$/).transform(Number),
   status: z.enum(['pending', 'reviewed', 'safe', 'threat']).optional(),
   threatLevel: z.enum(['low', 'medium', 'high', 'critical']).optional(),
   emailId: z.string().regex(/^\d+$/).transform(Number).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional()
-});
+}));
 
 export const createAlertSchema = z.object({
   emailId: z.number().int().positive('Invalid email ID'),

@@ -87,9 +87,9 @@ router.post('/', authenticateToken, requireGym, validateBody(addEmailSchema), as
     // Add the email
     const result = await query(
       `INSERT INTO monitored_emails (gym_id, email_address, is_connected)
-       VALUES ($1, $2, false)
+       VALUES ($1, $2, $3)
        RETURNING id, email_address, is_connected, last_checked, created_at, updated_at`,
-      [gymId, emailAddress]
+      [gymId, emailAddress, false]
     );
 
     const email = result.rows[0];
@@ -225,13 +225,17 @@ router.get('/stats', authenticateToken, requireGym, async (req: AuthRequest, res
       [gymId]
     );
 
+    const stats = {
+      totalEmails: parseInt(totalResult.rows[0].count),
+      connectedEmails: parseInt(connectedResult.rows[0].count),
+      disconnectedEmails: parseInt(totalResult.rows[0].count) - parseInt(connectedResult.rows[0].count),
+      recentActivity: parseInt(recentResult.rows[0].count)
+    };
+    
+    console.log('Email stats response:', stats);
+    
     res.json({
-      stats: {
-        totalEmails: parseInt(totalResult.rows[0].count),
-        connectedEmails: parseInt(connectedResult.rows[0].count),
-        disconnectedEmails: parseInt(totalResult.rows[0].count) - parseInt(connectedResult.rows[0].count),
-        recentActivity: parseInt(recentResult.rows[0].count)
-      }
+      stats
     });
   } catch (error) {
     next(error);
