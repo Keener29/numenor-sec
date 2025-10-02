@@ -21,15 +21,18 @@ export default function Signup() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setPasswordError("");
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
+      setPasswordError("Passwords do not match");
       setIsLoading(false);
       return;
     }
@@ -59,10 +62,24 @@ export default function Signup() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
+    const { name, value } = e.target;
+    const updatedFormData = {
       ...formData,
-      [e.target.name]: e.target.value,
-    });
+      [name]: value,
+    };
+    setFormData(updatedFormData);
+
+    // Real-time password validation
+    if (name === "password" || name === "confirmPassword") {
+      const password = name === "password" ? value : formData.password;
+      const confirmPassword = name === "confirmPassword" ? value : formData.confirmPassword;
+      
+      if (confirmPassword && password !== confirmPassword) {
+        setPasswordError("Passwords do not match");
+      } else {
+        setPasswordError("");
+      }
+    }
   };
 
   return (
@@ -181,10 +198,15 @@ export default function Signup() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className={`form-input ${passwordError ? 'form-input-error' : ''}`}
                   placeholder="Confirm your password"
                 />
               </div>
+              {passwordError && (
+                <div className="error-message">
+                  {passwordError}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center">
@@ -211,7 +233,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary"
               >
                 {isLoading ? "Creating account..." : "Create Account"}
               </button>

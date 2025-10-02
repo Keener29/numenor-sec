@@ -13,7 +13,7 @@ export default function Home() {
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
       <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
@@ -37,20 +37,21 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <div className="relative bg-white overflow-hidden">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative z-20 pb-8 bg-white sm:pb-16 md:pb-20 lg:w-1/2 lg:pb-28 xl:pb-32">
-            <main className="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
-              <div className="sm:text-center lg:text-left">
+      <div className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col lg:flex-row lg:items-center">
+            {/* Left side - Text content */}
+            <div className="flex-1 py-12 lg:py-20">
+              <div className="max-w-2xl">
                 <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                   <span className="block xl:inline">Protect Your Gym from</span>{" "}
                   <span className="block text-blue-600 xl:inline">Phishing Attacks</span>
                 </h1>
-                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto md:mt-5 md:text-xl lg:mx-0">
+                <p className="mt-3 text-base text-gray-500 sm:mt-5 sm:text-lg md:mt-5 md:text-xl">
                   Numenor Security provides comprehensive email security monitoring specifically designed for gyms and fitness centers. 
                   Keep your business and members safe from phishing threats.
                 </p>
-                <div className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                <div className="mt-5 sm:mt-8 sm:flex sm:justify-start">
                   <div className="rounded-md shadow">
                     <Link
                       to="/signup"
@@ -62,22 +63,24 @@ export default function Home() {
                   <div className="mt-3 sm:mt-0 sm:ml-3">
                     <Link
                       to="/login"
-                      className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 md:py-4 md:text-lg md:px-10"
+                      className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 md:py-6 md:text-2xl md:px-20"
                     >
                       Sign In
                     </Link>
                   </div>
                 </div>
               </div>
-            </main>
-          </div>
-        </div>
-        <div className="hero-image-container">
-          <div className="h-56 w-full bg-blue-600 sm:h-72 md:h-96 lg:w-full lg:h-full flex items-center justify-center">
-            <div className="text-white text-center">
-              <div className="text-6xl mb-4">🛡️</div>
-              <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
-              <p className="mt-2">Monitor and protect your gym's communications</p>
+            </div>
+            
+            {/* Right side - Dashboard preview */}
+            <div className="flex-1 lg:pl-12">
+              <div className="h-64 w-full bg-blue-600 sm:h-80 md:h-96 lg:h-[500px] flex items-center justify-center rounded-lg shadow-2xl">
+                <div className="text-white text-center">
+                  <div className="text-6xl mb-4">🛡️</div>
+                  <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
+                  <p className="mt-2">Monitor and protect your gym's communications</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
