@@ -1065,6 +1065,11 @@ input[type="checkbox"]:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Cursor utilities */
+.cursor-pointer {
+  cursor: pointer;
+}
+
 /* Hover states */
 .hover\:text-gray-900:hover {
   color: #111827;
