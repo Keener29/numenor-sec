@@ -32,6 +32,7 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 - [React 19](https://react.dev) - UI library with hooks
 - [TypeScript](https://www.typescriptlang.org) - Type safety
 - [Vite](https://vitejs.dev) - Build tool and dev server
+- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
 
 ### Backend
 - [Express.js](https://expressjs.com) - Web framework
@@ -126,15 +127,19 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 │   │   ├── login.tsx        # Login form
 │   │   ├── signup.tsx       # Registration form
 │   │   └── dashboard.tsx    # Main dashboard
+│   ├── components/          # Reusable React components
+│   │   └── Dropdown.tsx     # Collapsible dropdown component
 │   ├── root.tsx             # Root layout component
-│   ├── app.css              # Global styles
+│   ├── app.css              # Global styles with Tailwind directives
 │   └── routes.ts            # Route configuration
 ├── public/                  # Static assets
 ├── .env.example             # Environment variables template
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-└── react-router.config.ts
+├── react-router.config.ts
+├── tailwind.config.js        # Tailwind CSS configuration
+└── postcss.config.js         # PostCSS configuration
 ```
 
 ## Pages Overview
@@ -158,18 +163,20 @@ A full-stack phishing protection SaaS targeting gyms and fitness centers. Built 
 - Gym name field
 - Owner name field
 - Email and password fields
-- Password confirmation
+- Password confirmation with real-time validation
 - Terms of service agreement
 - Link to login page
 
 ### Dashboard Page (`/dashboard`)
 
 - **Stats Cards**: Monitored emails, total alerts, protection status
-- **Email Monitoring Table**:
-  - 5 sample gym emails
+- **Email Monitoring Section**:
+  - Collapsible dropdown interface for each email
   - Connection status with color-coded badges
   - Alert counts with color coding
-  - "Mark Safe" buttons for emails with alerts
+  - Individual alert details (sender, subject, threat level, type, description)
+  - "Mark Safe" and "Mark Pending" buttons for individual alerts
+  - "Mark All Safe" button for each email
 - **Phishing Alerts Chart**: 7-day bar chart showing daily alert counts
 - **Recent Activity Feed**: Timeline of security events
 - **Navigation**: Links to dashboard and logout
@@ -260,10 +267,51 @@ All tables include proper indexes, foreign key relationships, and automatic time
 
 ## Styling
 
-- **Responsive Design**: Mobile-first approach
-- **Color Scheme**: Blue primary, gray neutrals
-- **Components**: Cards, tables, forms, buttons
+- **Tailwind CSS**: Utility-first CSS framework for rapid UI development
+- **Responsive Design**: Mobile-first approach with responsive breakpoints
+- **Color Scheme**: Blue primary, gray neutrals with semantic color coding
+- **Components**: Reusable components with consistent styling
+- **Custom Components**: Form inputs, buttons, badges, and dropdowns
 - **Icons**: Emoji-based icons for simplicity
+
+### Tailwind CSS Migration
+
+The project has been migrated from custom CSS to Tailwind CSS v3.4.0 for improved maintainability and faster development:
+
+#### Configuration Files
+- **`tailwind.config.js`**: Tailwind configuration with Inter font family
+- **`postcss.config.js`**: PostCSS configuration for Tailwind processing
+- **`app/app.css`**: Contains Tailwind directives and custom component classes
+
+#### Custom Component Classes
+The following custom classes are available in `app/app.css`:
+
+```css
+/* Form Components */
+.form-input              /* Standard form input styling */
+.form-input-error        /* Error state for form inputs */
+.btn-primary            /* Primary button styling */
+.error-message          /* Error message styling */
+
+/* Badge Components */
+.badge-threat-critical   /* Critical threat level badge */
+.badge-threat-high       /* High threat level badge */
+.badge-threat-medium     /* Medium threat level badge */
+.badge-threat-low        /* Low threat level badge */
+.badge-status-safe       /* Safe status badge */
+.badge-status-pending    /* Pending status badge */
+.badge-status-reviewed   /* Reviewed status badge */
+.badge-status-threat     /* Threat status badge */
+.badge-connected         /* Connected email badge */
+.badge-disconnected      /* Disconnected email badge */
+.badge-pending           /* Pending alerts badge */
+```
+
+#### Recent UI Improvements
+- **Responsive Hero Section**: Side-by-side layout on wide screens, stacked on mobile
+- **Enhanced Signup Form**: Real-time password validation with visual feedback
+- **Improved Dashboard**: Collapsible email monitoring with detailed alert information
+- **Better Button Styling**: Consistent hover states and cursor indicators
 
 ## Development
 
@@ -271,7 +319,8 @@ All tables include proper indexes, foreign key relationships, and automatic time
 - **TypeScript**: Full type safety
 - **React Hooks**: Functional components with useState
 - **React Router**: Client-side routing
-- **Hot Reload**: Vite development server
+- **Tailwind CSS**: Utility-first styling with PostCSS processing
+- **Hot Reload**: Vite development server with HMR
 
 ### Backend Development
 - **Express.js**: RESTful API with middleware (Middleware is your security guard, data validator, and error handler)
@@ -333,6 +382,7 @@ SESSION_SECRET=your-super-secret-session-key-here
 - [React Router v7 Documentation](https://reactrouter.com)
 - [React Documentation](https://react.dev)
 - [Vite Documentation](https://vitejs.dev)
+- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ### Backend
 - [Express.js Documentation](https://expressjs.com)
