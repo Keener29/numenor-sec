@@ -140,22 +140,28 @@ export default function Privacy() {
 
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">9. Cookies and Tracking</h2>
+              
+              <h3 className="text-xl font-medium text-gray-900 mb-3">9.1 Essential Cookies (No Consent Required)</h3>
               <p className="text-gray-700 mb-4">
-                We use cookies and similar technologies to:
+                We use HTTP-only cookies that are essential for the security and functionality of our service:
               </p>
               <ul className="list-disc list-inside text-gray-700 mb-4 space-y-2">
-                <li>Maintain your login session</li>
-                <li>Remember your preferences</li>
-                <li>Analyze service usage</li>
-                <li>Improve security</li>
+                <li><strong>Authentication Cookies:</strong> HTTP-only cookies that maintain your secure login session</li>
+                <li><strong>Security Cookies:</strong> Cookies that help protect against unauthorized access and security threats</li>
+                <li><strong>Session Management:</strong> Cookies that ensure proper service functionality</li>
               </ul>
               <p className="text-gray-700 mb-4">
-                You can control cookie settings through your browser, but disabling cookies may affect service functionality.
+                These cookies are necessary for the service to function properly and do not require your explicit consent under applicable privacy laws (GDPR, CCPA, etc.). They are not accessible to JavaScript and cannot be used for tracking purposes.
+              </p>
+
+              <h3 className="text-xl font-medium text-gray-900 mb-3">9.2 Cookie Management</h3>
+              <p className="text-gray-700 mb-4">
+                You can control cookie settings through your browser, but disabling essential cookies will prevent you from using our service. Our authentication cookies are automatically deleted when you log out or after 24 hours of inactivity.
               </p>
               
-              <h3 className="text-xl font-medium text-gray-900 mb-3">9.1 Third-Party Analytics</h3>
+              <h3 className="text-xl font-medium text-gray-900 mb-3">9.3 Third-Party Analytics</h3>
               <p className="text-gray-700 mb-4">
-                We may use third-party analytics services to understand how our service is used. These services may collect information about your use of our service and other websites.
+                We do not currently use third-party analytics or tracking cookies. If we implement analytics in the future, we will update this policy and obtain appropriate consent where required by law.
               </p>
             </section>
 
