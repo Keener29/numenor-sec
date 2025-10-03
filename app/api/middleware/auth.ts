@@ -10,8 +10,14 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
+  // Check for token in Authorization header first (for client-side API calls)
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  let token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  // If no token in header, check cookies (for server-side requests)
+  if (!token) {
+    token = req.cookies?.authToken;
+  }
 
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });

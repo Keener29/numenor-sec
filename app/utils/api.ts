@@ -2,19 +2,37 @@
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
-// Helper function to get auth token from localStorage
+// Helper function to get auth token from localStorage and cookies
 const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken');
+  // Try localStorage first (for client-side API calls)
+  const localToken = localStorage.getItem('authToken');
+  if (localToken) return localToken;
+  
+  // Try cookies (for server-side access)
+  const cookieToken = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('authToken='))
+    ?.split('=')[1];
+  
+  return cookieToken || null;
 };
 
-// Helper function to set auth token in localStorage
+// Helper function to set auth token in both localStorage and cookies
 export const setAuthToken = (token: string): void => {
+  // Set in localStorage for client-side API calls
   localStorage.setItem('authToken', token);
+  
+  // Set in cookies for server-side access (httpOnly: false so client can read it)
+  document.cookie = `authToken=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 };
 
-// Helper function to remove auth token from localStorage
+// Helper function to remove auth token from both localStorage and cookies
 export const removeAuthToken = (): void => {
+  // Remove from localStorage
   localStorage.removeItem('authToken');
+  
+  // Remove from cookies
+  document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
 };
 
 // Generic API request function

@@ -93,6 +93,7 @@ services:
     container_name: numenor-frontend
     environment:
       NODE_ENV: development
+      API_URL: http://api:3000  # Use Docker service name for internal communication
     ports:
       - "3000:3000"
     volumes:

@@ -69,6 +69,14 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
 
     const token = generateToken(user);
 
+    // Set HTTP-only cookie for server-side authentication
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     res.json({
       message: 'Login successful',
       user: {
@@ -146,6 +154,13 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res, next) =>
        VALUES ($1, 'logout', 'User logged out', $2, $3)`,
       [req.user!.business_id, req.ip, req.get('User-Agent')]
     );
+
+    // Clear the HTTP-only cookie
+    res.clearCookie('authToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax'
+    });
 
     res.json({ message: 'Logout successful' });
   } catch (error) {

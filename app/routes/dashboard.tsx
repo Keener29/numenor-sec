@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
+import { requireServerAuth } from "../utils/serverAuth";
 import PhishingAlertChart from "../components/PhishingAlertChart";
 import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
@@ -13,6 +14,12 @@ export function meta({}: Route.MetaArgs) {
     { title: "Dashboard - Numenor Security" },
     { name: "description", content: "Monitor your business email security" },
   ];
+}
+
+// Server-side authentication check
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await requireServerAuth(request);
+  return { user };
 }
 
 // Function to process daily alerts data for the chart
@@ -49,7 +56,7 @@ const processChartData = (dailyAlerts: any[]) => {
   return chartData;
 };
 
-export default function Dashboard() {
+export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const [emails, setEmails] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
@@ -58,6 +65,10 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Get user data from server-side loader
+  const user = loaderData?.user;
+
+  // Load dashboard data on component mount
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -115,11 +126,12 @@ export default function Dashboard() {
   const handleLogout = async () => {
     try {
       await authAPI.logout();
-      navigate("/login");
+      // Use full page reload to trigger server-side authentication check
+      window.location.href = "/login";
     } catch (err) {
       console.error("Logout error:", err);
       // Still navigate to login even if logout API fails
-      navigate("/login");
+      window.location.href = "/login";
     }
   };
 

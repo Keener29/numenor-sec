@@ -1,13 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
+import { redirectIfAuthenticated } from "../utils/serverAuth";
 
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Login - Numenor Security" },
     { name: "description", content: "Login to your Numenor Security dashboard" },
   ];
+}
+
+// Server-side authentication check - redirect if already logged in
+export async function loader({ request }: Route.LoaderArgs) {
+  await redirectIfAuthenticated(request);
+  return null;
 }
 
 export default function Login() {
@@ -27,6 +34,8 @@ export default function Login() {
     try {
       const response = await authAPI.login(formData);
       console.log("Login successful:", response);
+      
+      // Use React Router navigation to trigger server-side authentication check
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
