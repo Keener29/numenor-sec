@@ -92,7 +92,7 @@ The system prevents duplicate or conflicting actions by checking the current sta
 **Approval Protection:**
 - ✅ **First Approval**: Processes normally, sets `is_connected = true`
 - ❌ **Duplicate Approval**: Shows "Already Approved" message, logs attempt
-- ❌ **Approval After Decline**: Email doesn't exist, shows "Already Declined" message
+- ❌ **Approval After Decline**: Shows "Already Declined" message, logs attempt
 
 **Decline Protection:**
 - ✅ **First Decline**: Processes normally, removes email from monitoring
@@ -105,6 +105,10 @@ All duplicate action attempts are logged for security monitoring:
 -- Duplicate approval attempt
 INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
 VALUES ($1, 'duplicate_approval_attempt', $2, $3, $4);
+
+-- Approval after decline attempt
+INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+VALUES ($1, 'approval_after_decline_attempt', $2, $3, $4);
 
 -- Decline after approval attempt
 INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)

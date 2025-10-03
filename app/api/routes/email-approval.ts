@@ -30,7 +30,61 @@ router.post('/:id/approve', async (req, res, next) => {
     );
 
     if (emailResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Email not found' });
+      // Log approval attempt on already declined email
+      await query(
+        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+         VALUES ($1, 'approval_after_decline_attempt', $2, $3, $4)`,
+        [businessId, `Approval attempt on already declined/removed email: ${emailId}`, req.ip, req.get('User-Agent')]
+      );
+
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Already Declined</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              text-align: center; 
+              padding: 50px; 
+              background-color: #f9fafb; 
+              margin: 0;
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              background: white; 
+              padding: 40px; 
+              border-radius: 8px; 
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            }
+            .info { color: #6b7280; font-size: 2em; margin-bottom: 20px; }
+            .button { 
+              display: inline-block; 
+              background-color: #3b82f6; 
+              color: white; 
+              padding: 12px 24px; 
+              text-decoration: none; 
+              border-radius: 6px; 
+              margin-top: 20px; 
+              border: none;
+              cursor: pointer;
+            }
+            .button:hover { background-color: #2563eb; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1 class="info">ℹ️ Already Declined</h1>
+            <p>This email monitoring request has already been declined or removed.</p>
+            <p>The email address is not being monitored for security threats.</p>
+            <button onclick="window.close(); return false;" class="button">Close Window</button>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     const businessName = emailResult.rows[0].business_name;
