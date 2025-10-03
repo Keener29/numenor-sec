@@ -11,13 +11,15 @@ interface Email {
 interface ConnectedEmailsDropdownProps {
   emails: Email[];
   onEmailsUpdate: () => void;
+  businessName: string;
 }
 
-export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate }: ConnectedEmailsDropdownProps) {
+export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, businessName }: ConnectedEmailsDropdownProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAddingEmail, setIsAddingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState<{ [key: number]: 'resend' | 'delete' | null }>({});
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -58,6 +60,39 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate }: Conn
       console.error("Add email error:", err);
     } finally {
       setIsAddingEmail(false);
+    }
+  };
+
+  const handleResendEmail = async (emailId: number, emailAddress: string) => {
+    try {
+      setActionLoading(prev => ({ ...prev, [emailId]: 'resend' }));
+      
+      await emailsAPI.resendPermissionEmail(emailId);
+      setError(""); // Clear any previous errors
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend email");
+      console.error("Resend email error:", err);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [emailId]: null }));
+    }
+  };
+
+  const handleDeleteEmail = async (emailId: number) => {
+    if (!confirm("Are you sure you want to remove this email from monitoring? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setActionLoading(prev => ({ ...prev, [emailId]: 'delete' }));
+      
+      await emailsAPI.removeEmail(emailId);
+      onEmailsUpdate(); // Refresh the emails list
+      setError(""); // Clear any previous errors
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete email");
+      console.error("Delete email error:", err);
+    } finally {
+      setActionLoading(prev => ({ ...prev, [emailId]: null }));
     }
   };
 
@@ -123,6 +158,24 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate }: Conn
                         Added: {formatDate(email.createdAt)}
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2 ml-4">
+                      <button
+                        onClick={() => handleResendEmail(email.id, email.emailAddress)}
+                        disabled={actionLoading[email.id] === 'resend'}
+                        className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Resend permission request email"
+                      >
+                        {actionLoading[email.id] === 'resend' ? 'Sending...' : 'Resend'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEmail(email.id)}
+                        disabled={actionLoading[email.id] === 'delete'}
+                        className="px-3 py-1 text-xs font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Remove email from monitoring"
+                      >
+                        {actionLoading[email.id] === 'delete' ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -144,7 +197,7 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate }: Conn
                       value={newEmail}
                       onChange={(e) => setNewEmail(e.target.value)}
                       placeholder="Enter email address to monitor"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900"
                       disabled={isAddingEmail}
                     />
                   </div>

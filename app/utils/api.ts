@@ -145,6 +145,13 @@ export const emailsAPI = {
     });
   },
 
+  // Resend permission request email
+  resendPermissionEmail: async (emailId: number) => {
+    return apiRequest(`/emails/${emailId}/resend`, {
+      method: 'POST',
+    });
+  },
+
   // Get email statistics
   getEmailStats: async () => {
     return apiRequest('/emails/stats');

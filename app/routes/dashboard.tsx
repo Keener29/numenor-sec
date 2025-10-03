@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
-import { emailsAPI, alertsAPI, authAPI } from "../utils/api";
+import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
 import PhishingAlertChart from "../components/PhishingAlertChart";
 import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
@@ -67,12 +67,13 @@ export default function Dashboard() {
       setIsLoading(true);
       setError("");
 
-      // Load emails, alerts, and stats in parallel
-      const [emailsResponse, alertsResponse, emailStats, alertStats] = await Promise.all([
+      // Load emails, alerts, stats, and business info in parallel
+      const [emailsResponse, alertsResponse, emailStats, alertStats, businessResponse] = await Promise.all([
         emailsAPI.getEmails({ limit: 10 }),
         alertsAPI.getAlerts({ limit: 10 }),
         emailsAPI.getEmailStats(),
         alertsAPI.getAlertStats(),
+        businessAPI.getBusiness(),
       ]);
 
       console.log('Emails data:', emailsResponse.emails);
@@ -83,6 +84,7 @@ export default function Dashboard() {
       setStats({
         ...emailStats.stats,
         ...alertStats.stats,
+        businessName: businessResponse.business?.name || "Your Business",
       });
 
       // Process daily alerts data for the chart
@@ -170,7 +172,8 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <ConnectedEmailsDropdown 
             emails={emails} 
-            onEmailsUpdate={loadDashboardData} 
+            onEmailsUpdate={loadDashboardData}
+            businessName={stats.businessName || "Your Business"}
           />
 
           <div className="bg-white overflow-hidden shadow rounded-lg">
