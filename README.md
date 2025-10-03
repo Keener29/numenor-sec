@@ -53,7 +53,35 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - [Helmet](https://helmetjs.github.io) - Security headers
 - [CORS](https://github.com/expressjs/cors) - Cross-origin resource sharing
 
-## Getting Started
+## Quick Start (Docker - Recommended)
+
+The fastest way to get started is using Docker Compose:
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd clicksafe
+
+# 2. Copy environment variables
+cp docker.env.example .env
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Access the application
+# Frontend: http://localhost:3000
+# API: http://localhost:3001
+```
+
+That's it! The application will be running with:
+- ✅ **Frontend**: [http://localhost:3000](http://localhost:3000)
+- ✅ **API**: [http://localhost:3001](http://localhost:3001)
+- ✅ **Database**: PostgreSQL with automatic migrations
+- ✅ **Redis**: Caching and session storage
+
+📖 **For detailed setup instructions, see [QUICK_START.md](QUICK_START.md)**
+
+## Manual Development Setup
 
 1. **Install dependencies:**
 
@@ -341,7 +369,56 @@ The following custom classes are available in `app/app.css`:
 - **Error Handling**: Centralized error management
 - **Database**: PostgreSQL with connection pooling
 
-### Available Scripts
+## Docker Development
+
+### Daily Development Commands
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs (all services)
+docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f api
+docker-compose logs -f frontend
+
+# Stop services
+docker-compose down
+
+# Rebuild and restart (after code changes)
+docker-compose up --build -d
+
+# Access database
+docker-compose exec postgres psql -U numenor_user -d numenor_security
+```
+
+### Docker Services
+
+- **Frontend**: React Router app on port 3000
+- **API**: Express.js server on port 3001  
+- **PostgreSQL**: Database with persistent storage
+- **Redis**: Caching and session storage
+- **Migration**: Automatic database schema setup
+
+### Production Deployment
+
+```bash
+# Copy production environment file
+cp docker.env.example .env
+
+# Update .env with production values
+nano .env
+
+# Start production services
+docker-compose -f docker-compose.prod.yml up -d
+
+# View production logs
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+## Available Scripts
 
 ```bash
 # Frontend
@@ -351,10 +428,14 @@ npm run typecheck    # Generate types and check TypeScript
 
 # Backend
 npm run api:dev      # Start Express API server
-npm run api:build    # Build API for production
+npm run api:build  # Build API for production
 
 # Database
 npm run db:migrate   # Run database migrations
+
+# Docker
+docker-compose up -d                    # Start development environment
+docker-compose -f docker-compose.prod.yml up -d  # Start production environment
 ```
 
 ## Environment Variables

@@ -1,0 +1,142 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: numenor-postgres
+    environment:
+      POSTGRES_DB: numenor_security
+      POSTGRES_USER: numenor_user
+      POSTGRES_PASSWORD: numenor_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U numenor_user -d numenor_security"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - numenor-network
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: numenor-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - numenor-network
+
+  # Numenor Security API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: numenor-api
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: numenor_security
+      DB_USER: numenor_user
+      DB_PASSWORD: numenor_password
+      
+      # Application Configuration
+      NODE_ENV: development
+      API_PORT: 3000
+      
+      # Security
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      TOKEN_SECRET: your-64-character-hex-secret-key-change-in-production
+      
+      # Email Configuration (update with your SMTP settings)
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_SECURE: false
+      SMTP_USER: your-email@gmail.com
+      SMTP_PASS: your-app-password
+      SMTP_FROM: Numenor Security <your-email@gmail.com>
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./app:/app/app:ro  # Mount source code for development
+      - ./logs:/app/logs   # Mount logs directory
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - numenor-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Numenor Security Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: numenor-frontend
+    environment:
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./app:/app/app:ro  # Mount source code for development
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - numenor-network
+    restart: unless-stopped
+    command: ["npm", "start"]  # Override the default command to run the frontend
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Database Migration Service
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: numenor-migrate
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: numenor_security
+      DB_USER: numenor_user
+      DB_PASSWORD: numenor_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - numenor-network
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  numenor-network:
+    driver: bridge

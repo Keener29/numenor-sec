@@ -47,7 +47,7 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySche
     const totalPages = Math.ceil(totalCount / limit);
 
     res.json({
-      emails: emailsResult.rows.map(email => ({
+      emails: emailsResult.rows.map((email: any) => ({
         id: email.id,
         emailAddress: email.email_address,
         isConnected: email.is_connected,

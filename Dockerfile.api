@@ -1,0 +1,41 @@
+# Dockerfile for API server only
+FROM node:20-alpine
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S numenor -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (including dev dependencies for tsx)
+RUN npm ci && npm cache clean --force
+
+# Copy API source code
+COPY app/api ./app/api
+COPY app/db ./app/db
+
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
+
+# Switch to non-root user
+USER numenor
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the API server
+CMD ["npm", "run", "api:dev"]
