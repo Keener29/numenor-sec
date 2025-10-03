@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI } from "../utils/api";
-import Dropdown from "../components/Dropdown";
+import PhishingAlertChart from "../components/PhishingAlertChart";
+import RecentActivity from "../components/RecentActivity";
+import EmailMonitoring from "../components/EmailMonitoring";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -54,7 +56,6 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadDashboardData();
@@ -119,15 +120,6 @@ export default function Dashboard() {
     }
   };
 
-  const toggleEmailExpansion = (emailId: number) => {
-    const newExpanded = new Set(expandedEmails);
-    if (newExpanded.has(emailId)) {
-      newExpanded.delete(emailId);
-    } else {
-      newExpanded.add(emailId);
-    }
-    setExpandedEmails(newExpanded);
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -244,227 +236,18 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Email Monitoring */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Email Monitoring
-              </h3>
-              <div className="space-y-3">
-                {emails.map((email) => {
-                  const emailAlerts = alerts.filter(alert => alert.emailId === email.id);
-                  const pendingAlerts = emailAlerts.filter(alert => alert.status !== 'safe');
-                  const isExpanded = expandedEmails.has(email.id);
-                  
-                  const headerContent = (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {email.isConnected ? 'Connected' : 'Disconnected'}
-                      </span>
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {pendingAlerts.length} Pending
-                      </span>
-                      {emailAlerts.length > 0 && (
-                        <span className="text-xs text-gray-500">
-                          {emailAlerts.length} alert{emailAlerts.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                  );
-
-                  const rightAction = pendingAlerts.length > 0 ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        pendingAlerts.forEach(alert => handleMarkSafe(alert.id));
-                      }}
-                      className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 cursor-pointer whitespace-nowrap"
-                    >
-                      Mark All Safe
-                    </button>
-                  ) : null;
-
-                  const alertContent = emailAlerts.length > 0 ? (
-                    <div className="space-y-3">
-                      {emailAlerts.map((alert) => {
-                        const getThreatColor = (threatLevel: string) => {
-                          switch (threatLevel) {
-                            case 'critical': return 'bg-red-100 text-red-800';
-                            case 'high': return 'bg-red-100 text-red-800';
-                            case 'medium': return 'bg-yellow-100 text-yellow-800';
-                            case 'low': return 'bg-green-100 text-green-800';
-                            default: return 'bg-gray-100 text-gray-800';
-                          }
-                        };
-                        
-                        const getStatusColor = (status: string) => {
-                          switch (status) {
-                            case 'safe': return 'bg-green-100 text-green-800';
-                            case 'pending': return 'bg-yellow-100 text-yellow-800';
-                            case 'reviewed': return 'bg-blue-100 text-blue-800';
-                            case 'threat': return 'bg-red-100 text-red-800';
-                            default: return 'bg-gray-100 text-gray-800';
-                          }
-                        };
-                        
-                        return (
-                          <div key={alert.id} className={`border rounded-lg p-3 ${alert.status === 'safe' ? 'bg-gray-50' : 'bg-white'}`}>
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getThreatColor(alert.threatLevel)}`}>
-                                    {alert.threatLevel.toUpperCase()}
-                                  </span>
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(alert.status)}`}>
-                                    {alert.status}
-                                  </span>
-                                </div>
-                                
-                                <div className="space-y-1 text-sm">
-                                  <div>
-                                    <span className="font-medium text-gray-700">Subject:</span>
-                                    <span className="ml-2 text-gray-900">{alert.subject}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">From:</span>
-                                    <span className="ml-2 text-gray-900">{alert.senderEmail}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Type:</span>
-                                    <span className="ml-2 text-gray-900">{alert.alertType}</span>
-                                  </div>
-                                  {alert.description && (
-                                    <div>
-                                      <span className="font-medium text-gray-700">Description:</span>
-                                      <span className="ml-2 text-gray-900">{alert.description}</span>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <span className="font-medium text-gray-700">Detected:</span>
-                                    <span className="ml-2 text-gray-900">
-                                      {new Date(alert.createdAt).toLocaleString()}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {alert.status !== 'safe' && (
-                                <button
-                                  onClick={() => handleMarkSafe(alert.id)}
-                                  className="ml-4 bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 cursor-pointer"
-                                >
-                                  Mark Safe
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-500 text-sm">
-                      No alerts for this email address
-                    </div>
-                  );
-                  
-                  return (
-                    <div key={email.id} className="relative">
-                      <Dropdown
-                        title={email.emailAddress}
-                        isExpanded={isExpanded}
-                        onToggle={() => toggleEmailExpansion(email.id)}
-                        headerContent={headerContent}
-                        rightAction={rightAction}
-                      >
-                        {alertContent}
-                      </Dropdown>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <EmailMonitoring 
+            emails={emails} 
+            alerts={alerts} 
+            onMarkSafe={handleMarkSafe} 
+          />
 
           {/* Chart */}
-          <div className="bg-white shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Phishing Alerts (Last 7 Days)
-              </h3>
-              <div className="h-64 flex justify-between space-x-4 items-end">
-                {chartData.length > 0 ? chartData.map((data, index) => {
-                  const maxAlerts = Math.max(...chartData.map(d => d.alerts), 1);
-                  const height = (data.alerts / maxAlerts) * 200;
-                  
-                  return (
-                    <div key={index} className="flex flex-col items-center flex-1">
-                      <div
-                        className="bg-blue-500 w-full rounded-t mb-2"
-                        style={{ height: `${height}px` }}
-                      ></div>
-                      <div className="text-xs text-gray-600">{data.day}</div>
-                      <div className="text-xs font-medium text-gray-900">{data.alerts}</div>
-                    </div>
-                  );
-                }) : (
-                  <div className="flex items-center justify-center w-full h-full text-gray-500">
-                    No alert data available
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <PhishingAlertChart chartData={chartData} />
         </div>
 
         {/* Recent Activity */}
-        <div className="mt-8 bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Recent Activity
-            </h3>
-            <div className="space-y-3">
-              {alerts.length > 0 ? alerts.slice(0, 5).map((alert) => {
-                const getAlertColor = (threatLevel: string) => {
-                  switch (threatLevel) {
-                    case 'critical': return 'bg-red-500';
-                    case 'high': return 'bg-red-500';
-                    case 'medium': return 'bg-yellow-500';
-                    case 'low': return 'bg-green-500';
-                    default: return 'bg-gray-500';
-                  }
-                };
-                
-                const formatDate = (dateString: string) => {
-                  const date = new Date(dateString);
-                  const now = new Date();
-                  const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-                  
-                  if (diffInHours < 1) return 'Just now';
-                  if (diffInHours < 24) return `${diffInHours} hours ago`;
-                  const diffInDays = Math.floor(diffInHours / 24);
-                  return `${diffInDays} days ago`;
-                };
-                
-                return (
-                  <div key={alert.id} className="flex items-center text-sm">
-                <div className="flex-shrink-0">
-                      <div className={`w-2 h-2 ${getAlertColor(alert.threatLevel)} rounded-full`}></div>
-                </div>
-                <div className="ml-3">
-                      <span className="text-gray-900">
-                        {alert.alertType} - {alert.subject}
-                      </span>
-                      <span className="text-gray-500 ml-2">
-                        {formatDate(alert.createdAt)}
-                      </span>
-                </div>
-              </div>
-                );
-              }) : (
-                <div className="text-gray-500 text-sm">No recent alerts</div>
-              )}
-            </div>
-          </div>
-        </div>
+        <RecentActivity alerts={alerts} />
       </div>
     </div>
   );
