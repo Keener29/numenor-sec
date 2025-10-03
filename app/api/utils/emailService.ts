@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { tokenService } from './tokenService.js';
 
 // Email configuration
 const emailConfig = {
@@ -18,7 +19,7 @@ const createTransporter = () => {
 
 // Email templates
 export const emailTemplates = {
-  permissionRequest: (businessName: string, emailAddress: string, businessEmail: string) => ({
+  permissionRequest: (businessName: string, emailAddress: string, businessEmail: string, emailId: number, businessId: number, approvalToken: string, declineToken: string) => ({
     subject: `Permission Request: Email Security Monitoring - ${businessName}`,
     html: `
       <!DOCTYPE html>
@@ -72,8 +73,22 @@ export const emailTemplates = {
           </ul>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="mailto:${businessEmail}?subject=Email Monitoring Permission - GRANTED&body=I grant permission for ${businessName} to monitor ${emailAddress} for security purposes." class="button">✅ Grant Permission</a>
-            <a href="mailto:${businessEmail}?subject=Email Monitoring Permission - DENIED&body=I do not grant permission for ${businessName} to monitor ${emailAddress}." class="button" style="background-color: #dc2626;">❌ Deny Permission</a>
+            <form method="POST" action="${process.env.API_BASE_URL || 'http://localhost:3001'}/api/emails/${emailId}/approve" style="display: inline-block; margin-right: 10px;">
+              <input type="hidden" name="businessId" value="${businessId}">
+              <input type="hidden" name="token" value="${approvalToken}">
+              <button type="submit" class="button" style="background-color: #10b981; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer;"
+                      onclick="return confirm('Are you sure you want to grant permission for ${businessName} to monitor ${emailAddress}?')">
+                ✅ Grant Permission
+              </button>
+            </form>
+            <form method="POST" action="${process.env.API_BASE_URL || 'http://localhost:3001'}/api/emails/${emailId}/decline" style="display: inline-block;">
+              <input type="hidden" name="businessId" value="${businessId}">
+              <input type="hidden" name="token" value="${declineToken}">
+              <button type="submit" class="button" style="background-color: #dc2626; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer;"
+                      onclick="return confirm('Are you sure you want to deny permission for ${businessName} to monitor ${emailAddress}? This will remove the email from monitoring.')">
+                ❌ Deny Permission
+              </button>
+            </form>
           </div>
           
           <h3>Questions or Concerns?</h3>
@@ -120,7 +135,9 @@ You can choose to:
 - Deny Permission: Decline the monitoring request
 - Contact for Questions: Reach out to ${businessName} for more information
 
-To respond, please email: ${businessEmail}
+To respond, please visit one of these secure links:
+- Grant Permission: ${process.env.API_BASE_URL || 'http://localhost:3001'}/api/emails/${emailId}/approve (POST with businessId: ${businessId}, token: ${approvalToken})
+- Deny Permission: ${process.env.API_BASE_URL || 'http://localhost:3001'}/api/emails/${emailId}/decline (POST with businessId: ${businessId}, token: ${declineToken})
 
 Questions or Concerns?
 If you have any questions about this request or need more information, please contact:
@@ -137,10 +154,15 @@ This email was sent by Numenor Security on behalf of ${businessName}
 
 // Email service functions
 export const emailService = {
-  async sendPermissionRequest(businessName: string, emailAddress: string, businessEmail: string): Promise<void> {
+  async sendPermissionRequest(businessName: string, emailAddress: string, businessEmail: string, emailId: number, businessId: number): Promise<void> {
     try {
       const transporter = createTransporter();
-      const template = emailTemplates.permissionRequest(businessName, emailAddress, businessEmail);
+      
+      // Generate tokens once when sending the email
+      const approvalToken = tokenService.generateApprovalToken(emailId, businessId);
+      const declineToken = tokenService.generateDeclineToken(emailId, businessId);
+      
+      const template = emailTemplates.permissionRequest(businessName, emailAddress, businessEmail, emailId, businessId, approvalToken, declineToken);
       
       const mailOptions = {
         from: `"Numenor Security" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,

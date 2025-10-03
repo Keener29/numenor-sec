@@ -25,6 +25,15 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **Data Validation**: Input validation with Zod schemas
 - **Error Handling**: Centralized error handling and logging
 
+### Modular Architecture
+- **Email Management**: Split into focused modules for better maintainability
+  - `email-management.ts` - CRUD operations (GET, POST, PUT, DELETE)
+  - `email-approval.ts` - Approval/decline endpoints with HTML responses
+  - `email-actions.ts` - Actions like resend and statistics
+  - `emails.ts` - Main router that composes all modules
+- **Single Responsibility**: Each module handles one specific concern
+- **Clean Composition**: Main router combines modules without duplication
+
 ## Tech Stack
 
 ### Frontend
@@ -107,7 +116,10 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 │   │   ├── routes/          # API routes
 │   │   │   ├── auth.ts      # Authentication endpoints
 │   │   │   ├── business.ts  # Business management
-│   │   │   ├── emails.ts    # Email monitoring
+│   │   │   ├── emails.ts    # Email monitoring (main router)
+│   │   │   ├── email-management.ts # Email CRUD operations
+│   │   │   ├── email-approval.ts  # Email approval/decline
+│   │   │   ├── email-actions.ts  # Email actions & stats
 │   │   │   └── alerts.ts    # Phishing alerts
 │   │   ├── schemas/         # Validation schemas
 │   │   │   ├── user.ts      # User validation
