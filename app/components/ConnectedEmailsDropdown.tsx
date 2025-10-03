@@ -192,14 +192,16 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, busine
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
-                        <button
-                          onClick={() => handleResendEmail(email.id, email.emailAddress)}
-                          disabled={actionLoading[email.id] === 'resend'}
-                          className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Resend permission request email"
-                        >
-                          {actionLoading[email.id] === 'resend' ? 'Sending...' : 'Resend'}
-                        </button>
+                        {!email.isConnected && (
+                          <button
+                            onClick={() => handleResendEmail(email.id, email.emailAddress)}
+                            disabled={actionLoading[email.id] === 'resend'}
+                            className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Resend permission request email"
+                          >
+                            {actionLoading[email.id] === 'resend' ? 'Sending...' : 'Resend'}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteEmail(email.id)}
                           disabled={actionLoading[email.id] === 'delete'}

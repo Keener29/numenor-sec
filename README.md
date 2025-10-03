@@ -19,7 +19,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **Authentication System**: JWT-based auth with password hashing
 - **User Management**: Registration, login, profile management
 - **Business Management**: Business information and statistics
-- **Email Monitoring**: Add, remove, and manage monitored email addresses
+- **Email Monitoring**: Add, remove, and manage monitored email addresses with smart UI controls
 - **Phishing Alerts**: Create, update, and track phishing threats
 - **Security Logging**: Comprehensive audit trail of all activities
 - **Data Validation**: Input validation with Zod schemas
