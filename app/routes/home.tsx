@@ -177,7 +177,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h3 className="text-lg font-semibold text-gray-900">Numenor Security</h3>
-            <p className="mt-2 text-sm text-gray-500">
+            <div className="mt-4 flex justify-center space-x-6">
+              <Link to="/terms" className="text-sm text-gray-500 hover:text-gray-900">
+                Terms of Service
+              </Link>
+              <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-900">
+                Privacy Policy
+              </Link>
+            </div>
+            <p className="mt-4 text-sm text-gray-500">
               © 2025 Numenor Security. All rights reserved.
             </p>
           </div>
