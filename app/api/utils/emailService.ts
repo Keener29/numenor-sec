@@ -9,6 +9,9 @@ const emailConfig = {
   auth: {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || ''
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 };
 
@@ -156,6 +159,20 @@ This email was sent by Numenor Security on behalf of ${businessName}
 export const emailService = {
   async sendPermissionRequest(businessName: string, emailAddress: string, businessEmail: string, emailId: number, businessId: number): Promise<void> {
     try {
+      // Check if SMTP is configured
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn('SMTP not configured - skipping email send');
+        throw new Error('Email service not configured. Please set up SMTP credentials in your environment variables.');
+      }
+
+      // Debug: Log SMTP configuration (without password)
+      console.log('SMTP Config:', {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        user: process.env.SMTP_USER,
+        passLength: process.env.SMTP_PASS?.length || 0
+      });
+
       const transporter = createTransporter();
       
       // Generate tokens once when sending the email
@@ -188,6 +205,12 @@ export const emailService = {
     threatAssessment: any
   ): Promise<void> {
     try {
+      // Check if SMTP is configured
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn('SMTP not configured - skipping threat alert email');
+        return; // Don't throw error for threat alerts, just skip
+      }
+
       const transporter = createTransporter();
       
       const threatLevelColors = {
