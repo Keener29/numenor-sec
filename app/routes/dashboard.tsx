@@ -7,6 +7,7 @@ import PhishingAlertChart from "../components/PhishingAlertChart";
 import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
+import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -247,6 +248,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Recent Activity */}
         <RecentActivity alerts={alerts} />
+
+        {/* Phishing Detection Dashboard */}
+        <div className="mt-8">
+          <PhishingDetectionDashboard />
+        </div>
       </div>
     </div>
   );
