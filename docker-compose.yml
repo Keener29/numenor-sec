@@ -54,17 +54,17 @@ services:
       NODE_ENV: development
       API_PORT: 3000
       
-      # Security
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-      TOKEN_SECRET: your-64-character-hex-secret-key-change-in-production
+      # Security (from .env file)
+      JWT_SECRET: ${JWT_SECRET}
+      TOKEN_SECRET: ${TOKEN_SECRET}
       
-      # Email Configuration (update with your SMTP settings)
-      SMTP_HOST: smtp.gmail.com
-      SMTP_PORT: 587
-      SMTP_SECURE: false
-      SMTP_USER: your-email@gmail.com
-      SMTP_PASS: your-app-password
-      SMTP_FROM: Numenor Security <your-email@gmail.com>
+      # Email Configuration (from .env file)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
     ports:
       - "3001:3000"
     volumes:
