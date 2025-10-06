@@ -517,10 +517,11 @@ class PhishingDetector {
         [businessId]
       );
 
-      return result.rows;
+      return result.rows || [];
     } catch (error) {
       console.error('Failed to get threat statistics:', error);
-      throw error;
+      // Return empty array instead of throwing
+      return [];
     }
   }
 }
