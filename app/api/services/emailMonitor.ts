@@ -154,38 +154,50 @@ class EmailMonitor {
   }
 
   /**
-   * Fetch new emails for a monitored address (simulated)
-   * In a real implementation, this would connect to the email server
+   * Simulate fetching new emails for a monitored address
    */
   private async fetchNewEmails(email: MonitoredEmail): Promise<EmailMessage[]> {
-    // This is a simulation - in reality, you would:
-    // 1. Connect to IMAP/POP3 server
-    // 2. Authenticate using stored credentials
-    // 3. Fetch new messages since last check
-    // 4. Parse email content and headers
-
-    // For demonstration, we'll simulate some emails
-    const simulatedEmails: EmailMessage[] = [];
-
-    // Only simulate emails occasionally to avoid spam
-    if (Math.random() < 0.1) { // 10% chance of new email
-      simulatedEmails.push({
-        id: `email_${Date.now()}_${Math.random()}`,
-        subject: 'URGENT: Verify Your Account Immediately',
-        body: 'Your account has been compromised. Click here to verify your identity immediately. This is urgent and requires immediate action.',
-        sender: 'security@fake-bank.com',
-        recipient: email.emailAddress,
-        timestamp: new Date(),
-        links: ['https://bit.ly/fake-verification'],
-        headers: {
-          'from': 'security@fake-bank.com',
-          'to': email.emailAddress,
-          'subject': 'URGENT: Verify Your Account Immediately'
-        }
-      });
+    // Simulate email fetching with random chance of finding emails
+    const shouldHaveEmails = Math.random() < 0.3; // 30% chance of having new emails
+    
+    if (!shouldHaveEmails) {
+      console.log(`No new emails simulated for ${email.emailAddress}`);
+      return [];
     }
 
-    return simulatedEmails;
+    // Generate 1-3 simulated emails
+    const emailCount = Math.floor(Math.random() * 3) + 1;
+    const emails: EmailMessage[] = [];
+
+    for (let i = 0; i < emailCount; i++) {
+      const isPhishing = Math.random() < 0.2; // 20% chance of phishing
+      
+      const emailMessage: EmailMessage = {
+        id: `sim_${email.id}_${Date.now()}_${i}`,
+        subject: isPhishing ? 
+          'Urgent: Verify Your Account Immediately' : 
+          'Meeting Reminder for Tomorrow',
+        body: isPhishing ?
+          'Click here to verify your account: https://fake-bank-security.com/verify' :
+          'Don\'t forget about our meeting tomorrow at 2 PM.',
+        sender: isPhishing ? 
+          'security@fake-bank.com' : 
+          'colleague@company.com',
+        recipient: email.emailAddress,
+        timestamp: new Date(),
+        links: isPhishing ? ['https://fake-bank-security.com/verify'] : [],
+        headers: {
+          'from': isPhishing ? 'security@fake-bank.com' : 'colleague@company.com',
+          'to': email.emailAddress,
+          'subject': isPhishing ? 'Urgent: Verify Your Account Immediately' : 'Meeting Reminder for Tomorrow'
+        }
+      };
+
+      emails.push(emailMessage);
+    }
+
+    console.log(`Simulated ${emails.length} new emails for ${email.emailAddress}`);
+    return emails;
   }
 
   /**
