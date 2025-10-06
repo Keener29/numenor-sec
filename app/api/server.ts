@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.js';
 import businessRoutes from './routes/business.js';
 import emailRoutes from './routes/emails.js';
 import alertRoutes from './routes/alerts.js';
+import phishingRoutes from './routes/phishing.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -57,6 +58,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/phishing', phishingRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -89,6 +91,16 @@ app.get('/api', (req, res) => {
         'PUT /api/alerts/:id': 'Update alert status',
         'POST /api/alerts': 'Create new alert',
         'GET /api/alerts/stats': 'Get alert statistics'
+      },
+      phishing: {
+        'POST /api/phishing/analyze': 'Analyze email content for phishing threats',
+        'POST /api/phishing/scan': 'Manually trigger email scan',
+        'GET /api/phishing/statistics': 'Get phishing threat statistics',
+        'GET /api/phishing/patterns': 'Get detected phishing patterns',
+        'GET /api/phishing/monitoring/status': 'Get monitoring service status',
+        'POST /api/phishing/monitoring/start': 'Start email monitoring',
+        'POST /api/phishing/monitoring/stop': 'Stop email monitoring',
+        'GET /api/phishing/recommendations': 'Get security recommendations'
       }
     }
   });
@@ -99,11 +111,19 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Numenor Security API server running on port ${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/api`);
   console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Initialize background services
+  try {
+    const { initializeServices } = await import('./startup.js');
+    await initializeServices();
+  } catch (error) {
+    console.error('Failed to initialize services:', error);
+  }
 });
 
 export default app;
