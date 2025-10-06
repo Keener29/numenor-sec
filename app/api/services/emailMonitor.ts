@@ -443,13 +443,42 @@ class EmailMonitor {
         []
       );
 
+      // Handle empty data gracefully
+      const emailStats = stats.rows[0] || {
+        total_emails: 0,
+        connected_emails: 0,
+        disconnected_emails: 0,
+        recently_checked: 0
+      };
+
+      const scanStatsData = scanStats.rows[0] || {
+        total_scans: 0,
+        successful_scans: 0,
+        failed_scans: 0,
+        avg_emails_per_scan: 0
+      };
+
       return {
-        emails: stats.rows[0],
-        scans: scanStats.rows[0]
+        emails: emailStats,
+        scans: scanStatsData
       };
     } catch (error) {
       console.error('Failed to get monitoring stats:', error);
-      throw error;
+      // Return default values instead of throwing
+      return {
+        emails: {
+          total_emails: 0,
+          connected_emails: 0,
+          disconnected_emails: 0,
+          recently_checked: 0
+        },
+        scans: {
+          total_scans: 0,
+          successful_scans: 0,
+          failed_scans: 0,
+          avg_emails_per_scan: 0
+        }
+      };
     }
   }
 }
