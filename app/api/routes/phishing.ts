@@ -49,12 +49,16 @@ router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAn
 
       if (emailResult.rows.length > 0) {
         const emailId = emailResult.rows[0].id;
-        await phishingDetector.storeThreatAssessment(
-          businessId,
-          emailId,
-          threatAssessment,
-          emailData
-        );
+        
+        // Only store actual threats (medium, high, critical) - ignore low and safe
+        if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+          await phishingDetector.storeThreatAssessment(
+            businessId,
+            emailId,
+            threatAssessment,
+            emailData
+          );
+        }
       }
     }
 
@@ -194,22 +198,29 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
     }
 
     // Calculate summary statistics (handle empty data gracefully)
+    // Only count actual threats (critical, high, medium) - ignore low and safe
+    const threatStatsFiltered = threatStats?.filter((stat: any) => 
+      ['critical', 'high', 'medium'].includes(stat.threat_level)
+    ) || [];
+    
+    const recentAlertsFiltered = recentAlerts.rows?.filter((alert: any) => 
+      ['critical', 'high', 'medium'].includes(alert.threat_level)
+    ) || [];
+
     const summary = {
-      totalAlerts: threatStats?.length || 0,
+      totalAlerts: threatStatsFiltered.length,
       criticalAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'critical').length || 0,
       highAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'high').length || 0,
       mediumAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'medium').length || 0,
-      lowAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'low').length || 0,
-      pendingAlerts: recentAlerts.rows?.filter((alert: any) => alert.status === 'pending').length || 0,
-      safeAlerts: recentAlerts.rows?.filter((alert: any) => alert.status === 'safe').length || 0
+      pendingAlerts: recentAlertsFiltered.filter((alert: any) => alert.status === 'pending').length
     };
 
     res.json({
       success: true,
       statistics: {
         summary,
-        threatBreakdown: threatStats || [],
-        recentAlerts: recentAlerts.rows || [],
+        threatBreakdown: threatStatsFiltered,
+        recentAlerts: recentAlertsFiltered,
         monitoring: monitoringStats || {
           emails: {
             total_emails: 0,
@@ -238,9 +249,7 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
           criticalAlerts: 0,
           highAlerts: 0,
           mediumAlerts: 0,
-          lowAlerts: 0,
-          pendingAlerts: 0,
-          safeAlerts: 0
+          pendingAlerts: 0
         },
         threatBreakdown: [],
         recentAlerts: [],

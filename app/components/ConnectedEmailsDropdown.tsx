@@ -138,7 +138,7 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, busine
               onClick={() => setIsModalOpen(true)}
               className="px-3 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
             >
-              View Details
+              Manage Emails
             </button>
           </div>
         </div>
