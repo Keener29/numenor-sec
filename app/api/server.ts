@@ -14,7 +14,8 @@ import businessRoutes from './routes/business.js';
 import emailRoutes from './routes/emails.js';
 import alertRoutes from './routes/alerts.js';
 import phishingRoutes from './routes/phishing.js';
-import oauthRoutes from './routes/oauth.js';
+import oauthRoutes from './routes/oauth/index.js';
+import statusRoutes from './routes/status.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -69,7 +70,8 @@ app.use('/api/business', businessRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/phishing', phishingRoutes);
-app.use('/api', oauthRoutes);
+app.use('/api/oauth', oauthRoutes);
+app.use('/api/status', statusRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -114,10 +116,11 @@ app.get('/api', (req, res) => {
         'GET /api/phishing/recommendations': 'Get security recommendations'
       },
             oauth: {
-              'GET /api/auth-url': 'Generate Gmail OAuth authorization URL',
-              'GET /api/oauth2callback': 'Handle Gmail OAuth callback',
+              'GET /api/oauth/providers': 'Get list of available OAuth providers',
+              'GET /api/oauth/gmail/auth-url': 'Generate Gmail OAuth authorization URL',
+              'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
               'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
-              'GET /api/status/:emailAddress': 'Get Gmail OAuth connection status',
+              'GET /api/oauth/gmail/status/:emailAddress': 'Get Gmail OAuth connection status',
               'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
             }
     }
