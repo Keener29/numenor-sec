@@ -25,8 +25,8 @@ The Numenor Security platform implements a secure email approval/decline system 
    - **OAuth Flow** (`app/api/routes/oauth.ts`) - OAuth flow including email approval/denial
 
 4. **API Endpoints**
-   - `GET /api/auth-url` - Generate OAuth URL and handle approval (redirects to Google)
-   - `GET /api/oauth2callback` - Handle OAuth callback from Google
+   - `GET /api/oauth/gmail/auth-url` - Generate OAuth URL and handle approval (redirects to Google)
+   - `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
    - `GET /api/emails/` - List monitored emails
    - `POST /api/emails/` - Add new email
    - `PUT /api/emails/:id` - Update email

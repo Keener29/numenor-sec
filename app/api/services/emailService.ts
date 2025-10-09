@@ -162,7 +162,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           </ul>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${apiUrl}/api/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}" 
+            <a href="${apiUrl}/api/oauth/gmail/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}" 
                class="button" style="background-color: #10b981; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px;">
               ✅ Grant Permission
             </a>
@@ -213,7 +213,7 @@ You can choose to:
 - Contact for Questions: Reach out to ${businessName} for more information
 
 To accept, please visit the secure link:
-- Grant Permission: ${apiUrl}/api/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}
+- Grant Permission: ${apiUrl}/api/oauth/gmail/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}
 
 Questions or Concerns?
 If you have any questions about this request or need more information, please contact:

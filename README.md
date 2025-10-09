@@ -245,8 +245,8 @@ That's it! The application will be running with:
 - `GET /stats` - Get email monitoring statistics
 
 ### OAuth Integration (`/api/oauth`)
-- `GET /auth-url` - Generate Gmail OAuth authorization URL
-- `GET /oauth2callback` - Handle OAuth callback from Google
+- `GET /gmail/auth-url` - Generate Gmail OAuth authorization URL
+- `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
 - `POST /gmail/disconnect` - Disconnect Gmail OAuth
 - `GET /status/:emailAddress` - Check OAuth connection status
 - `POST /gmail/test` - Test Gmail OAuth connection
@@ -471,7 +471,7 @@ SESSION_SECRET=your-super-secret-session-key-here
 # Gmail OAuth Configuration (Required for email monitoring)
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth2callback
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
 
 # Email Configuration (Optional - for sending permission emails)
 SMTP_HOST=smtp.gmail.com

@@ -36,8 +36,8 @@ The application requests the following OAuth scopes:
 2. Click "Create Credentials" > "OAuth 2.0 Client IDs"
 3. Choose "Web application" as the application type
 4. Add authorized redirect URIs:
-   - For development: `http://localhost:3001/api/oauth2callback`
-   - For production: `https://yourdomain.com/api/oauth2callback`
+   - For development: `http://localhost:3001/api/oauth/gmail/callback`
+   - For production: `https://yourdomain.com/api/oauth/gmail/callback`
 5. Save and note your Client ID and Client Secret
 
 ## Step 2: Environment Configuration
@@ -48,7 +48,7 @@ Add the following environment variables to your `.env` file:
 # Gmail OAuth Configuration
 GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth2callback
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
 
 # Frontend URL for OAuth redirects
 FRONTEND_URL=http://localhost:3000
@@ -89,8 +89,8 @@ These scopes allow the application to:
 
 ### OAuth Endpoints
 
-- `GET /api/auth-url?emailAddress=user@example.com` - Generate OAuth URL
-- `GET /api/oauth2callback` - Handle OAuth callback
+- `GET /api/oauth/gmail/auth-url?emailAddress=user@example.com` - Generate OAuth URL
+- `GET /api/oauth/gmail/callback` - Handle OAuth callback
 - `POST /api/oauth/gmail/disconnect` - Disconnect Gmail account
 - `GET /api/oauth/gmail/status/:emailAddress` - Check connection status
 - `POST /api/oauth/gmail/test` - Test Gmail connection
@@ -162,7 +162,7 @@ CREATE TABLE oauth_tokens (
 ### 9.1 Environment Variables
 Update production environment variables:
 ```env
-GOOGLE_REDIRECT_URI=https://yourdomain.com/api/oauth2callback
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/oauth/gmail/callback
 FRONTEND_URL=https://yourdomain.com
 ```
 
@@ -200,7 +200,7 @@ Use the "Test Connection" button to verify:
    - Ensure protocol (http/https) matches your environment
    - Verify port number matches your API server (3001 for development)
    - Common mistake: Using port 3000 instead of 3001 (3000 is frontend, 3001 is API)
-   - The URI must be exactly: `http://localhost:3001/api/oauth2callback` for development
+   - The URI must be exactly: `http://localhost:3001/api/oauth/gmail/callback` for development
 
 2. **"Access denied"**
    - User may have denied permissions
@@ -226,11 +226,11 @@ If you're getting a `redirect_uri_mismatch` error:
 1. **Check your Google Cloud Console:**
    - Go to "APIs & Services" > "Credentials"
    - Click on your OAuth 2.0 Client ID
-   - In "Authorized redirect URIs", ensure you have exactly: `http://localhost:3001/api/oauth2callback`
+   - In "Authorized redirect URIs", ensure you have exactly: `http://localhost:3001/api/oauth/gmail/callback`
 
 2. **Verify your .env file:**
    ```env
-   GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth2callback
+   GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
    ```
 
 3. **Restart your development server** after making changes
