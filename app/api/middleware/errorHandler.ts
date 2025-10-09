@@ -1,47 +1,32 @@
 import type{ Request, Response, NextFunction } from 'express';
+import { errorHandler as serviceErrorHandler } from '../services/errorHandler.js';
 
-export interface ApiError extends Error {
-  statusCode?: number;
-  code?: string;
-}
-
+/**
+ * Express middleware error handler that delegates to the comprehensive error service
+ * This provides a consistent error handling interface for the Express app
+ */
 export const errorHandler = (
-  error: ApiError,
+  error: Error,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  console.error('API Error:', error);
-
-  // Default error response
-  let statusCode = error.statusCode || 500;
-  let message = error.message || 'Internal server error';
-
-  // Handle specific error types
-  if (error.code === '23505') { // PostgreSQL unique violation
-    statusCode = 409;
-    message = 'Resource already exists';
-  } else if (error.code === '23503') { // PostgreSQL foreign key violation
-    statusCode = 400;
-    message = 'Referenced resource does not exist';
-  } else if (error.code === '23502') { // PostgreSQL not null violation
-    statusCode = 400;
-    message = 'Required field is missing';
-  }
-
-  res.status(statusCode).json({
-    error: message,
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: error.stack,
-      details: error
-    })
-  });
+  // Delegate to the comprehensive error handling service
+  serviceErrorHandler(error, req, res, next);
 };
 
 export const notFoundHandler = (req: Request, res: Response) => {
   res.status(404).json({
-    error: 'API endpoint not found',
-    path: req.path,
-    method: req.method
+    success: false,
+    error: {
+      code: 'ENDPOINT_NOT_FOUND',
+      message: 'API endpoint not found',
+      statusCode: 404,
+      details: {
+        path: req.path,
+        method: req.method
+      },
+      timestamp: new Date().toISOString()
+    }
   });
 };
