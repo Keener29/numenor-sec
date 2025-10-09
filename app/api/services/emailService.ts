@@ -166,10 +166,6 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
                class="button" style="background-color: #10b981; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px;">
               ✅ Grant Permission
             </a>
-            <a href="${apiUrl}/api/deny-email?id=${emailId}&businessId=${businessId}&token=${declineToken}" 
-               class="button" style="background-color: #dc2626; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block;">
-              ❌ Deny Permission
-            </a>
           </div>
           
           <h3>Questions or Concerns?</h3>
@@ -216,9 +212,8 @@ You can choose to:
 - Deny Permission: Decline the monitoring request
 - Contact for Questions: Reach out to ${businessName} for more information
 
-To respond, please visit one of these secure links:
+To accept, please visit the secure link:
 - Grant Permission: ${apiUrl}/api/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}
-- Deny Permission: ${apiUrl}/api/deny-email?id=${emailId}&businessId=${businessId}&token=${declineToken}
 
 Questions or Concerns?
 If you have any questions about this request or need more information, please contact:
