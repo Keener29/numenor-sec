@@ -1,30 +1,31 @@
 import { emailMonitor } from './services/emailMonitor.js';
-import { emailService } from './utils/emailService.js';
+import { emailService } from './services/emailService.js';
+import { logger } from './services/logger.js';
 
 /**
  * Initialize and start all background services
  */
 export async function initializeServices(): Promise<void> {
-  console.log('🚀 Initializing Numenor Security services...');
+  logger.info('Initializing Numenor Security services', { operation: 'initialize-services' });
 
   try {
     // Test email service connection
-    console.log('📧 Testing email service connection...');
+    logger.info('Testing email service connection', { operation: 'test-email-connection' });
     const emailConnected = await emailService.testConnection();
     if (emailConnected) {
-      console.log('✅ Email service connected successfully');
+      logger.info('Email service connected successfully', { operation: 'test-email-connection' });
     } else {
-      console.log('⚠️ Email service connection failed - check SMTP configuration');
+      logger.warn('Email service connection failed - check SMTP configuration', { operation: 'test-email-connection' });
     }
 
     // Start email monitoring service
-    console.log('👁️ Starting email monitoring service...');
+    logger.info('Starting email monitoring service', { operation: 'start-email-monitoring' });
     await emailMonitor.startMonitoring();
-    console.log('✅ Email monitoring service started');
+    logger.info('Email monitoring service started', { operation: 'start-email-monitoring' });
 
-    console.log('🎉 All services initialized successfully');
+    logger.info('All services initialized successfully', { operation: 'initialize-services' });
   } catch (error) {
-    console.error('❌ Failed to initialize services:', error);
+    logger.error('Failed to initialize services', { operation: 'initialize-services' }, error as Error);
     throw error;
   }
 }
@@ -33,28 +34,28 @@ export async function initializeServices(): Promise<void> {
  * Gracefully shutdown all services
  */
 export async function shutdownServices(): Promise<void> {
-  console.log('🛑 Shutting down services...');
+  logger.info('Shutting down services', { operation: 'shutdown-services' });
 
   try {
     // Stop email monitoring
     emailMonitor.stopMonitoring();
-    console.log('✅ Email monitoring service stopped');
+    logger.info('Email monitoring service stopped', { operation: 'shutdown-services' });
 
-    console.log('✅ All services shut down gracefully');
+    logger.info('All services shut down gracefully', { operation: 'shutdown-services' });
   } catch (error) {
-    console.error('❌ Error during shutdown:', error);
+    logger.error('Error during shutdown', { operation: 'shutdown-services' }, error as Error);
   }
 }
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+  logger.info('Received SIGINT, shutting down gracefully', { operation: 'signal-handler' });
   await shutdownServices();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
+  logger.info('Received SIGTERM, shutting down gracefully', { operation: 'signal-handler' });
   await shutdownServices();
   process.exit(0);
 });
