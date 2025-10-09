@@ -247,7 +247,6 @@ That's it! The application will be running with:
 ### OAuth Integration (`/api/oauth`)
 - `GET /auth-url` - Generate Gmail OAuth authorization URL
 - `GET /oauth2callback` - Handle OAuth callback from Google
-- `GET /deny-email` - Handle email monitoring denial
 - `POST /gmail/disconnect` - Disconnect Gmail OAuth
 - `GET /status/:emailAddress` - Check OAuth connection status
 - `POST /gmail/test` - Test Gmail OAuth connection
