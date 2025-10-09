@@ -197,9 +197,9 @@ class EmailMonitor {
    */
   private async fetchNewEmails(email: MonitoredEmail): Promise<EmailMessage[]> {
     try {
-      // Check if OAuth tokens exist for this email
+      // Check if OAuth tokens exist for this email and get connection timestamp
       const tokenResult = await query(
-        'SELECT id FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
+        'SELECT id, created_at FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
         [email.businessId, email.emailAddress]
       );
 
@@ -211,12 +211,24 @@ class EmailMonitor {
         return [];
       }
 
-      // Fetch emails from Gmail API
+      // Get the OAuth connection timestamp to only fetch emails after connection
+      const connectionTimestamp = (tokenResult.rows[0] as { created_at: Date }).created_at;
+
+      monitoringLogger.debug('Fetching emails after OAuth connection time', {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress,
+        metadata: {
+          connectionTimestamp: connectionTimestamp.toISOString()
+        }
+      });
+
+      // Fetch emails from Gmail API (only emails after connection time)
       const gmailMessages = await gmailOAuthService.fetchEmails(
         email.businessId,
         email.emailAddress,
         10, // max 10 emails per scan
-        'is:unread' // only unread emails
+        'is:unread', // only unread emails
+        connectionTimestamp // only emails after OAuth connection
       );
 
       if (gmailMessages.length === 0) {

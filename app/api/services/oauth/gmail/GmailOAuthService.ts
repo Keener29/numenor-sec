@@ -333,7 +333,8 @@ export class GmailOAuthService extends OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults: number = 10,
-    query: string = 'is:unread'
+    query: string = 'is:unread',
+    connectionTimestamp?: Date
   ): Promise<EmailMessage[]> {
     const context: LogContext = {
       operation: 'fetch-emails',
@@ -348,12 +349,29 @@ export class GmailOAuthService extends OAuthProvider {
     try {
       await this.setCredentials(businessId, emailAddress);
 
-      oauthLogger.debug('Fetching emails from Gmail', context);
+      // Build Gmail query to only fetch emails after connection time
+      let gmailQuery = query;
+      if (connectionTimestamp) {
+        // Convert connection timestamp to Gmail date format (YYYY/MM/DD)
+        const connectionDate = connectionTimestamp.toISOString().split('T')[0].replace(/-/g, '/');
+        gmailQuery = `${query} after:${connectionDate}`;
+        
+        oauthLogger.debug('Fetching emails from Gmail after connection time', {
+          ...context,
+          metadata: {
+            ...context.metadata,
+            connectionTimestamp: connectionTimestamp.toISOString(),
+            gmailQuery
+          }
+        });
+      } else {
+        oauthLogger.debug('Fetching emails from Gmail', context);
+      }
 
       const response = await this.gmail.users.messages.list({
         userId: 'me',
         maxResults,
-        q: query
+        q: gmailQuery
       });
 
       const messages = response.data.messages || [];
@@ -603,8 +621,18 @@ export class GmailOAuthService extends OAuthProvider {
     details?: string;
   }> {
     try {
-      // Test the connection by fetching a few emails
-      const emails = await this.fetchEmails(businessId, emailAddress, 5, 'is:unread');
+      // Get the OAuth connection timestamp to only test with emails after connection
+      const tokenResult = await query(
+        'SELECT created_at FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3',
+        [businessId, emailAddress, 'gmail']
+      );
+      
+      const connectionTimestamp = tokenResult.rows.length > 0 
+        ? (tokenResult.rows[0] as { created_at: Date }).created_at 
+        : undefined;
+
+      // Test the connection by fetching a few emails (only after connection time)
+      const emails = await this.fetchEmails(businessId, emailAddress, 5, 'is:unread', connectionTimestamp);
       
       return {
         success: true,

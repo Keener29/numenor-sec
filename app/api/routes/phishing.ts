@@ -99,18 +99,23 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
     }
 
     if (emailId) {
-      // Scan specific email
+      // Scan specific email - only if it has OAuth tokens (is connected)
       const emailResult = await query(
-        'SELECT id, business_id, email_address FROM monitored_emails WHERE id = $1 AND business_id = $2',
+        `SELECT me.id, me.business_id, me.email_address 
+         FROM monitored_emails me
+         INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+         WHERE me.id = $1 AND me.business_id = $2`,
         [emailId, businessId]
       );
 
       if (emailResult.rows.length === 0) {
-        return res.status(404).json({ error: 'Email not found or access denied' });
+        return res.status(404).json({ 
+          error: 'Email not found, access denied, or email is not connected via OAuth. Please connect the email first.' 
+        });
       }
 
       const email = emailResult.rows[0] as { id: number; email_address: string };
-      securityLogger.info('Manual scan triggered for email', {
+      securityLogger.info('Manual scan triggered for connected email', {
         operation: 'manual-scan-email',
         businessId,
         metadata: {
