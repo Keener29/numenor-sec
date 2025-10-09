@@ -4,14 +4,20 @@ import crypto from 'crypto';
 export const tokenService = {
   generateApprovalToken(emailId: number, businessId: number): string {
     const payload = `approve_${emailId}_${businessId}_${Date.now()}`;
-    const secret = process.env.TOKEN_SECRET || 'default-secret-change-in-production';
+    const secret = process.env.TOKEN_SECRET;
+    if (!secret) {
+      throw new Error('TOKEN_SECRET environment variable is required');
+    }
     const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     return `${payload}_${hash}`;
   },
 
   generateDeclineToken(emailId: number, businessId: number): string {
     const payload = `decline_${emailId}_${businessId}_${Date.now()}`;
-    const secret = process.env.TOKEN_SECRET || 'default-secret-change-in-production';
+    const secret = process.env.TOKEN_SECRET;
+    if (!secret) {
+      throw new Error('TOKEN_SECRET environment variable is required');
+    }
     const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
     return `${payload}_${hash}`;
   },
@@ -37,7 +43,10 @@ export const tokenService = {
       
       // Verify hash
       const payload = `approve_${emailId}_${businessId}_${timestamp}`;
-      const secret = process.env.TOKEN_SECRET || 'default-secret-change-in-production';
+      const secret = process.env.TOKEN_SECRET;
+      if (!secret) {
+        return false;
+      }
       const expectedHash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
       
       return providedHash === expectedHash;
@@ -67,7 +76,10 @@ export const tokenService = {
       
       // Verify hash
       const payload = `decline_${emailId}_${businessId}_${timestamp}`;
-      const secret = process.env.TOKEN_SECRET || 'default-secret-change-in-production';
+      const secret = process.env.TOKEN_SECRET;
+      if (!secret) {
+        return false;
+      }
       const expectedHash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
       
       return providedHash === expectedHash;
