@@ -148,7 +148,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           <h3>What This Means:</h3>
           <ul>
             <li><strong>Security Monitoring:</strong> We will scan incoming emails for phishing attempts, malware, and other security threats</li>
-            <li><strong>Threat Detection:</strong> Suspicious emails will be flagged and reported to ${businessName}'s security team</li>
+            <li><strong>Threat Detection:</strong> Suspicious emails will be flagged and reported to ${businessName}'s team</li>
             <li><strong>Privacy Protection:</strong> We do not read, store, or access the content of your emails beyond security scanning</li>
             <li><strong>Business Protection:</strong> This helps protect ${businessName} from cyber attacks and data breaches</li>
           </ul>
@@ -202,7 +202,7 @@ IMPORTANT: This request is for legitimate business security purposes only. We wi
 
 What This Means:
 - Security Monitoring: We will scan incoming emails for phishing attempts, malware, and other security threats
-- Threat Detection: Suspicious emails will be flagged and reported to ${businessName}'s security team
+- Threat Detection: Suspicious emails will be flagged and reported to ${businessName}'s team
 - Privacy Protection: We do not read, store, or access the content of your emails beyond security scanning
 - Business Protection: This helps protect ${businessName} from cyber attacks and data breaches
 
