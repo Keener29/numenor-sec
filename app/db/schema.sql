@@ -32,11 +32,11 @@ CREATE TABLE IF NOT EXISTS businesses (
 );
 
 -- Email addresses to monitor
+-- Connection status is determined by presence of OAuth tokens in oauth_tokens table
 CREATE TABLE IF NOT EXISTS monitored_emails (
     id SERIAL PRIMARY KEY,
     business_id INTEGER,
     email_address VARCHAR(255) NOT NULL,
-    is_connected BOOLEAN DEFAULT false,
     last_checked TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -85,6 +85,31 @@ CREATE TABLE IF NOT EXISTS email_scans (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- OAuth tokens for email service providers
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id SERIAL PRIMARY KEY,
+    business_id INTEGER NOT NULL,
+    email_address VARCHAR(255) NOT NULL,
+    provider VARCHAR(20) NOT NULL DEFAULT 'gmail',
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
+    expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Foreign key constraint
+    CONSTRAINT fk_oauth_tokens_business_id 
+        FOREIGN KEY (business_id) 
+        REFERENCES businesses(id) 
+        ON DELETE CASCADE,
+    
+    -- Unique constraint to prevent duplicate tokens for same business/email/provider
+    CONSTRAINT unique_oauth_tokens_business_email_provider 
+        UNIQUE (business_id, email_address, provider)
+);
+
 -- Create indexes for better performance (after foreign keys)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner_id ON businesses(owner_id);
@@ -94,6 +119,10 @@ CREATE INDEX IF NOT EXISTS idx_phishing_alerts_created_at ON phishing_alerts(cre
 CREATE INDEX IF NOT EXISTS idx_security_events_business_id ON security_events(business_id);
 CREATE INDEX IF NOT EXISTS idx_security_events_created_at ON security_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_email_scans_business_id ON email_scans(business_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_business_id ON oauth_tokens(business_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_email_address ON oauth_tokens(email_address);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_provider ON oauth_tokens(provider);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expiry_date ON oauth_tokens(expiry_date);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -118,3 +147,4 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_monitored_emails_updated_at BEFORE UPDATE ON monitored_emails FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_phishing_alerts_updated_at BEFORE UPDATE ON phishing_alerts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_oauth_tokens_updated_at BEFORE UPDATE ON oauth_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
