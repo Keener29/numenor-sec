@@ -1,4 +1,5 @@
 import { query } from '../../db/connection.js';
+import { oauthLogger } from './logger.js';
 
 // Phishing detection patterns and rules
 interface PhishingPattern {
@@ -494,7 +495,10 @@ class PhishingDetector {
         ]
       );
     } catch (error) {
-      console.error('Failed to store threat assessment:', error);
+      oauthLogger.error('Failed to store threat assessment', {
+        operation: 'store-threat-assessment',
+        metadata: { businessId, emailId, threatLevel: assessment.threatLevel }
+      }, error as Error);
       throw error;
     }
   }
@@ -519,7 +523,10 @@ class PhishingDetector {
 
       return result.rows || [];
     } catch (error) {
-      console.error('Failed to get threat statistics:', error);
+      oauthLogger.error('Failed to get threat statistics', {
+        operation: 'get-threat-statistics',
+        metadata: { businessId }
+      }, error as Error);
       // Return empty array instead of throwing
       return [];
     }

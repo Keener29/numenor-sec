@@ -22,7 +22,17 @@ router.get('/', authenticateToken, requireBusiness, async (req: AuthRequest, res
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const business = result.rows[0];
+    const business = result.rows[0] as {
+      id: number;
+      name: string;
+      address: string;
+      phone: string;
+      website: string;
+      member_count: number;
+      is_active: boolean;
+      created_at: Date;
+      updated_at: Date;
+    };
     res.json({
       business: {
         id: business.id,
@@ -91,7 +101,17 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const business = result.rows[0];
+    const business = result.rows[0] as {
+      id: number;
+      name: string;
+      address: string;
+      phone: string;
+      website: string;
+      member_count: number;
+      is_active: boolean;
+      created_at: Date;
+      updated_at: Date;
+    };
 
     // Log the update event
     await query(
@@ -148,19 +168,22 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
       [businessId]
     );
 
-    // Get connected emails count
+    // Get connected emails count (those with OAuth tokens)
     const connectedEmailsResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND is_connected = true',
+      `SELECT COUNT(*) as count 
+       FROM monitored_emails me
+       INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+       WHERE me.business_id = $1`,
       [businessId]
     );
 
     res.json({
       stats: {
-        totalEmails: parseInt(emailsResult.rows[0].count),
-        connectedEmails: parseInt(connectedEmailsResult.rows[0].count),
-        totalAlerts: parseInt(alertsResult.rows[0].count),
-        pendingAlerts: parseInt(pendingAlertsResult.rows[0].count),
-        recentAlerts: parseInt(recentAlertsResult.rows[0].count)
+        totalEmails: parseInt((emailsResult.rows[0] as { count: string }).count),
+        connectedEmails: parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
+        totalAlerts: parseInt((alertsResult.rows[0] as { count: string }).count),
+        pendingAlerts: parseInt((pendingAlertsResult.rows[0] as { count: string }).count),
+        recentAlerts: parseInt((recentAlertsResult.rows[0] as { count: string }).count)
       }
     });
   } catch (error) {

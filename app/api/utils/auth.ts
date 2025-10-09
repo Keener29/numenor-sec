@@ -50,7 +50,7 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
     return null;
   }
 
-  return result.rows[0];
+  return result.rows[0] as User;
 };
 
 export const getUserById = async (id: number): Promise<User | null> => {
@@ -66,7 +66,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
     return null;
   }
 
-  return result.rows[0];
+  return result.rows[0] as User;
 };
 
 export const createUser = async (
@@ -85,7 +85,7 @@ export const createUser = async (
     [email, hashedPassword, firstName, lastName, businessName]
   );
 
-  return result.rows[0];
+  return result.rows[0] as User;
 };
 
 export const verifyUserPassword = async (email: string, password: string): Promise<User | null> => {
@@ -101,7 +101,7 @@ export const verifyUserPassword = async (email: string, password: string): Promi
     return null;
   }
 
-  const user = result.rows[0];
+  const user = result.rows[0] as User & { password_hash: string };
   const isValidPassword = await comparePassword(password, user.password_hash);
 
   if (!isValidPassword) {
@@ -109,6 +109,6 @@ export const verifyUserPassword = async (email: string, password: string): Promi
   }
 
   // Remove password_hash from returned user object
-  delete user.password_hash;
-  return user;
+  const { password_hash, ...userWithoutPassword } = user;
+  return userWithoutPassword;
 };

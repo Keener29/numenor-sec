@@ -4,6 +4,7 @@ import { validateBody } from '../middleware/validation.js';
 import { phishingDetector, type EmailAnalysis } from '../services/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
+import { securityLogger } from '../services/logger.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -34,7 +35,15 @@ router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAn
     const businessId = req.user!.business_id!;
     const emailData: EmailAnalysis = req.body;
 
-    console.log(`Analyzing email from ${emailData.sender} to ${emailData.recipient}`);
+    securityLogger.info('Analyzing email for phishing threats', {
+      operation: 'analyze-email',
+      businessId,
+      metadata: {
+        sender: emailData.sender,
+        recipient: emailData.recipient,
+        subject: emailData.subject
+      }
+    });
 
     // Analyze email for phishing threats
     const threatAssessment = await phishingDetector.analyzeEmail(emailData);
@@ -48,7 +57,7 @@ router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAn
       );
 
       if (emailResult.rows.length > 0) {
-        const emailId = emailResult.rows[0].id;
+        const emailId = (emailResult.rows[0] as { id: number }).id;
         
         // Only store actual threats (medium, high, critical) - ignore low and safe
         if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
@@ -100,8 +109,15 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
         return res.status(404).json({ error: 'Email not found or access denied' });
       }
 
-      const email = emailResult.rows[0];
-      console.log(`Manual scan triggered for email: ${email.email_address}`);
+      const email = emailResult.rows[0] as { id: number; email_address: string };
+      securityLogger.info('Manual scan triggered for email', {
+        operation: 'manual-scan-email',
+        businessId,
+        metadata: {
+          emailId: email.id,
+          emailAddress: email.email_address
+        }
+      });
 
       // Trigger scan for specific email
       await emailMonitor.triggerBusinessScan(businessId);
@@ -114,7 +130,10 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
 
     } else {
       // Scan all business emails
-      console.log(`Manual scan triggered for business: ${businessId}`);
+      securityLogger.info('Manual scan triggered for business', {
+        operation: 'manual-scan-business',
+        businessId
+      });
 
       await emailMonitor.triggerBusinessScan(businessId);
 
@@ -140,14 +159,20 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
     const businessId = req.user!.business_id!;
     const days = parseInt(req.query.days as string) || 30;
 
-    console.log(`Getting statistics for business ${businessId}`);
+    securityLogger.info('Getting threat statistics for business', {
+      operation: 'get-threat-statistics',
+      businessId
+    });
 
     // Get threat statistics (will return empty array if no data)
     let threatStats = [];
     try {
       threatStats = await phishingDetector.getThreatStatistics(businessId, days);
     } catch (error) {
-      console.error('Error getting threat statistics:', error);
+      securityLogger.error('Error getting threat statistics', {
+        operation: 'get-threat-statistics',
+        businessId
+      }, error as Error);
       threatStats = [];
     }
 
@@ -156,7 +181,10 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
     try {
       monitoringStats = await emailMonitor.getMonitoringStats();
     } catch (error) {
-      console.error('Error getting monitoring stats:', error);
+      securityLogger.error('Error getting monitoring stats', {
+        operation: 'get-monitoring-stats',
+        businessId
+      }, error as Error);
       monitoringStats = {
         emails: {
           total_emails: 0,
@@ -174,7 +202,7 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
     }
 
     // Get recent alerts (will return empty array if no data)
-    let recentAlerts = { rows: [] };
+    let recentAlerts: { rows: unknown[] } = { rows: [] };
     try {
       recentAlerts = await query(
         `SELECT 
@@ -193,26 +221,33 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
         [businessId]
       );
     } catch (error) {
-      console.error('Error getting recent alerts:', error);
+      securityLogger.error('Error getting recent alerts', {
+        operation: 'get-recent-alerts',
+        businessId
+      }, error as Error);
       recentAlerts = { rows: [] };
     }
 
     // Calculate summary statistics (handle empty data gracefully)
     // Only count actual threats (critical, high, medium) - ignore low and safe
-    const threatStatsFiltered = threatStats?.filter((stat: any) => 
+    const threatStatsFiltered = threatStats?.filter((stat: { threat_level: string }) => 
       ['critical', 'high', 'medium'].includes(stat.threat_level)
     ) || [];
     
-    const recentAlertsFiltered = recentAlerts.rows?.filter((alert: any) => 
-      ['critical', 'high', 'medium'].includes(alert.threat_level)
-    ) || [];
+    const recentAlertsFiltered = recentAlerts.rows?.filter((alert) => {
+      const typedAlert = alert as { threat_level: string };
+      return ['critical', 'high', 'medium'].includes(typedAlert.threat_level);
+    }) || [];
 
     const summary = {
       totalAlerts: threatStatsFiltered.length,
-      criticalAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'critical').length || 0,
-      highAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'high').length || 0,
-      mediumAlerts: threatStats?.filter((stat: any) => stat.threat_level === 'medium').length || 0,
-      pendingAlerts: recentAlertsFiltered.filter((alert: any) => alert.status === 'pending').length
+      criticalAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'critical').length || 0,
+      highAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'high').length || 0,
+      mediumAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'medium').length || 0,
+      pendingAlerts: recentAlertsFiltered.filter((alert) => {
+        const typedAlert = alert as { status: string };
+        return typedAlert.status === 'pending';
+      }).length
     };
 
     res.json({
@@ -239,7 +274,9 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
     });
 
   } catch (error) {
-    console.error('Error in statistics endpoint:', error);
+    securityLogger.error('Error in statistics endpoint', {
+      operation: 'get-threat-statistics'
+    }, error as Error);
     // Return default data instead of error
     res.json({
       success: true,
@@ -308,7 +345,7 @@ router.get('/patterns', authenticateToken, async (req: AuthRequest, res, next) =
       'html_embedded_content': 'Embedded HTML content that could be malicious'
     };
 
-    const patterns = (patternStats.rows || []).map((stat: any) => ({
+    const patterns = ((patternStats.rows || []) as { pattern_name: string; count: number; alert_type: string }[]).map((stat) => ({
       ...stat,
       description: patternDescriptions[stat.alert_type as keyof typeof patternDescriptions] || 'Unknown pattern'
     }));
@@ -331,7 +368,9 @@ router.get('/patterns', authenticateToken, async (req: AuthRequest, res, next) =
  */
 router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
-    console.log('Getting monitoring status');
+    securityLogger.info('Getting monitoring status', {
+      operation: 'get-monitoring-status'
+    });
     
     let status = null;
     let stats = null;
@@ -339,14 +378,18 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
     try {
       status = emailMonitor.getMonitoringStatus();
     } catch (error) {
-      console.error('Error getting monitoring status:', error);
+      securityLogger.error('Error getting monitoring status', {
+        operation: 'get-monitoring-status'
+      }, error as Error);
       status = { isMonitoring: false, interval: 30000 };
     }
     
     try {
       stats = await emailMonitor.getMonitoringStats();
     } catch (error) {
-      console.error('Error getting monitoring stats:', error);
+      securityLogger.error('Error getting monitoring stats', {
+        operation: 'get-monitoring-stats'
+      }, error as Error);
       stats = {
         emails: {
           total_emails: 0,
@@ -385,7 +428,9 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
     });
 
   } catch (error) {
-    console.error('Error in monitoring status endpoint:', error);
+    securityLogger.error('Error in monitoring status endpoint', {
+      operation: 'get-monitoring-status'
+    }, error as Error);
     // Return default data instead of error
     res.json({
       success: true,
@@ -477,10 +522,10 @@ router.get('/recommendations', authenticateToken, requireBusiness, async (req: A
 
     // Handle empty data gracefully
     const threats = recentThreats.rows || [];
-    const threatCounts = threats.reduce((acc: any, threat: any) => {
+    const threatCounts = (threats as { threat_level: string }[]).reduce((acc: Record<string, number>, threat) => {
       acc[threat.threat_level] = (acc[threat.threat_level] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     // High threat level recommendations
     if (threatCounts.critical > 0) {
@@ -504,10 +549,10 @@ router.get('/recommendations', authenticateToken, requireBusiness, async (req: A
     }
 
     // Pattern-based recommendations
-    const patternCounts = threats.reduce((acc: any, threat: any) => {
+    const patternCounts = (threats as { alert_type: string }[]).reduce((acc: Record<string, number>, threat) => {
       acc[threat.alert_type] = (acc[threat.alert_type] || 0) + 1;
       return acc;
-    }, {});
+    }, {} as Record<string, number>);
 
     if (patternCounts.ceo_fraud > 0) {
       recommendations.push({
@@ -571,8 +616,8 @@ router.get('/recommendations', authenticateToken, requireBusiness, async (req: A
       threatSummary: {
         totalThreats: threats.length,
         threatLevels: threatCounts,
-        topPatterns: Object.entries(patternCounts)
-          .sort(([,a], [,b]) => (b as number) - (a as number))
+        topPatterns: Object.entries(patternCounts as Record<string, number>)
+          .sort(([,a], [,b]) => b - a)
           .slice(0, 5)
           .map(([pattern, count]) => ({ pattern, count }))
       }

@@ -3,6 +3,7 @@ import { validateBody, validateParams, validateQuery } from '../middleware/valid
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { updateAlertSchema, alertParamsSchema, alertQuerySchema, createAlertSchema } from '../schemas/alerts.js';
 import { query } from '../../db/connection.js';
+import { oauthLogger } from '../services/logger.js';
 
 const router = Router();
 
@@ -57,25 +58,42 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySche
       queryParams
     );
 
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt((countResult.rows[0] as { count: string }).count);
     const totalPages = Math.ceil(totalCount / limit);
 
     res.json({
-      alerts: alertsResult.rows.map((alert: any) => ({
-        id: alert.id,
-        emailId: alert.email_id,
-        emailAddress: alert.email_address,
-        subject: alert.subject,
-        senderEmail: alert.sender_email,
-        recipientEmail: alert.recipient_email,
-        threatLevel: alert.threat_level,
-        status: alert.status,
-        alertType: alert.alert_type,
-        description: alert.description,
-        rawEmailData: alert.raw_email_data,
-        createdAt: alert.created_at,
-        updatedAt: alert.updated_at
-      })),
+      alerts: alertsResult.rows.map((alert) => {
+        const typedAlert = alert as {
+          id: number;
+          email_id: number;
+          email_address: string;
+          subject: string;
+          sender_email: string;
+          recipient_email: string;
+          threat_level: string;
+          status: string;
+          alert_type: string;
+          description: string;
+          raw_email_data: string;
+          created_at: Date;
+          updated_at: Date;
+        };
+        return {
+          id: typedAlert.id,
+          emailId: typedAlert.email_id,
+          emailAddress: typedAlert.email_address,
+          subject: typedAlert.subject,
+          senderEmail: typedAlert.sender_email,
+          recipientEmail: typedAlert.recipient_email,
+          threatLevel: typedAlert.threat_level,
+          status: typedAlert.status,
+          alertType: typedAlert.alert_type,
+          description: typedAlert.description,
+          rawEmailData: typedAlert.raw_email_data,
+          createdAt: typedAlert.created_at,
+          updatedAt: typedAlert.updated_at
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -135,29 +153,32 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
       [businessId]
     );
 
-    const statusCounts = statusResult.rows.reduce((acc: any, row: any) => {
-      acc[row.status] = parseInt(row.count);
+    const statusCounts = statusResult.rows.reduce((acc: Record<string, number>, row) => {
+      acc[(row as { status: string }).status] = parseInt((row as { count: string }).count);
       return acc;
     }, {} as Record<string, number>);
 
-    const threatLevelCounts = threatLevelResult.rows.reduce((acc: any, row: any) => {
-      acc[row.threat_level] = parseInt(row.count);
+    const threatLevelCounts = threatLevelResult.rows.reduce((acc: Record<string, number>, row) => {
+      acc[(row as { threat_level: string }).threat_level] = parseInt((row as { count: string }).count);
       return acc;
     }, {} as Record<string, number>);
 
     const stats = {
-      totalAlerts: parseInt(totalResult.rows[0].count),
-      recentAlerts: parseInt(recentResult.rows[0].count),
+      totalAlerts: parseInt((totalResult.rows[0] as { count: string }).count),
+      recentAlerts: parseInt((recentResult.rows[0] as { count: string }).count),
       statusCounts,
       threatLevelCounts,
-      dailyAlerts: dailyResult.rows.map((row: any) => ({
-        date: row.date,
-        count: parseInt(row.count)
+      dailyAlerts: dailyResult.rows.map((row) => ({
+        date: (row as { date: string }).date,
+        count: parseInt((row as { count: string }).count)
       }))
     };
     
-    console.log('Alert stats response:', stats);
-    console.log('Daily alerts raw data:', dailyResult.rows);
+    oauthLogger.debug('Alert stats response generated', {
+      operation: 'get-alert-stats',
+      businessId,
+      metadata: { stats, dailyAlertsCount: dailyResult.rows.length }
+    });
     
     res.json({
       stats
@@ -187,7 +208,21 @@ router.get('/:id', authenticateToken, requireBusiness, validateParams(alertParam
       return res.status(404).json({ error: 'Alert not found' });
     }
 
-    const alert = result.rows[0];
+    const alert = result.rows[0] as {
+      id: number;
+      email_id: number;
+      email_address: string;
+      subject: string;
+      sender_email: string;
+      recipient_email: string;
+      threat_level: string;
+      status: string;
+      alert_type: string;
+      description: string;
+      raw_email_data: string;
+      created_at: Date;
+      updated_at: Date;
+    };
     res.json({
       alert: {
         id: alert.id,
@@ -259,7 +294,20 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
       return res.status(404).json({ error: 'Alert not found' });
     }
 
-    const alert = result.rows[0];
+    const alert = result.rows[0] as {
+      id: number;
+      email_id: number;
+      subject: string;
+      sender_email: string;
+      recipient_email: string;
+      threat_level: string;
+      status: string;
+      alert_type: string;
+      description: string;
+      raw_email_data: string;
+      created_at: Date;
+      updated_at: Date;
+    };
 
     // Log the event
     const clientIP = req.get('X-Forwarded-For')?.split(',')[0]?.trim() || 
@@ -320,7 +368,20 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
       [businessId, parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
     );
 
-    const alert = result.rows[0];
+    const alert = result.rows[0] as {
+      id: number;
+      email_id: number;
+      subject: string;
+      sender_email: string;
+      recipient_email: string;
+      threat_level: string;
+      status: string;
+      alert_type: string;
+      description: string;
+      raw_email_data: string;
+      created_at: Date;
+      updated_at: Date;
+    };
 
     // Log the event
     const clientIP = req.get('X-Forwarded-For')?.split(',')[0]?.trim() || 

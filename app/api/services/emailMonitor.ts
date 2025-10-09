@@ -1,13 +1,15 @@
 import { query } from '../../db/connection.js';
 import { phishingDetector, type EmailAnalysis } from './phishingDetector.js';
-import { emailService } from '../utils/emailService.js';
+import { emailService } from './emailService.js';
+import { gmailOAuthService } from './oauthService.js';
+import { monitoringLogger } from './logger.js';
 
 interface MonitoredEmail {
   id: number;
   businessId: number;
   emailAddress: string;
   isConnected: boolean;
-  lastChecked: Date;
+  lastChecked: Date | null;
 }
 
 interface EmailMessage {
@@ -33,11 +35,15 @@ class EmailMonitor {
    */
   async startMonitoring(): Promise<void> {
     if (this.isMonitoring) {
-      console.log('Email monitoring is already running');
+      monitoringLogger.info('Email monitoring is already running', {
+        operation: 'start-monitoring'
+      });
       return;
     }
 
-    console.log('Starting email monitoring service...');
+    monitoringLogger.info('Starting email monitoring service', {
+      operation: 'start-monitoring'
+    });
     this.isMonitoring = true;
 
     // Initial scan
@@ -48,11 +54,15 @@ class EmailMonitor {
       try {
         await this.performEmailScan();
       } catch (error) {
-        console.error('Error during email monitoring:', error);
+        monitoringLogger.error('Error during email monitoring', {
+          operation: 'monitoring-interval'
+        }, error instanceof Error ? error : new Error(String(error)));
       }
     }, this.SCAN_INTERVAL);
 
-    console.log('Email monitoring service started successfully');
+    monitoringLogger.info('Email monitoring service started successfully', {
+      operation: 'start-monitoring'
+    });
   }
 
   /**
@@ -64,7 +74,9 @@ class EmailMonitor {
       this.monitoringInterval = null;
     }
     this.isMonitoring = false;
-    console.log('Email monitoring service stopped');
+    monitoringLogger.info('Email monitoring service stopped', {
+      operation: 'stop-monitoring'
+    });
   }
 
   /**
@@ -75,11 +87,18 @@ class EmailMonitor {
       const connectedEmails = await this.getConnectedEmails();
       
       if (connectedEmails.length === 0) {
-        console.log('No connected emails to monitor');
+        monitoringLogger.info('No connected emails to monitor', {
+          operation: 'email-scan'
+        });
         return;
       }
 
-      console.log(`Scanning ${connectedEmails.length} connected email addresses...`);
+      monitoringLogger.info('Scanning connected email addresses', {
+        operation: 'email-scan',
+        metadata: {
+          emailCount: connectedEmails.length
+        }
+      });
 
       // Process emails in batches to avoid overwhelming the system
       for (let i = 0; i < connectedEmails.length; i += this.BATCH_SIZE) {
@@ -91,8 +110,10 @@ class EmailMonitor {
       await this.logScanCompletion(connectedEmails.length);
       
     } catch (error) {
-      console.error('Error during email scan:', error);
-      await this.logScanError(error);
+      monitoringLogger.error('Error during email scan', {
+        operation: 'email-scan'
+      }, error instanceof Error ? error : new Error(String(error)));
+      await this.logScanError(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -101,23 +122,26 @@ class EmailMonitor {
    */
   private async getConnectedEmails(): Promise<MonitoredEmail[]> {
     try {
+      // Get emails that have OAuth tokens (actually connected)
       const result = await query(
-        `SELECT id, business_id, email_address, is_connected, last_checked
-         FROM monitored_emails 
-         WHERE is_connected = true
-         ORDER BY last_checked ASC NULLS FIRST`,
+        `SELECT me.id, me.business_id, me.email_address, me.last_checked
+         FROM monitored_emails me
+         INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+         ORDER BY me.last_checked ASC NULLS FIRST`,
         []
       );
 
-      return result.rows.map((row: any) => ({
+      return (result.rows as { id: number; business_id: number; email_address: string; last_checked: Date | null }[]).map((row) => ({
         id: row.id,
         businessId: row.business_id,
         emailAddress: row.email_address,
-        isConnected: row.is_connected,
+        isConnected: true, // If OAuth tokens exist, email is connected
         lastChecked: row.last_checked
       }));
     } catch (error) {
-      console.error('Failed to get connected emails:', error);
+      monitoringLogger.error('Failed to get connected emails', {
+        operation: 'get-connected-emails'
+      }, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -127,17 +151,29 @@ class EmailMonitor {
    */
   private async scanEmailAddress(email: MonitoredEmail): Promise<void> {
     try {
-      console.log(`Scanning email: ${email.emailAddress}`);
+      monitoringLogger.debug('Scanning email address', {
+        operation: 'scan-email-address',
+        emailAddress: email.emailAddress
+      });
 
       // Simulate email fetching (in a real implementation, this would connect to IMAP/POP3)
       const newEmails = await this.fetchNewEmails(email);
 
       if (newEmails.length === 0) {
-        console.log(`No new emails for ${email.emailAddress}`);
+        monitoringLogger.debug('No new emails found', {
+          operation: 'scan-email-address',
+          emailAddress: email.emailAddress
+        });
         return;
       }
 
-      console.log(`Found ${newEmails.length} new emails for ${email.emailAddress}`);
+      monitoringLogger.info('Found new emails', {
+        operation: 'scan-email-address',
+        emailAddress: email.emailAddress,
+        metadata: {
+          emailCount: newEmails.length
+        }
+      });
 
       // Process each new email
       for (const emailMessage of newEmails) {
@@ -148,57 +184,108 @@ class EmailMonitor {
       await this.updateLastChecked(email.id);
 
     } catch (error) {
-      console.error(`Error scanning email ${email.emailAddress}:`, error);
-      await this.logEmailScanError(email.id, error);
+      monitoringLogger.error('Error scanning email address', {
+        operation: 'scan-email-address',
+        emailAddress: email.emailAddress
+      }, error instanceof Error ? error : new Error(String(error)));
+      await this.logEmailScanError(email.id, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
-   * Simulate fetching new emails for a monitored address
+   * Fetch new emails for a monitored address using Gmail API
    */
   private async fetchNewEmails(email: MonitoredEmail): Promise<EmailMessage[]> {
-    // Simulate email fetching with random chance of finding emails
-    const shouldHaveEmails = Math.random() < 0.3; // 30% chance of having new emails
-    
-    if (!shouldHaveEmails) {
-      console.log(`No new emails simulated for ${email.emailAddress}`);
+    try {
+      // Check if OAuth tokens exist for this email
+      const tokenResult = await query(
+        'SELECT id FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
+        [email.businessId, email.emailAddress]
+      );
+
+      if (tokenResult.rows.length === 0) {
+        monitoringLogger.debug('No OAuth tokens found, skipping Gmail fetch', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress
+        });
+        return [];
+      }
+
+      // Fetch emails from Gmail API
+      const gmailMessages = await gmailOAuthService.fetchEmails(
+        email.businessId,
+        email.emailAddress,
+        10, // max 10 emails per scan
+        'is:unread' // only unread emails
+      );
+
+      if (gmailMessages.length === 0) {
+        monitoringLogger.debug('No new emails found', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress
+        });
+        return [];
+      }
+
+      monitoringLogger.info('Found new Gmail messages', {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress,
+        metadata: {
+          messageCount: gmailMessages.length
+        }
+      });
+
+      // Convert Gmail messages to our EmailMessage format
+      const emails: EmailMessage[] = [];
+      
+      for (const gmailMessage of gmailMessages) {
+        const parsedMessage = gmailOAuthService.parseGmailMessage(gmailMessage, email.emailAddress);
+        
+        const emailMessage: EmailMessage = {
+          id: parsedMessage.id,
+          subject: parsedMessage.subject,
+          body: parsedMessage.body,
+          sender: parsedMessage.sender,
+          recipient: parsedMessage.recipient,
+          timestamp: parsedMessage.timestamp,
+          links: parsedMessage.links,
+          headers: parsedMessage.headers
+        };
+
+        emails.push(emailMessage);
+
+        // Mark email as read in Gmail
+        try {
+          await gmailOAuthService.markAsRead(email.businessId, email.emailAddress, gmailMessage.id);
+        } catch (markError) {
+          monitoringLogger.error('Error marking email as read', {
+            operation: 'mark-email-read',
+            emailAddress: email.emailAddress,
+            metadata: {
+              messageId: gmailMessage.id
+            }
+          }, markError as Error);
+          // Continue processing other emails even if marking fails
+        }
+      }
+
+      return emails;
+
+    } catch (error) {
+      monitoringLogger.error('Error fetching emails from Gmail', {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress
+      }, error instanceof Error ? error : new Error(String(error)));
+      
+      // If OAuth fails, return empty array (no fallback to simulated emails)
+      monitoringLogger.warn('OAuth failed, returning empty results', {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress
+      });
       return [];
     }
-
-    // Generate 1-3 simulated emails
-    const emailCount = Math.floor(Math.random() * 3) + 1;
-    const emails: EmailMessage[] = [];
-
-    for (let i = 0; i < emailCount; i++) {
-      const isPhishing = Math.random() < 0.2; // 20% chance of phishing
-      
-      const emailMessage: EmailMessage = {
-        id: `sim_${email.id}_${Date.now()}_${i}`,
-        subject: isPhishing ? 
-          'Urgent: Verify Your Account Immediately' : 
-          'Meeting Reminder for Tomorrow',
-        body: isPhishing ?
-          'Click here to verify your account: https://fake-bank-security.com/verify' :
-          'Don\'t forget about our meeting tomorrow at 2 PM.',
-        sender: isPhishing ? 
-          'security@fake-bank.com' : 
-          'colleague@company.com',
-        recipient: email.emailAddress,
-        timestamp: new Date(),
-        links: isPhishing ? ['https://fake-bank-security.com/verify'] : [],
-        headers: {
-          'from': isPhishing ? 'security@fake-bank.com' : 'colleague@company.com',
-          'to': email.emailAddress,
-          'subject': isPhishing ? 'Urgent: Verify Your Account Immediately' : 'Meeting Reminder for Tomorrow'
-        }
-      };
-
-      emails.push(emailMessage);
-    }
-
-    console.log(`Simulated ${emails.length} new emails for ${email.emailAddress}`);
-    return emails;
   }
+
 
   /**
    * Process a single email message for phishing detection
@@ -208,7 +295,14 @@ class EmailMonitor {
     emailMessage: EmailMessage
   ): Promise<void> {
     try {
-      console.log(`Processing email: ${emailMessage.subject}`);
+      monitoringLogger.debug('Processing email message', {
+        operation: 'process-email-message',
+        emailAddress: monitoredEmail.emailAddress,
+        metadata: {
+          subject: emailMessage.subject,
+          sender: emailMessage.sender
+        }
+      });
 
       // Prepare email data for analysis
       const emailData: EmailAnalysis = {
@@ -223,7 +317,15 @@ class EmailMonitor {
       // Analyze email for phishing threats
       const threatAssessment = await phishingDetector.analyzeEmail(emailData);
 
-      console.log(`Threat assessment: ${threatAssessment.threatLevel} (${threatAssessment.confidence}% confidence)`);
+      monitoringLogger.info('Threat assessment completed', {
+        operation: 'process-email-message',
+        emailAddress: monitoredEmail.emailAddress,
+        metadata: {
+          threatLevel: threatAssessment.threatLevel,
+          confidence: threatAssessment.confidence,
+          subject: emailMessage.subject
+        }
+      });
 
       // Store threat assessment if threat level is medium or higher
       if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
@@ -255,7 +357,10 @@ class EmailMonitor {
       }
 
     } catch (error) {
-      console.error('Error processing email message:', error);
+      monitoringLogger.error('Error processing email message', {
+        operation: 'process-email-message',
+        emailAddress: monitoredEmail.emailAddress
+      }, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -279,11 +384,14 @@ class EmailMonitor {
       );
 
       if (businessResult.rows.length === 0) {
-        console.error('Business owner not found for threat alert');
+        monitoringLogger.error('Business owner not found for threat alert', {
+          operation: 'send-threat-alert',
+          businessId: monitoredEmail.businessId
+        });
         return;
       }
 
-      const businessOwner = businessResult.rows[0];
+      const businessOwner = businessResult.rows[0] as { email: string; name: string };
       const businessName = businessOwner.name;
       const ownerEmail = businessOwner.email;
 
@@ -296,10 +404,20 @@ class EmailMonitor {
         threatAssessment
       );
 
-      console.log(`Threat alert sent to ${ownerEmail}`);
+      monitoringLogger.info('Threat alert sent successfully', {
+        operation: 'send-threat-alert',
+        emailAddress: monitoredEmail.emailAddress,
+        metadata: {
+          ownerEmail,
+          threatLevel: threatAssessment.threatLevel
+        }
+      });
 
     } catch (error) {
-      console.error('Failed to send threat alert:', error);
+      monitoringLogger.error('Failed to send threat alert', {
+        operation: 'send-threat-alert',
+        emailAddress: monitoredEmail.emailAddress
+      }, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -313,7 +431,12 @@ class EmailMonitor {
         [emailId]
       );
     } catch (error) {
-      console.error('Failed to update last checked timestamp:', error);
+      monitoringLogger.error('Failed to update last checked timestamp', {
+        operation: 'update-last-checked',
+        metadata: {
+          emailId
+        }
+      }, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -328,14 +451,16 @@ class EmailMonitor {
         [emailCount]
       );
     } catch (error) {
-      console.error('Failed to log scan completion:', error);
+      monitoringLogger.error('Failed to log scan completion', {
+        operation: 'log-scan-completion'
+      }, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   /**
    * Log scan error
    */
-  private async logScanError(error: any): Promise<void> {
+  private async logScanError(error: Error): Promise<void> {
     try {
       await query(
         `INSERT INTO email_scans (business_id, email_id, scan_type, status, error_message, created_at)
@@ -343,14 +468,16 @@ class EmailMonitor {
         [error.message || 'Unknown error']
       );
     } catch (logError) {
-      console.error('Failed to log scan error:', logError);
+      monitoringLogger.error('Failed to log scan error', {
+        operation: 'log-scan-error'
+      }, logError as Error);
     }
   }
 
   /**
    * Log email scan error
    */
-  private async logEmailScanError(emailId: number, error: any): Promise<void> {
+  private async logEmailScanError(emailId: number, error: Error): Promise<void> {
     try {
       await query(
         `INSERT INTO email_scans (business_id, email_id, scan_type, status, error_message, created_at)
@@ -358,7 +485,12 @@ class EmailMonitor {
         [emailId, error.message || 'Unknown error']
       );
     } catch (logError) {
-      console.error('Failed to log email scan error:', logError);
+      monitoringLogger.error('Failed to log email scan error', {
+        operation: 'log-email-scan-error',
+        metadata: {
+          emailId
+        }
+      }, logError as Error);
     }
   }
 
@@ -378,7 +510,13 @@ class EmailMonitor {
         [businessId, eventType, description, metadata ? JSON.stringify(metadata) : null]
       );
     } catch (error) {
-      console.error('Failed to log security event:', error);
+      monitoringLogger.error('Failed to log security event', {
+        operation: 'log-security-event',
+        metadata: {
+          businessId,
+          eventType
+        }
+      }, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -398,33 +536,47 @@ class EmailMonitor {
   async triggerBusinessScan(businessId: number): Promise<void> {
     try {
       const businessEmails = await query(
-        `SELECT id, business_id, email_address, is_connected, last_checked
-         FROM monitored_emails 
-         WHERE business_id = $1 AND is_connected = true`,
+        `SELECT me.id, me.business_id, me.email_address, me.last_checked
+         FROM monitored_emails me
+         INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+         WHERE me.business_id = $1`,
         [businessId]
       );
 
       if (businessEmails.rows.length === 0) {
-        console.log(`No connected emails found for business ${businessId}`);
+        monitoringLogger.info('No connected emails found for business', {
+          operation: 'trigger-business-scan',
+          businessId
+        });
         return;
       }
 
-      console.log(`Manually scanning ${businessEmails.rows.length} emails for business ${businessId}`);
+      monitoringLogger.info('Manually scanning emails for business', {
+        operation: 'trigger-business-scan',
+        businessId,
+        metadata: {
+          emailCount: businessEmails.rows.length
+        }
+      });
 
       for (const emailRow of businessEmails.rows) {
+        const row = emailRow as { id: number; business_id: number; email_address: string; last_checked: Date | null };
         const email: MonitoredEmail = {
-          id: emailRow.id,
-          businessId: emailRow.business_id,
-          emailAddress: emailRow.email_address,
-          isConnected: emailRow.is_connected,
-          lastChecked: emailRow.last_checked
+          id: row.id,
+          businessId: row.business_id,
+          emailAddress: row.email_address,
+          isConnected: true, // If OAuth tokens exist, email is connected
+          lastChecked: row.last_checked
         };
 
         await this.scanEmailAddress(email);
       }
 
     } catch (error) {
-      console.error(`Error during manual scan for business ${businessId}:`, error);
+      monitoringLogger.error('Error during manual scan for business', {
+        operation: 'trigger-business-scan',
+        businessId
+      }, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
   }
@@ -437,10 +589,11 @@ class EmailMonitor {
       const stats = await query(
         `SELECT 
           COUNT(*) as total_emails,
-          COUNT(CASE WHEN is_connected = true THEN 1 END) as connected_emails,
-          COUNT(CASE WHEN is_connected = false THEN 1 END) as disconnected_emails,
-          COUNT(CASE WHEN last_checked > NOW() - INTERVAL '1 hour' THEN 1 END) as recently_checked
-         FROM monitored_emails`,
+          COUNT(CASE WHEN ot.id IS NOT NULL THEN 1 END) as connected_emails,
+          COUNT(CASE WHEN ot.id IS NULL THEN 1 END) as disconnected_emails,
+          COUNT(CASE WHEN me.last_checked > NOW() - INTERVAL '1 hour' THEN 1 END) as recently_checked
+         FROM monitored_emails me
+         LEFT JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address`,
         []
       );
 
@@ -456,14 +609,14 @@ class EmailMonitor {
       );
 
       // Handle empty data gracefully
-      const emailStats = stats.rows[0] || {
+      const emailStats = (stats.rows[0] as { total_emails: number; connected_emails: number; disconnected_emails: number; recently_checked: number }) || {
         total_emails: 0,
         connected_emails: 0,
         disconnected_emails: 0,
         recently_checked: 0
       };
 
-      const scanStatsData = scanStats.rows[0] || {
+      const scanStatsData = (scanStats.rows[0] as { total_scans: number; successful_scans: number; failed_scans: number; avg_emails_per_scan: number }) || {
         total_scans: 0,
         successful_scans: 0,
         failed_scans: 0,
@@ -475,7 +628,9 @@ class EmailMonitor {
         scans: scanStatsData
       };
     } catch (error) {
-      console.error('Failed to get monitoring stats:', error);
+      monitoringLogger.error('Failed to get monitoring stats', {
+        operation: 'get-monitoring-stats'
+      }, error instanceof Error ? error : new Error(String(error)));
       // Return default values instead of throwing
       return {
         emails: {

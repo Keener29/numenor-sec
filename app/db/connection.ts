@@ -1,6 +1,7 @@
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { getDatabaseConfig } from './config.js';
+import { logger } from '../api/services/logger.js';
 
 // A pool is a collection of connections to the database that can be reused and does not waste time creating a new connection each time.
 
@@ -31,7 +32,9 @@ export const getPool = (): Pool => {
 
     // Handle pool errors
     pool.on('error', (err) => {
-      console.error('Unexpected error on idle client', err);
+      logger.error('Unexpected error on idle client', {
+        operation: 'database-pool-error'
+      }, err as Error);
       process.exit(-1);
     });
   }
@@ -39,16 +42,28 @@ export const getPool = (): Pool => {
   return pool;
 };
 
-export const query = async (text: string, params?: any[]): Promise<any> => {
+export const query = async (text: string, params?: unknown[]): Promise<{ rows: unknown[]; rowCount: number | null }> => {
   const pool = getPool();
   const start = Date.now();
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    logger.debug('Database query executed', {
+      operation: 'database-query',
+      metadata: {
+        query: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+        duration,
+        rowCount: res.rowCount
+      }
+    });
     return res;
   } catch (error) {
-    console.error('Database query error:', error);
+    logger.error('Database query error', {
+      operation: 'database-query',
+      metadata: {
+        query: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+      }
+    }, error as Error);
     throw error;
   }
 };
@@ -67,13 +82,17 @@ export const closePool = async (): Promise<void> => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Received SIGINT, closing database pool...');
+  logger.info('Received SIGINT, closing database pool', {
+    operation: 'database-shutdown'
+  });
   await closePool();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, closing database pool...');
+  logger.info('Received SIGTERM, closing database pool', {
+    operation: 'database-shutdown'
+  });
   await closePool();
   process.exit(0);
 });

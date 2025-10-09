@@ -3,7 +3,8 @@ import { validateParams } from '../middleware/validation.js';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { emailParamsSchema } from '../schemas/email.js';
 import { query } from '../../db/connection.js';
-import { emailService } from '../utils/emailService.js';
+import { emailService } from '../services/emailService.js';
+import { emailLogger } from '../services/logger.js';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
       return res.status(404).json({ error: 'Email not found' });
     }
 
-    const emailAddress = emailResult.rows[0].email_address;
+    const emailAddress = (emailResult.rows[0] as { email_address: string }).email_address;
 
     // Get business name and owner email for the email
     const businessResult = await query(
@@ -38,8 +39,8 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const businessName = businessResult.rows[0].name;
-    const businessEmail = businessResult.rows[0].owner_email;
+    const businessName = (businessResult.rows[0] as { name: string }).name;
+    const businessEmail = (businessResult.rows[0] as { owner_email: string }).owner_email;
 
     // Send permission request email
     try {
@@ -58,7 +59,11 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
       });
     } catch (emailError) {
       // Log email send failure
-      console.error('Failed to resend permission request email:', emailError);
+      emailLogger.error('Failed to resend permission request email', {
+        operation: 'resend-permission-email',
+        businessId,
+        emailAddress
+      }, emailError as Error);
       await query(
         `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
          VALUES ($1, 'permission_email_resend_failed', $2, $3, $4)`,
@@ -86,15 +91,21 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
       [businessId]
     );
 
-    // Get connected emails
+    // Get connected emails (those with OAuth tokens)
     const connectedEmailsResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND is_connected = true',
+      `SELECT COUNT(*) as count 
+       FROM monitored_emails me
+       INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+       WHERE me.business_id = $1`,
       [businessId]
     );
 
-    // Get disconnected emails
+    // Get disconnected emails (those without OAuth tokens)
     const disconnectedEmailsResult = await query(
-      'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1 AND is_connected = false',
+      `SELECT COUNT(*) as count 
+       FROM monitored_emails me
+       LEFT JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+       WHERE me.business_id = $1 AND ot.id IS NULL`,
       [businessId]
     );
 
@@ -108,10 +119,10 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
     );
 
     const stats = {
-      totalEmails: parseInt(totalEmailsResult.rows[0].count),
-      connectedEmails: parseInt(connectedEmailsResult.rows[0].count),
-      disconnectedEmails: parseInt(disconnectedEmailsResult.rows[0].count),
-      recentActivity: parseInt(recentActivityResult.rows[0].count)
+      totalEmails: parseInt((totalEmailsResult.rows[0] as { count: string }).count),
+      connectedEmails: parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
+      disconnectedEmails: parseInt((disconnectedEmailsResult.rows[0] as { count: string }).count),
+      recentActivity: parseInt((recentActivityResult.rows[0] as { count: string }).count)
     };
 
     res.json({ stats });

@@ -35,7 +35,7 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
       [businessName, user.id]
     );
 
-    const businessId = businessResult.rows[0].id;
+    const businessId = (businessResult.rows[0] as { id: number }).id;
 
     // Generate JWT token
     const token = generateToken({ ...user, business_id: businessId });
@@ -130,7 +130,7 @@ router.post('/change-password', authenticateToken, validateBody(changePasswordSc
     }
 
     // Verify current password
-    const isValidPassword = await comparePassword(currentPassword, result.rows[0].password_hash);
+    const isValidPassword = await comparePassword(currentPassword, (result.rows[0] as { password_hash: string }).password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
