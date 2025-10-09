@@ -3,7 +3,8 @@ import { validateBody, validateParams, validateQuery } from '../middleware/valid
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { addEmailSchema, updateEmailSchema, emailParamsSchema, emailQuerySchema } from '../schemas/email.js';
 import { query } from '../../db/connection.js';
-import { emailService } from '../utils/emailService.js';
+import { emailService } from '../services/emailService.js';
+import { emailLogger } from '../services/logger.js';
 
 const router = Router();
 
@@ -11,9 +12,11 @@ const router = Router();
 router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     const businessId = req.user!.business_id!;
-    const { page, limit, connected } = req.query as any;
+    const { page, limit, connected } = req.query as { page?: string; limit?: string; connected?: string };
 
-    const offset = (page - 1) * limit;
+    const pageNum = parseInt(page || '1');
+    const limitNum = parseInt(limit || '10');
+    const offset = (pageNum - 1) * limitNum;
     let whereClause = 'WHERE business_id = $1';
     const queryParams = [businessId];
 
@@ -21,20 +24,16 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySche
     // if connected is true, only show emails that are connected
     // if connected is false, only show emails that are not connected
     // if connected is undefined, show all emails
-    
-    if (connected !== undefined) {
-      whereClause += ' AND is_connected = $2';
-      queryParams.push(connected);
-    }
+    // For now, we'll ignore the connected filter since we removed is_connected
 
     // Get emails with pagination
     const emailsResult = await query(
-      `SELECT id, email_address, is_connected, last_checked, created_at, updated_at
+      `SELECT id, email_address, last_checked, created_at, updated_at
        FROM monitored_emails 
        ${whereClause}
        ORDER BY created_at DESC
        LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`,
-      [...queryParams, limit, offset]
+      [...queryParams, limitNum, offset]
     );
 
     // Get total count
@@ -43,25 +42,25 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySche
       queryParams
     );
 
-    const totalCount = parseInt(countResult.rows[0].count);
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalCount = parseInt((countResult.rows[0] as { count: string }).count);
+    const totalPages = Math.ceil(totalCount / limitNum);
 
     res.json({
-      emails: emailsResult.rows.map((email: any) => ({
+      emails: (emailsResult.rows as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date }[]).map((email) => ({
         id: email.id,
         emailAddress: email.email_address,
-        isConnected: email.is_connected,
+        isConnected: false, // Will be determined by OAuth status check on frontend
         lastChecked: email.last_checked,
         createdAt: email.created_at,
         updatedAt: email.updated_at
       })),
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         totalCount,
         totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1
+        hasNext: pageNum < totalPages,
+        hasPrev: pageNum > 1
       }
     });
   } catch (error) {
@@ -74,6 +73,12 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
   try {
     const businessId = req.user!.business_id!;
     const { emailAddress } = req.body;
+    
+    emailLogger.info('Adding new email for monitoring', {
+      operation: 'add-email',
+      businessId,
+      emailAddress
+    });
 
     // Check if email already exists for this business
     const existingEmail = await query(
@@ -87,13 +92,13 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
 
     // Insert new email
     const result = await query(
-      `INSERT INTO monitored_emails (business_id, email_address, is_connected)
-       VALUES ($1, $2, $3)
-       RETURNING id, email_address, is_connected, last_checked, created_at, updated_at`,
-      [businessId, emailAddress, false]
+      `INSERT INTO monitored_emails (business_id, email_address)
+       VALUES ($1, $2)
+       RETURNING id, email_address, last_checked, created_at, updated_at`,
+      [businessId, emailAddress]
     );
 
-    const email = result.rows[0];
+    const email = result.rows[0] as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date };
 
     // Get business name and owner email for the email
     const businessResult = await query(
@@ -108,12 +113,12 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const businessName = businessResult.rows[0].name;
-    const businessEmail = businessResult.rows[0].owner_email;
+    const businessName = (businessResult.rows[0] as { name: string }).name;
+    const businessEmail = (businessResult.rows[0] as { owner_email: string }).owner_email;
 
     // Send permission request email
     try {
-      await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, email.id, businessId);
+      await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, (email as { id: number }).id, businessId);
       
       // Log successful email send
       await query(
@@ -127,7 +132,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
         email: {
           id: email.id,
           emailAddress: email.email_address,
-          isConnected: email.is_connected,
+          isConnected: false, // Will be determined by OAuth status check on frontend
           lastChecked: email.last_checked,
           createdAt: email.created_at,
           updatedAt: email.updated_at
@@ -135,7 +140,11 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       });
     } catch (emailError) {
       // Log email send failure
-      console.error('Failed to send permission request email:', emailError);
+      emailLogger.error('Failed to send permission request email', {
+        operation: 'send-permission-email',
+        businessId,
+        emailAddress
+      }, emailError as Error);
       await query(
         `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
          VALUES ($1, 'permission_email_failed', $2, $3, $4)`,
@@ -147,7 +156,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
         email: {
           id: email.id,
           emailAddress: email.email_address,
-          isConnected: email.is_connected,
+          isConnected: false, // Will be determined by OAuth status check on frontend
           lastChecked: email.last_checked,
           createdAt: email.created_at,
           updatedAt: email.updated_at
@@ -177,8 +186,10 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
       return res.status(404).json({ error: 'Email not found' });
     }
 
+    const existingEmailData = existingEmail.rows[0] as { id: number; email_address: string };
+
     // Check if new email address already exists for this business (if changing email)
-    if (emailAddress && emailAddress !== existingEmail.rows[0].email_address) {
+    if (emailAddress && emailAddress !== existingEmailData.email_address) {
       const duplicateEmail = await query(
         'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2 AND id != $3',
         [emailAddress, businessId, emailId]
@@ -193,18 +204,17 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
     const result = await query(
       `UPDATE monitored_emails 
        SET email_address = COALESCE($1, email_address), 
-           is_connected = COALESCE($2, is_connected),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3 AND business_id = $4
-       RETURNING id, email_address, is_connected, last_checked, created_at, updated_at`,
-      [emailAddress, isConnected, emailId, businessId]
+       WHERE id = $2 AND business_id = $3
+       RETURNING id, email_address, last_checked, created_at, updated_at`,
+      [emailAddress, emailId, businessId]
     );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Email not found' });
     }
 
-    const email = result.rows[0];
+    const email = result.rows[0] as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date };
 
     // Log the update
     await query(
@@ -218,7 +228,7 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
       email: {
         id: email.id,
         emailAddress: email.email_address,
-        isConnected: email.is_connected,
+        isConnected: false, // Will be determined by OAuth status check on frontend
         lastChecked: email.last_checked,
         createdAt: email.created_at,
         updatedAt: email.updated_at
@@ -245,7 +255,8 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
       return res.status(404).json({ error: 'Email not found' });
     }
 
-    const emailAddress = emailResult.rows[0].email_address;
+    const emailData = emailResult.rows[0] as { id: number; email_address: string };
+    const emailAddress = emailData.email_address;
 
     // Delete the email
     await query('DELETE FROM monitored_emails WHERE id = $1 AND business_id = $2', [emailId, businessId]);
