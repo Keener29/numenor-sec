@@ -108,37 +108,7 @@ export interface EmailSendResult {
 // =============================================================================
 // GMAIL API TYPES
 // =============================================================================
-
-export interface GmailMessage {
-  readonly id: string;
-  readonly threadId: string;
-  readonly labelIds: string[];
-  readonly snippet: string;
-  readonly historyId: string;
-  readonly internalDate: string;
-  readonly payload: GmailMessagePayload;
-  readonly sizeEstimate: number;
-  readonly raw?: string;
-}
-
-export interface GmailMessagePayload {
-  readonly partId: string;
-  readonly mimeType: string;
-  readonly filename: string;
-  readonly headers: GmailHeader[];
-  readonly body: GmailBody;
-  readonly parts?: GmailMessagePayload[];
-}
-
-export interface GmailHeader {
-  readonly name: string;
-  readonly value: string;
-}
-
-export interface GmailBody {
-  readonly data?: string;
-  readonly size: number;
-}
+// Note: Gmail-specific types have been moved to app/api/services/oauth/gmail/types.ts
 
 // =============================================================================
 // SECURITY TYPES
