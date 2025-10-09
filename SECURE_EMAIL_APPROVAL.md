@@ -21,23 +21,26 @@ The Numenor Security platform implements a secure email approval/decline system 
 3. **Modular API Structure**
    - **Main Router** (`app/api/routes/emails.ts`) - Composes all email modules
    - **Email Management** (`app/api/routes/email-management.ts`) - CRUD operations
-   - **Email Approval** (`app/api/routes/email-approval.ts`) - Approval/decline endpoints
    - **Email Actions** (`app/api/routes/email-actions.ts`) - Actions and statistics
+   - **OAuth Flow** (`app/api/routes/oauth.ts`) - OAuth flow including email approval/denial
 
 4. **API Endpoints**
-   - `POST /api/emails/:id/approve` - Approve email monitoring (returns HTML)
-   - `POST /api/emails/:id/decline` - Decline email monitoring (returns HTML)
+   - `GET /api/auth-url` - Generate OAuth URL and handle approval (redirects to Google)
+   - `GET /api/deny-email` - Handle email monitoring denial (redirects to confirmation)
+   - `GET /api/oauth2callback` - Handle OAuth callback from Google
    - `GET /api/emails/` - List monitored emails
    - `POST /api/emails/` - Add new email
    - `PUT /api/emails/:id` - Update email
    - `DELETE /api/emails/:id` - Remove email
    - `POST /api/emails/:id/resend` - Resend permission email
    - `GET /api/emails/stats` - Get email statistics
+   - `POST /api/oauth/gmail/disconnect` - Disconnect Gmail OAuth
+   - `GET /api/oauth/status/:emailAddress` - Check OAuth connection status
 
-5. **HTML Response Pages** (integrated in `email-approval.ts`)
-   - Returns user-friendly HTML pages for approval/decline
-   - Displays confirmation messages with business and email details
-   - Includes close window functionality
+5. **User Experience**
+   - **Approve**: Direct redirect to Google OAuth → Dashboard success page
+   - **Deny**: Direct HTML confirmation page with close option
+   - **OAuth Success**: Redirect to dashboard with success message
 
 ## Security Features
 
@@ -160,15 +163,21 @@ sequenceDiagram
     participant DB as Database
     participant ES as Email Service
     participant R as Recipient
+    participant G as Google OAuth
 
     U->>D: Add email address
     D->>API: POST /api/emails
     API->>DB: Insert email (is_connected = false)
     API->>ES: Generate secure token
     ES->>R: Send permission request email
-    R->>API: Click approve/decline button
-    API->>DB: Update/delete email
-    API->>R: Show confirmation page
+    R->>API: Click approve button
+    API->>G: Redirect to Google OAuth
+    G->>R: Show consent screen
+    R->>G: Grant permissions
+    G->>API: Redirect with auth code
+    API->>G: Exchange code for tokens
+    API->>DB: Store OAuth tokens
+    API->>D: Redirect to dashboard with success
 ```
 
 ### 2. Token Lifecycle

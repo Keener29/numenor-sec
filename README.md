@@ -28,9 +28,9 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 ### Modular Architecture
 - **Email Management**: Split into focused modules for better maintainability
   - `email-management.ts` - CRUD operations (GET, POST, PUT, DELETE)
-  - `email-approval.ts` - Approval/decline endpoints with HTML responses
   - `email-actions.ts` - Actions like resend and statistics
   - `emails.ts` - Main router that composes all modules
+  - `oauth.ts` - OAuth flow including email approval/denial
 - **Single Responsibility**: Each module handles one specific concern
 - **Clean Composition**: Main router combines modules without duplication
 
@@ -80,6 +80,8 @@ That's it! The application will be running with:
 - ✅ **Redis**: Caching and session storage
 
 📖 **For detailed setup instructions, see [QUICK_START.md](QUICK_START.md)**
+
+📧 **For Gmail OAuth setup (required for email monitoring), see [GMAIL_OAUTH_SETUP.md](GMAIL_OAUTH_SETUP.md)**
 
 ## Manual Development Setup
 
@@ -146,8 +148,8 @@ That's it! The application will be running with:
 │   │   │   ├── business.ts  # Business management
 │   │   │   ├── emails.ts    # Email monitoring (main router)
 │   │   │   ├── email-management.ts # Email CRUD operations
-│   │   │   ├── email-approval.ts  # Email approval/decline
 │   │   │   ├── email-actions.ts  # Email actions & stats
+│   │   │   ├── oauth.ts     # OAuth flow & email approval/denial
 │   │   │   └── alerts.ts    # Phishing alerts
 │   │   ├── schemas/         # Validation schemas
 │   │   │   ├── user.ts      # User validation
@@ -241,6 +243,14 @@ That's it! The application will be running with:
 - `PUT /:id` - Update email connection status
 - `DELETE /:id` - Remove email from monitoring
 - `GET /stats` - Get email monitoring statistics
+
+### OAuth Integration (`/api/oauth`)
+- `GET /auth-url` - Generate Gmail OAuth authorization URL
+- `GET /oauth2callback` - Handle OAuth callback from Google
+- `GET /deny-email` - Handle email monitoring denial
+- `POST /gmail/disconnect` - Disconnect Gmail OAuth
+- `GET /status/:emailAddress` - Check OAuth connection status
+- `POST /gmail/test` - Test Gmail OAuth connection
 
 #### Email Connection Status
 
@@ -453,11 +463,26 @@ DB_PASSWORD=your_password
 # Application Configuration
 NODE_ENV=development
 API_PORT=3001
+FRONTEND_URL=http://localhost:3000
 
 # Security
 JWT_SECRET=your-super-secret-jwt-key-here
 SESSION_SECRET=your-super-secret-session-key-here
+
+# Gmail OAuth Configuration (Required for email monitoring)
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth2callback
+
+# Email Configuration (Optional - for sending permission emails)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=Numenor Security <your-email@gmail.com>
 ```
+
+**Note**: Gmail OAuth setup is required for email monitoring functionality. See [GMAIL_OAUTH_SETUP.md](GMAIL_OAUTH_SETUP.md) for detailed setup instructions.
 
 ## Security Features
 
