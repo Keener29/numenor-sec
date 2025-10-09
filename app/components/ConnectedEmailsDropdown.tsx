@@ -8,13 +8,19 @@ interface Email {
   createdAt: string;
 }
 
+interface OAuthStatus {
+  isConnected: boolean;
+  connectedAt: string | null;
+}
+
 interface ConnectedEmailsDropdownProps {
   emails: Email[];
   onEmailsUpdate: () => void;
   businessName: string;
+  oauthStatuses: Record<string, OAuthStatus>;
 }
 
-export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, businessName }: ConnectedEmailsDropdownProps) {
+export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, businessName, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddingEmail, setIsAddingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -66,7 +72,10 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, busine
       setIsAddingEmail(true);
       setError("");
       
-      await emailsAPI.addEmail({ emailAddress: newEmail.trim() });
+      console.log("Attempting to add email:", newEmail.trim());
+      const result = await emailsAPI.addEmail({ emailAddress: newEmail.trim() });
+      console.log("Add email result:", result);
+      
       setNewEmail("");
       onEmailsUpdate(); // Refresh the emails list
       setIsModalOpen(false); // Close modal after successful addition
@@ -111,7 +120,11 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, busine
     }
   };
 
-  const connectedEmails = emails.filter(email => email.isConnected);
+  // Only count emails that have Gmail OAuth connected
+  const connectedEmails = emails.filter(email => {
+    const oauthStatus = oauthStatuses[email.emailAddress];
+    return oauthStatus?.isConnected || false;
+  });
   const totalEmails = emails.length;
 
   return (
@@ -179,29 +192,55 @@ export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, busine
                           <span className="text-sm font-medium text-gray-900">
                             {email.emailAddress}
                           </span>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            email.isConnected 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {email.isConnected ? 'Connected' : 'Disconnected'}
-                          </span>
+                          {(() => {
+                            const oauthStatus = oauthStatuses[email.emailAddress];
+                            const isGmailConnected = oauthStatus?.isConnected || false;
+                            
+                            if (isGmailConnected) {
+                              return (
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                  Gmail Connected
+                                </span>
+                              );
+                            } else if (email.isConnected) {
+                              return (
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                  Permission Pending
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                  Not Connected
+                                </span>
+                              );
+                            }
+                          })()}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           Added: {formatDate(email.createdAt)}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
-                        {!email.isConnected && (
-                          <button
-                            onClick={() => handleResendEmail(email.id, email.emailAddress)}
-                            disabled={actionLoading[email.id] === 'resend'}
-                            className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Resend permission request email"
-                          >
-                            {actionLoading[email.id] === 'resend' ? 'Sending...' : 'Resend'}
-                          </button>
-                        )}
+                        {(() => {
+                          const oauthStatus = oauthStatuses[email.emailAddress];
+                          const isGmailConnected = oauthStatus?.isConnected || false;
+                          
+                          // Only show resend button if Gmail is not connected
+                          if (!isGmailConnected) {
+                            return (
+                              <button
+                                onClick={() => handleResendEmail(email.id, email.emailAddress)}
+                                disabled={actionLoading[email.id] === 'resend'}
+                                className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Resend permission request email"
+                              >
+                                {actionLoading[email.id] === 'resend' ? 'Sending...' : 'Resend'}
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <button
                           onClick={() => handleDeleteEmail(email.id)}
                           disabled={actionLoading[email.id] === 'delete'}

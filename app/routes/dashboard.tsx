@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
 import { requireServerAuth } from "../utils/serverAuth";
+import { useOAuthStatuses } from "../hooks/useOAuthStatuses";
 import PhishingAlertChart from "../components/PhishingAlertChart";
 import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
@@ -69,6 +70,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   // Get user data from server-side loader
   const user = loaderData?.user;
 
+  // Use the OAuth statuses hook
+  const { oauthStatuses, isLoading: oauthLoading, error: oauthError, refreshOAuthStatuses } = useOAuthStatuses(emails);
+
   // Load dashboard data on component mount
   useEffect(() => {
     loadDashboardData();
@@ -122,6 +126,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
     }
+  };
+
+  const handleEmailsUpdate = async () => {
+    await loadDashboardData();
+    // Refresh OAuth statuses after emails are updated
+    await refreshOAuthStatuses();
   };
 
   const handleLogout = async () => {
@@ -185,8 +195,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <ConnectedEmailsDropdown 
             emails={emails} 
-            onEmailsUpdate={loadDashboardData}
+            onEmailsUpdate={handleEmailsUpdate}
             businessName={stats.businessName || "Your Business"}
+            oauthStatuses={oauthStatuses}
           />
 
           <div className="bg-white overflow-hidden shadow rounded-lg">
@@ -239,7 +250,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <EmailMonitoring 
             emails={emails} 
             alerts={alerts} 
-            onMarkSafe={handleMarkSafe} 
+            onMarkSafe={handleMarkSafe}
+            oauthStatuses={oauthStatuses}
           />
 
           {/* Chart */}

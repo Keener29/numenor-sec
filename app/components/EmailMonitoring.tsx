@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Dropdown from "./Dropdown";
 
 interface Alert {
@@ -19,13 +19,19 @@ interface Email {
   isConnected: boolean;
 }
 
+interface OAuthStatus {
+  isConnected: boolean;
+  connectedAt: string | null;
+}
+
 interface EmailMonitoringProps {
   emails: Email[];
   alerts: Alert[];
   onMarkSafe: (alertId: number) => void;
+  oauthStatuses: Record<string, OAuthStatus>;
 }
 
-export default function EmailMonitoring({ emails, alerts, onMarkSafe }: EmailMonitoringProps) {
+export default function EmailMonitoring({ emails, alerts, onMarkSafe, oauthStatuses }: EmailMonitoringProps) {
   const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
 
   const toggleEmailExpansion = (emailId: number) => {
@@ -70,10 +76,24 @@ export default function EmailMonitoring({ emails, alerts, onMarkSafe }: EmailMon
             const pendingAlerts = emailAlerts.filter(alert => alert.status !== 'safe');
             const isExpanded = expandedEmails.has(email.id);
             
+            const oauthStatus = oauthStatuses[email.emailAddress];
+            const isGmailConnected = oauthStatus?.isConnected || false;
+            
             const headerContent = (
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${email.isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {email.isConnected ? 'Connected' : 'Disconnected'}
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                  isGmailConnected 
+                    ? 'bg-green-100 text-green-800' 
+                    : email.isConnected 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'bg-red-100 text-red-800'
+                }`}>
+                  {isGmailConnected 
+                    ? 'Gmail Connected' 
+                    : email.isConnected 
+                      ? 'Permission Pending' 
+                      : 'Not Connected'
+                  }
                 </span>
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                   {pendingAlerts.length} Pending
