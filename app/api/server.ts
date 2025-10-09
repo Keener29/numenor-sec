@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { logger } from './services/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -13,6 +14,7 @@ import businessRoutes from './routes/business.js';
 import emailRoutes from './routes/emails.js';
 import alertRoutes from './routes/alerts.js';
 import phishingRoutes from './routes/phishing.js';
+import oauthRoutes from './routes/oauth.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -40,7 +42,15 @@ app.use(cookieParser());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  logger.info('HTTP Request', {
+    operation: 'http-request',
+    metadata: {
+      method: req.method,
+      path: req.path,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    }
+  });
   next();
 });
 
@@ -59,6 +69,7 @@ app.use('/api/business', businessRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/phishing', phishingRoutes);
+app.use('/api', oauthRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -101,7 +112,15 @@ app.get('/api', (req, res) => {
         'POST /api/phishing/monitoring/start': 'Start email monitoring',
         'POST /api/phishing/monitoring/stop': 'Stop email monitoring',
         'GET /api/phishing/recommendations': 'Get security recommendations'
-      }
+      },
+            oauth: {
+              'GET /api/auth-url': 'Generate Gmail OAuth authorization URL',
+              'GET /api/deny-email': 'Handle email monitoring denial',
+              'GET /api/oauth2callback': 'Handle Gmail OAuth callback',
+              'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
+              'GET /api/status/:emailAddress': 'Get Gmail OAuth connection status',
+              'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
+            }
     }
   });
 });
@@ -112,17 +131,24 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, async () => {
-  console.log(`🚀 Numenor Security API server running on port ${PORT}`);
-  console.log(`📚 API Documentation: http://localhost:${PORT}/api`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info('Numenor Security API server started', {
+    operation: 'server-startup',
+    metadata: {
+      port: PORT,
+      environment: process.env.NODE_ENV || 'development',
+      apiDocs: `http://localhost:${PORT}/api`,
+      healthCheck: `http://localhost:${PORT}/health`
+    }
+  });
   
   // Initialize background services
   try {
     const { initializeServices } = await import('./startup.js');
     await initializeServices();
   } catch (error) {
-    console.error('Failed to initialize services:', error);
+    logger.error('Failed to initialize services', {
+      operation: 'server-startup'
+    }, error as Error);
   }
 });
 
