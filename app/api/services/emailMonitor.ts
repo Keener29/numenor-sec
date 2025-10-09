@@ -1,7 +1,7 @@
 import { query } from '../../db/connection.js';
 import { phishingDetector, type EmailAnalysis } from './phishingDetector.js';
 import { emailService } from './emailService.js';
-import { gmailOAuthService } from './oauthService.js';
+import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
 
 interface MonitoredEmail {
@@ -235,34 +235,19 @@ class EmailMonitor {
         }
       });
 
-      // Convert Gmail messages to our EmailMessage format
-      const emails: EmailMessage[] = [];
+      // gmailMessages are already parsed EmailMessage objects from fetchEmails()
+      const emails: EmailMessage[] = gmailMessages;
       
-      for (const gmailMessage of gmailMessages) {
-        const parsedMessage = gmailOAuthService.parseGmailMessage(gmailMessage, email.emailAddress);
-        
-        const emailMessage: EmailMessage = {
-          id: parsedMessage.id,
-          subject: parsedMessage.subject,
-          body: parsedMessage.body,
-          sender: parsedMessage.sender,
-          recipient: parsedMessage.recipient,
-          timestamp: parsedMessage.timestamp,
-          links: parsedMessage.links,
-          headers: parsedMessage.headers
-        };
-
-        emails.push(emailMessage);
-
-        // Mark email as read in Gmail
+      // Mark emails as read in Gmail
+      for (const emailMessage of emails) {
         try {
-          await gmailOAuthService.markAsRead(email.businessId, email.emailAddress, gmailMessage.id);
+          await gmailOAuthService.markAsRead(email.businessId, email.emailAddress, emailMessage.id);
         } catch (markError) {
           monitoringLogger.error('Error marking email as read', {
             operation: 'mark-email-read',
             emailAddress: email.emailAddress,
             metadata: {
-              messageId: gmailMessage.id
+              messageId: emailMessage.id
             }
           }, markError as Error);
           // Continue processing other emails even if marking fails
