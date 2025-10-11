@@ -154,8 +154,10 @@ class PhishingDetector {
 
   /**
    * Analyze email content for phishing indicators
+   * @param emailData - Email data to analyze
+   * @param businessId - Business ID to check for allow-listed domains
    */
-  async analyzeEmail(emailData: EmailAnalysis): Promise<ThreatAssessment> {
+  async analyzeEmail(emailData: EmailAnalysis, businessId?: number): Promise<ThreatAssessment> {
     const detectedPatterns: string[] = [];
     const riskFactors: string[] = [];
     const recommendations: string[] = [];
@@ -200,16 +202,27 @@ class PhishingDetector {
 
     // Analyze email authentication (SPF, DKIM, DMARC)
     let authenticationResults;
+    let isAllowListed = false;
+    if (businessId) {
+      isAllowListed = await emailAuthenticationService.isDomainAllowListed(businessId, emailData.sender);
+    }
     if (emailData.headers && Object.keys(emailData.headers).length > 0) {
-      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);
-      const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults);
+      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);      
+      const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
       riskFactors.push(...authAnalysis.risks);
       threatScore += authAnalysis.score;
     } else {
       // No headers available - this is a CRITICAL risk factor
-      riskFactors.push('No email headers available for authentication analysis');
-      threatScore += 100; // Critical - cannot verify email authenticity at all
-      recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
+      
+      if (isAllowListed) {
+        riskFactors.push('No email headers available - sender domain is allow-listed');
+        threatScore += 20; // Reduced penalty for allow-listed domains
+        recommendations.push('Email headers missing - sender domain is trusted');
+      } else {
+        riskFactors.push('No email headers available for authentication analysis');
+        threatScore += 100; // Critical - cannot verify email authenticity at all
+        recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
+      }
     }
 
     // Determine threat level

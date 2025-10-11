@@ -3,6 +3,8 @@
  * Handles SPF, DKIM, and DMARC authentication analysis from email headers
  */
 
+import { query } from '../../../db/connection.js';
+
 // Authentication result types
 export type SPFResult = 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
 export type DKIMResult = 'pass' | 'fail' | 'none' | 'temperror' | 'permerror';
@@ -139,57 +141,74 @@ export class EmailAuthenticationService {
 
   /**
    * Get risk score based on authentication results
+   * @param authResults - Authentication analysis results
+   * @param isAllowListed - Whether the sender domain is in the allow list (monitored emails)
    */
-  getAuthenticationRiskScore(authResults: AuthenticationResults): { risks: string[]; score: number } {
+  getAuthenticationRiskScore(authResults: AuthenticationResults, isAllowListed: boolean = false): { risks: string[]; score: number } {
     const risks: string[] = [];
     let score = 0;
 
     // SPF analysis
     if (authResults.spf === 'fail') {
       risks.push('SPF authentication failed');
-      score += 50;
+      score += isAllowListed ? 15 : 50; // Adjusted: 15-20 for allow-listed, 50 for normal
     } else if (authResults.spf === 'softfail') {
       risks.push('SPF authentication soft fail');
-      score += 40;
+      score += isAllowListed ? 10 : 40; // Adjusted: reduced for allow-listed
     } else if (authResults.spf === 'none') {
       risks.push('No SPF authentication');
-      score += 25;
+      score += isAllowListed ? 3 : 25; // Adjusted: 0-5 for allow-listed, 25 for normal
     }
 
     // DKIM analysis
     if (authResults.dkim === 'fail') {
       risks.push('DKIM authentication failed');
-      score += 40;
+      score += isAllowListed ? 15 : 40; // Adjusted: 15-20 for allow-listed, 40 for normal
     } else if (authResults.dkim === 'none') {
       risks.push('No DKIM authentication');
-      score += 20;
+      score += isAllowListed ? 3 : 20; // Adjusted: 0-5 for allow-listed, 20 for normal
     }
 
     // DMARC analysis
     if (authResults.dmarc === 'fail') {
       risks.push('DMARC authentication failed');
-      score += 35;
+      score += isAllowListed ? 12 : 35; // Adjusted: 10-15 for allow-listed, 35 for normal
     } else if (authResults.dmarc === 'none') {
       risks.push('No DMARC authentication');
-      score += 20;
+      score += isAllowListed ? 0 : 20; // Adjusted: 0 for allow-listed, 20 for normal
     }
 
     // Critical combination: Missing SPF + Missing DKIM = High phishing risk
     if (authResults.spf === 'none' && authResults.dkim === 'none') {
-      risks.push('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
-      score += 40; // Additional penalty for this dangerous combination
+      if (isAllowListed) {
+        risks.push('Both SPF and DKIM authentication missing - sender domain is allow-listed');
+        score += 5; // Reduced penalty for allow-listed domains
+      } else {
+        risks.push('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
+        score += 40; // Full penalty for non-allow-listed domains
+      }
     }
 
     // Overall assessment
     if (authResults.overall === 'fail') {
-      risks.push('Email authentication completely failed');
-      score += 100;
+      if (isAllowListed) {
+        risks.push('Email authentication failed - sender domain is allow-listed');
+        score += 20; // Reduced penalty for allow-listed domains
+      } else {
+        risks.push('Email authentication completely failed');
+        score += 100; // Full penalty for non-allow-listed domains
+      }
     } else if (authResults.overall === 'partial') {
       risks.push('Partial email authentication');
-      score += 10;
+      score += isAllowListed ? 3 : 10; // Reduced for allow-listed
     } else if (authResults.overall === 'none') {
-      risks.push('CRITICAL: No email authentication at all');
-      score += 100; // Critical - no authentication attempted
+      if (isAllowListed) {
+        risks.push('No email authentication - sender domain is allow-listed');
+        score += 5; // Minimal penalty for allow-listed domains
+      } else {
+        risks.push('CRITICAL: No email authentication at all');
+        score += 100; // Full penalty for non-allow-listed domains
+      }
     }
 
     return { risks, score };
@@ -219,6 +238,33 @@ export class EmailAuthenticationService {
     }
 
     return recommendations;
+  }
+
+  /**
+   * Check if a sender domain is in the monitored emails for a business (allow-listed)
+   */
+  async isDomainAllowListed(businessId: number, senderEmail: string): Promise<boolean> {
+    try {
+      const senderDomain = senderEmail.split('@')[1]?.toLowerCase();
+      if (!senderDomain) {
+        return false;
+      }
+
+      // Check if any monitored email for this business has the same domain
+      const result = await query(
+        `SELECT COUNT(*) as count 
+         FROM monitored_emails 
+         WHERE business_id = $1 
+         AND LOWER(SUBSTRING(email_address FROM '@(.*)$')) = $2`,
+        [businessId, senderDomain]
+      );
+
+      const count = parseInt((result.rows[0] as { count: string }).count);
+      return count > 0;
+    } catch (error) {
+      // If there's an error checking the database, default to not allow-listed
+      return false;
+    }
   }
 }
 

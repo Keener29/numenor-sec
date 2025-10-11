@@ -47,7 +47,7 @@ router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAn
     });
 
     // Analyze email for phishing threats
-    const threatAssessment = await phishingDetector.analyzeEmail(emailData);
+    const threatAssessment = await phishingDetector.analyzeEmail(emailData, businessId);
 
     // Store assessment if threat level is medium or higher
     if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {

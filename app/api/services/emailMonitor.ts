@@ -313,7 +313,7 @@ class EmailMonitor {
       };
 
       // Analyze email for phishing threats
-      const threatAssessment = await phishingDetector.analyzeEmail(emailData);
+      const threatAssessment = await phishingDetector.analyzeEmail(emailData, monitoredEmail.businessId);
 
       monitoringLogger.info('Threat assessment completed', {
         operation: 'process-email-message',
