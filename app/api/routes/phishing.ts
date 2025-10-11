@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
-import { phishingDetector, type EmailAnalysis } from '../services/phishingDetector.js';
+import { phishingDetector, type EmailAnalysis } from '../services/detector/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
 import { securityLogger } from '../services/logger.js';

@@ -1,5 +1,5 @@
 import { query } from '../../db/connection.js';
-import { phishingDetector, type EmailAnalysis } from './phishingDetector.js';
+import { phishingDetector, type EmailAnalysis } from './detector/phishingDetector.js';
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
