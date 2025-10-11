@@ -16,7 +16,8 @@ const emailAnalysisSchema = z.object({
   sender: z.string().email('Valid sender email is required'),
   recipient: z.string().email('Valid recipient email is required'),
   attachments: z.array(z.string()).optional(),
-  links: z.array(z.string()).optional()
+  links: z.array(z.string()).optional(),
+  headers: z.record(z.string()).optional()
 });
 
 // Schema for manual scan request

@@ -308,7 +308,8 @@ class EmailMonitor {
         sender: emailMessage.sender,
         recipient: emailMessage.recipient,
         attachments: emailMessage.attachments,
-        links: emailMessage.links
+        links: emailMessage.links,
+        headers: emailMessage.headers
       };
 
       // Analyze email for phishing threats
