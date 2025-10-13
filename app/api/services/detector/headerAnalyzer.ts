@@ -15,6 +15,7 @@
  * Lookalike Detection:
  * - Typosquatting: Uses fast-levenshtein library for efficient string distance calculation
  * - Homoglyph Attacks: Uses confusables library for comprehensive Unicode homoglyph detection
+ * - Suspicious Patterns: Detects incomplete domains (e.g., gmail.co instead of gmail.com)
  * - Brand Protection: Compares against 50+ known brand domains
  * 
  * Note: DKIM-Signature and Authentication-Results are analyzed by emailAuthDetector.ts
@@ -22,8 +23,7 @@
 
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
-import { get as levenshteinDistance } from 'fast-levenshtein';
-import * as confusables from 'confusables';
+import { analyzeDomain, extractDomain as extractDomainUtil } from './domainAnalyzer.js';
 
 export interface HeaderAnalysis {
   missingHeaders: string[];
@@ -43,34 +43,6 @@ export class HeaderAnalyzerService {
     '127.0.0.1',
   ];
 
-  // Known brand domains for lookalike detection
-  private knownBrandDomains: string[] = [
-    // Major tech companies
-    'microsoft.com', 'google.com', 'apple.com', 'amazon.com', 'facebook.com',
-    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'netflix.com',
-    
-    // Financial services
-    'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com', 'chase.com',
-    'bankofamerica.com', 'wellsfargo.com', 'citibank.com', 'jpmorgan.com',
-    
-    // E-commerce
-    'ebay.com', 'shopify.com', 'etsy.com', 'walmart.com', 'target.com',
-    
-    // Email providers
-    'gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', 'icloud.com',
-    
-    // Cloud services
-    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com', 'dropbox.com',
-    
-    // Social media
-    'tiktok.com', 'snapchat.com', 'pinterest.com', 'reddit.com', 'discord.com',
-    
-    // Government/Institutions
-    'irs.gov', 'ssa.gov', 'usps.com', 'fedex.com', 'ups.com',
-    
-    // Crypto/Finance
-    'coinbase.com', 'binance.com', 'kraken.com', 'robinhood.com', 'stripe.com'
-  ];
 
 
   /**
@@ -145,8 +117,8 @@ export class HeaderAnalyzerService {
     // Return-Path: Actual sending server's email address
     // Domain mismatch = email appears from one domain but sent from another (classic spoofing)
     if (headers['from'] && headers['return-path']) {
-      const fromDomain = this.extractDomain(headers['from']);
-      const returnPathDomain = this.extractDomain(headers['return-path']);
+      const fromDomain = extractDomainUtil(headers['from']);
+      const returnPathDomain = extractDomainUtil(headers['return-path']);
       
       if (fromDomain && returnPathDomain && fromDomain !== returnPathDomain) {
         const domainMismatchScore = isTrustedDomain ? 15 : 50; // High risk for external domains
@@ -192,31 +164,6 @@ export class HeaderAnalyzerService {
       score,
       isTrustedDomain
     };
-  }
-
-  /**
-   * Extract domain from email address or email header
-   * Handles formats like: "user@domain.com", "Display Name <user@domain.com>", "<user@domain.com>"
-   */
-  private extractDomain(emailString: string): string | null {
-    if (!emailString) return null;
-    
-    // Handle format: "Display Name <user@domain.com>"
-    const angleBracketMatch = emailString.match(/<([^>]+)>/);
-    if (angleBracketMatch) {
-      const email = angleBracketMatch[1];
-      const domain = email.split('@')[1]?.toLowerCase();
-      return domain || null;
-    }
-    
-    // Handle format: "user@domain.com" or just "domain.com"
-    const atIndex = emailString.indexOf('@');
-    if (atIndex !== -1) {
-      const domain = emailString.substring(atIndex + 1).toLowerCase();
-      return domain || null;
-    }
-    
-    return null;
   }
 
   /**
@@ -337,103 +284,31 @@ export class HeaderAnalyzerService {
     const risks: string[] = [];
     let score = 0;
 
-    const senderDomain = this.extractDomain(senderEmail);
+    const senderDomain = extractDomainUtil(senderEmail);
     if (!senderDomain) {
       return { risks, score };
     }
 
-    // Check for typosquatting using Levenshtein distance
-    const typosquattingResult = this.detectTyposquatting(senderDomain);
-    if (typosquattingResult.isSuspicious && typosquattingResult.distance !== undefined) {
-      risks.push(`Typosquatting detected: "${senderDomain}" is similar to "${typosquattingResult.similarDomain}" (distance: ${typosquattingResult.distance})`);
-      score += typosquattingResult.distance <= 1 ? 40 : 25; // Higher score for very close matches
-    }
-
-    // Check for homoglyph attacks
-    const homoglyphResult = this.detectHomoglyphs(senderDomain);
-    if (homoglyphResult.isSuspicious) {
-      risks.push(`Homoglyph attack detected: "${senderDomain}" contains visually similar characters to "${homoglyphResult.similarDomain}"`);
-      score += 35; // High score for homoglyph attacks
+    // Check for lookalike attacks using shared domain analyzer
+    const domainAnalysis = analyzeDomain(senderDomain);
+    if (domainAnalysis.isSuspicious) {
+      switch (domainAnalysis.type) {
+        case 'typosquatting':
+          risks.push(`Typosquatting detected: "${senderDomain}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
+          break;
+        case 'homoglyph':
+          risks.push(`Homoglyph attack detected: "${senderDomain}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
+          break;
+        case 'suspicious_pattern':
+          risks.push(`Suspicious domain pattern: "${senderDomain}"`);
+          break;
+      }
+      score += domainAnalysis.riskScore;
     }
 
     return { risks, score };
   }
 
-  /**
-   * Detect typosquatting using Levenshtein distance (using fast-levenshtein library)
-   */
-  private detectTyposquatting(domain: string): { isSuspicious: boolean; similarDomain?: string; distance?: number } {
-    const domainWithoutTld = domain.split('.')[0]; // Remove .com, .org, etc.
-    
-    for (const brandDomain of this.knownBrandDomains) {
-      const brandWithoutTld = brandDomain.split('.')[0];
-      const distance = levenshteinDistance(domainWithoutTld.toLowerCase(), brandWithoutTld.toLowerCase());
-      
-      // Consider suspicious if distance is 1-2 and domains are reasonably similar length
-      if (distance <= 2 && Math.abs(domainWithoutTld.length - brandWithoutTld.length) <= 2) {
-        return {
-          isSuspicious: true,
-          similarDomain: brandDomain,
-          distance
-        };
-      }
-    }
-
-    return { isSuspicious: false };
-  }
-
-  /**
-   * Detect homoglyph attacks using confusables library + number-to-letter substitutions
-   */
-  private detectHomoglyphs(domain: string): { isSuspicious: boolean; similarDomain?: string } {
-    const domainWithoutTld = domain.split('.')[0].toLowerCase();
-    
-    for (const brandDomain of this.knownBrandDomains) {
-      const brandWithoutTld = brandDomain.split('.')[0].toLowerCase();
-      
-      // Check if domains are same length and contain homoglyphs
-      if (domainWithoutTld.length === brandWithoutTld.length) {
-        // Use confusables library for Unicode homoglyphs (Cyrillic, Greek, etc.)
-        const normalizedDomain = confusables.default(domainWithoutTld);
-        const normalizedBrand = confusables.default(brandWithoutTld);
-        
-        if (normalizedDomain === normalizedBrand && domainWithoutTld !== brandWithoutTld) {
-          return {
-            isSuspicious: true,
-            similarDomain: brandDomain
-          };
-        }
-        
-        // Also check for number-to-letter substitutions (confusables doesn't handle these)
-        const numberSubstitutedDomain = this.normalizeNumberSubstitutions(domainWithoutTld);
-        const numberSubstitutedBrand = this.normalizeNumberSubstitutions(brandWithoutTld);
-        
-        if (numberSubstitutedDomain === numberSubstitutedBrand && domainWithoutTld !== brandWithoutTld) {
-          return {
-            isSuspicious: true,
-            similarDomain: brandDomain
-          };
-        }
-      }
-    }
-
-    return { isSuspicious: false };
-  }
-
-  /**
-   * Normalize number-to-letter substitutions (1->l, 0->o, etc.)
-   */
-  private normalizeNumberSubstitutions(text: string): string {
-    return text
-      .replace(/1/g, 'l')  // 1 -> l
-      .replace(/0/g, 'o')  // 0 -> o
-      .replace(/3/g, 'e')  // 3 -> e
-      .replace(/4/g, 'a')  // 4 -> a
-      .replace(/5/g, 's')  // 5 -> s
-      .replace(/7/g, 't')  // 7 -> t
-      .replace(/8/g, 'b')  // 8 -> b
-      .replace(/9/g, 'g'); // 9 -> g
-  }
 
 
   /**

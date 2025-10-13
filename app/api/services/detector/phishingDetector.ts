@@ -3,6 +3,7 @@ import { oauthLogger } from '../logger.js';
 import type { ThreatAssessment } from '../../types/email.js';
 import { emailAuthenticationService, type AuthenticationResults } from './emailAuthDetector.js';
 import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
+import { linkAnalyzerService, type LinkAnalysis } from './linkAnalyzer.js';
 
 // Phishing detection patterns and rules
 interface PhishingPattern {
@@ -180,8 +181,9 @@ class PhishingDetector {
     threatScore += senderAnalysis.score;
 
     // Analyze links
+    let linkAnalysis: LinkAnalysis | undefined;
     if (emailData.links && emailData.links.length > 0) {
-      const linkAnalysis = this.analyzeLinks(emailData.links);
+      linkAnalysis = await linkAnalyzerService.analyzeLinks(emailData.links);
       riskFactors.push(...linkAnalysis.risks);
       threatScore += linkAnalysis.score;
     }
@@ -245,6 +247,12 @@ class PhishingDetector {
       recommendations.push(...headerRecommendations);
     }
 
+    // Add link-specific recommendations
+    if (linkAnalysis) {
+      const linkRecommendations = linkAnalyzerService.generateLinkRecommendations(linkAnalysis);
+      recommendations.push(...linkRecommendations);
+    }
+
     return {
       threatLevel,
       confidence,
@@ -252,7 +260,8 @@ class PhishingDetector {
       riskFactors: [...new Set(riskFactors)],
       recommendations: [...new Set(recommendations)],
       authenticationResults,
-      headerAnalysis
+      headerAnalysis,
+      linkAnalysis
     } as ThreatAssessment;
   }
 
@@ -328,49 +337,6 @@ class PhishingDetector {
     return { risks, score };
   }
 
-  /**
-   * Analyze links in email
-   */
-  private analyzeLinks(links: string[]): { risks: string[]; score: number } {
-    const risks: string[] = [];
-    let score = 0;
-
-    for (const link of links) {
-      try {
-        const url = new URL(link);
-        
-        // Check for URL shorteners
-        if (this.isUrlShortener(url.hostname)) {
-          risks.push('URL shortener detected');
-          score += 15;
-        }
-
-        // Check for suspicious domains
-        if (this.isSuspiciousDomain(url.hostname)) {
-          risks.push('Suspicious domain in link');
-          score += 20;
-        }
-
-        // Check for IP addresses in URLs
-        if (this.isIPAddress(url.hostname)) {
-          risks.push('IP address in URL');
-          score += 25;
-        }
-
-        // Check for mixed content (HTTP on HTTPS page)
-        if (url.protocol === 'http:') {
-          risks.push('Insecure HTTP link');
-          score += 10;
-        }
-
-      } catch (error) {
-        risks.push('Malformed URL');
-        score += 20;
-      }
-    }
-
-    return { risks, score };
-  }
 
   /**
    * Analyze email attachments
@@ -465,9 +431,6 @@ class PhishingDetector {
       recommendations.push('Be cautious of urgent requests - legitimate organizations rarely require immediate action');
     }
 
-    if (risks.includes('URL shortener detected')) {
-      recommendations.push('Avoid clicking shortened URLs - use a URL expander to check destination');
-    }
 
     if (risks.includes('Executable file attachment')) {
       recommendations.push('Do not open executable files from unknown senders');
@@ -509,28 +472,6 @@ class PhishingDetector {
     return spoofingPatterns.some(pattern => pattern.test(domain));
   }
 
-  private isUrlShortener(hostname: string): boolean {
-    const shorteners = [
-      'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'short.link',
-      'ow.ly', 'buff.ly', 'is.gd', 'v.gd', 'tiny.cc'
-    ];
-    return shorteners.includes(hostname.toLowerCase());
-  }
-
-  private isSuspiciousDomain(hostname: string): boolean {
-    // Check for domains that look like legitimate ones but aren't
-    const suspiciousPatterns = [
-      /gmail\.co$/, /yahoo\.co$/, /outlook\.co$/, /amazon\.co$/,
-      /paypal\.co$/, /apple\.co$/, /microsoft\.co$/
-    ];
-    
-    return suspiciousPatterns.some(pattern => pattern.test(hostname));
-  }
-
-  private isIPAddress(hostname: string): boolean {
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    return ipPattern.test(hostname);
-  }
 
   private isExecutableFile(extension?: string): boolean {
     const executables = ['exe', 'scr', 'bat', 'cmd', 'com', 'pif', 'vbs', 'js'];
