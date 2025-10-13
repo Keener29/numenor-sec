@@ -80,7 +80,7 @@ export class EmailAuthenticationService {
     // Check for Received-SPF header
     const receivedSPF = headers['received-spf'];
     if (receivedSPF) {
-      const spfMatch = receivedSPF.match(/\(([a-z]+)\)/i);
+      const spfMatch = receivedSPF.match(/^([a-z]+)\s*\(/i);
       if (spfMatch) {
         const result = spfMatch[1].toLowerCase();
         if (isValidSPFResult(result)) {
@@ -182,10 +182,10 @@ export class EmailAuthenticationService {
     if (authResults.spf === 'none' && authResults.dkim === 'none') {
       if (isAllowListed) {
         risks.push('Both SPF and DKIM authentication missing - sender domain is allow-listed');
-        score += 5; // Reduced penalty for allow-listed domains
+        score += 2; // Reduced penalty for allow-listed domains
       } else {
         risks.push('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
-        score += 40; // Full penalty for non-allow-listed domains
+        score += 40; // Combination penalty for non-allow-listed domains
       }
     }
 
