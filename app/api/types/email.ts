@@ -15,6 +15,12 @@ import type {
 // Import header analysis types
 import type { HeaderAnalysis } from '../services/detector/headerAnalyzer.js';
 
+// Import link analysis types
+import type { LinkAnalysis } from '../services/detector/linkAnalyzer.js';
+
+// Import attachment analysis types
+import type { AttachmentAnalysis } from '../services/detector/attachmentAnalyzer.js';
+
 // Re-export authentication types
 export type { 
   AuthenticationResults,
@@ -288,6 +294,8 @@ export interface ThreatAssessment {
   readonly recommendations: string[];
   readonly authenticationResults?: AuthenticationResults;
   readonly headerAnalysis?: HeaderAnalysis;
+  readonly linkAnalysis?: LinkAnalysis;
+  readonly attachmentAnalysis?: AttachmentAnalysis;
 }
 
 // =============================================================================
