@@ -1,5 +1,5 @@
 import { query } from '../../db/connection.js';
-import { phishingDetector, type EmailAnalysis } from './phishingDetector.js';
+import { phishingDetector, type EmailAnalysis } from './detector/phishingDetector.js';
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
@@ -308,11 +308,12 @@ class EmailMonitor {
         sender: emailMessage.sender,
         recipient: emailMessage.recipient,
         attachments: emailMessage.attachments,
-        links: emailMessage.links
+        links: emailMessage.links,
+        headers: emailMessage.headers
       };
 
       // Analyze email for phishing threats
-      const threatAssessment = await phishingDetector.analyzeEmail(emailData);
+      const threatAssessment = await phishingDetector.analyzeEmail(emailData, monitoredEmail.businessId);
 
       monitoringLogger.info('Threat assessment completed', {
         operation: 'process-email-message',

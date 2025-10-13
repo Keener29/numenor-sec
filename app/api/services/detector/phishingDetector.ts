@@ -1,5 +1,7 @@
-import { query } from '../../db/connection.js';
-import { oauthLogger } from './logger.js';
+import { query } from '../../../db/connection.js';
+import { oauthLogger } from '../logger.js';
+import type { ThreatAssessment } from '../../types/email.js';
+import { emailAuthenticationService, type AuthenticationResults } from './emailAuthDetector.js';
 
 // Phishing detection patterns and rules
 interface PhishingPattern {
@@ -16,15 +18,9 @@ interface EmailAnalysis {
   recipient: string;
   attachments?: string[];
   links?: string[];
+  headers?: Record<string, string>;
 }
 
-interface ThreatAssessment {
-  threatLevel: 'low' | 'medium' | 'high' | 'critical';
-  confidence: number; // 0-100
-  detectedPatterns: string[];
-  riskFactors: string[];
-  recommendations: string[];
-}
 
 class PhishingDetector {
   private phishingPatterns: PhishingPattern[] = [
@@ -102,6 +98,44 @@ class PhishingDetector {
       pattern: /<iframe|<script|<embed|<object/i,
       severity: 'medium',
       description: 'Embedded HTML content that could be malicious'
+    },
+    
+    // Email authentication failure patterns
+    {
+      name: 'spf_failure',
+      pattern: /spf.*fail|received-spf.*fail/i,
+      severity: 'high',
+      description: 'SPF authentication failure detected'
+    },
+    {
+      name: 'dkim_failure',
+      pattern: /dkim.*fail|dkim-signature.*invalid/i,
+      severity: 'high',
+      description: 'DKIM authentication failure detected'
+    },
+    {
+      name: 'dmarc_failure',
+      pattern: /dmarc.*fail|dmarc.*reject/i,
+      severity: 'critical',
+      description: 'DMARC authentication failure detected'
+    },
+    {
+      name: 'authentication_missing',
+      pattern: /no.*authentication|missing.*spf|missing.*dkim|missing.*dmarc/i,
+      severity: 'medium',
+      description: 'Missing email authentication records'
+    },
+    {
+      name: 'headers_missing',
+      pattern: /no.*headers|missing.*headers|headers.*unavailable/i,
+      severity: 'critical',
+      description: 'Email headers are missing or unavailable - cannot verify authenticity'
+    },
+    {
+      name: 'no_spf_dkim',
+      pattern: /no.*spf.*dkim|missing.*spf.*dkim|no.*authentication.*spf.*dkim/i,
+      severity: 'critical',
+      description: 'Both SPF and DKIM authentication missing - high phishing risk'
     }
   ];
 
@@ -120,8 +154,10 @@ class PhishingDetector {
 
   /**
    * Analyze email content for phishing indicators
+   * @param emailData - Email data to analyze
+   * @param businessId - Business ID to check for allow-listed domains
    */
-  async analyzeEmail(emailData: EmailAnalysis): Promise<ThreatAssessment> {
+  async analyzeEmail(emailData: EmailAnalysis, businessId?: number): Promise<ThreatAssessment> {
     const detectedPatterns: string[] = [];
     const riskFactors: string[] = [];
     const recommendations: string[] = [];
@@ -164,6 +200,31 @@ class PhishingDetector {
       recommendations.push('Verify sender identity through alternative communication channel');
     }
 
+    // Analyze email authentication (SPF, DKIM, DMARC)
+    let authenticationResults;
+    let isAllowListed = false;
+    if (businessId) {
+      isAllowListed = await emailAuthenticationService.isDomainAllowListed(businessId, emailData.sender);
+    }
+    if (emailData.headers && Object.keys(emailData.headers).length > 0) {
+      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);      
+      const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
+      riskFactors.push(...authAnalysis.risks);
+      threatScore += authAnalysis.score;
+    } else {
+      // No headers available - this is a CRITICAL risk factor
+      
+      if (isAllowListed) {
+        riskFactors.push('No email headers available - sender domain is allow-listed');
+        threatScore += 20; // Reduced penalty for allow-listed domains
+        recommendations.push('Email headers missing - sender domain is trusted');
+      } else {
+        riskFactors.push('No email headers available for authentication analysis');
+        threatScore += 100; // Critical - cannot verify email authenticity at all
+        recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
+      }
+    }
+
     // Determine threat level
     const threatLevel = this.calculateThreatLevel(threatScore);
     const confidence = Math.min(100, Math.max(0, threatScore));
@@ -176,7 +237,8 @@ class PhishingDetector {
       confidence,
       detectedPatterns: [...new Set(detectedPatterns)],
       riskFactors: [...new Set(riskFactors)],
-      recommendations: [...new Set(recommendations)]
+      recommendations: [...new Set(recommendations)],
+      authenticationResults
     };
   }
 
@@ -325,6 +387,7 @@ class PhishingDetector {
     return { risks, score };
   }
 
+
   /**
    * Analyze for Business Email Compromise (BEC)
    */
@@ -394,6 +457,14 @@ class PhishingDetector {
 
     if (risks.includes('Executable file attachment')) {
       recommendations.push('Do not open executable files from unknown senders');
+    }
+
+    // Authentication-specific recommendations
+    const authRecommendations = emailAuthenticationService.generateAuthenticationRecommendations(risks);
+    recommendations.push(...authRecommendations);
+    
+    if (risks.some(risk => risk.includes('No email headers available'))) {
+      recommendations.push('CRITICAL: Email headers missing - this email cannot be verified and should be treated as highly suspicious');
     }
 
     return recommendations;
@@ -534,4 +605,4 @@ class PhishingDetector {
 }
 
 export const phishingDetector = new PhishingDetector();
-export type { EmailAnalysis, ThreatAssessment };
+export type { EmailAnalysis };

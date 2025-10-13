@@ -3,6 +3,24 @@
  * Professional TypeScript interfaces for email and OAuth services
  */
 
+// Import authentication types from email auth detector
+import type { 
+  AuthenticationResults,
+  SPFResult,
+  DKIMResult,
+  DMARCResult,
+  OverallAuthResult
+} from '../services/detector/emailAuthDetector.js';
+
+// Re-export authentication types
+export type { 
+  AuthenticationResults,
+  SPFResult,
+  DKIMResult,
+  DMARCResult,
+  OverallAuthResult
+};
+
 // =============================================================================
 // CORE EMAIL TYPES
 // =============================================================================
@@ -265,6 +283,7 @@ export interface ThreatAssessment {
   readonly detectedPatterns: string[];
   readonly riskFactors: string[];
   readonly recommendations: string[];
+  readonly authenticationResults?: AuthenticationResults;
 }
 
 // =============================================================================
