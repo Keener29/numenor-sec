@@ -23,7 +23,7 @@
 
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
-import { analyzeDomain, extractDomain as extractDomainUtil } from './domainAnalyzer.js';
+import { analyzeDomain, extractDomain as extractDomainUtil, isTemporaryEmailDomain } from './domainAnalyzer.js';
 
 export interface HeaderAnalysis {
   missingHeaders: string[];
@@ -157,6 +157,13 @@ export class HeaderAnalyzerService {
     const lookalikeAnalysis = this.analyzeLookalikeDomains(senderEmail);
     risks.push(...lookalikeAnalysis.risks);
     score += lookalikeAnalysis.score;
+
+    // Check for temporary/disposable email domains
+    const senderDomain = extractDomainUtil(senderEmail);
+    if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
+      risks.push('Temporary or disposable email address');
+      score += 25;
+    }
 
     return {
       missingHeaders,

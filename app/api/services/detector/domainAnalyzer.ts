@@ -126,7 +126,8 @@ export function detectTyposquatting(domain: string): TyposquattingResult {
     const distance = levenshteinDistance(domainWithoutTld.toLowerCase(), brandWithoutTld.toLowerCase());
     
     // Consider suspicious if distance is 1-2 and domains are reasonably similar length
-    if (distance <= 2 && Math.abs(domainWithoutTld.length - brandWithoutTld.length) <= 2) {
+    // But don't flag exact matches or domains that are too different
+    if (distance > 0 && distance <= 2 && Math.abs(domainWithoutTld.length - brandWithoutTld.length) <= 2) {
       return {
         isSuspicious: true,
         similarDomain: brandDomain,
@@ -184,6 +185,26 @@ export function isSuspiciousDomainPattern(domain: string): boolean {
 }
 
 /**
+ * Check if domain appears to be a temporary or disposable email service
+ */
+export function isTemporaryEmailDomain(domain: string): boolean {
+  const tempPatterns = [
+    /temp/i,
+    /disposable/i,
+    /throwaway/i,
+    /10minutemail/i,
+    /guerrillamail/i,
+    /mailinator/i,
+    /tempmail/i,
+    /yopmail/i,
+    /sharklasers/i,
+    /trashmail/i
+  ];
+  
+  return tempPatterns.some(pattern => pattern.test(domain));
+}
+
+/**
  * Check if domain is a URL shortener
  */
 export function isUrlShortener(hostname: string): boolean {
@@ -195,19 +216,40 @@ export function isUrlShortener(hostname: string): boolean {
  */
 export function isIPAddress(hostname: string): boolean {
   const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-  return ipPattern.test(hostname);
+  if (!ipPattern.test(hostname)) {
+    return false;
+  }
+  
+  // Validate that each octet is between 0-255
+  const octets = hostname.split('.');
+  for (const octet of octets) {
+    const num = parseInt(octet, 10);
+    if (num < 0 || num > 255) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 /**
  * Extract domain from email address or URL
  */
 export function extractDomain(input: string): string | null {
+  if (!input || input.trim() === '') {
+    return null;
+  }
+  
   try {
     // If it's an email address
     if (input.includes('@')) {
       const emailMatch = input.match(/<([^>]+)>/) || [input];
       const email = emailMatch[1] || emailMatch[0];
-      const domain = email.split('@')[1];
+      const parts = email.split('@');
+      if (parts.length !== 2 || !parts[1]) {
+        return null;
+      }
+      const domain = parts[1];
       return domain ? domain.toLowerCase() : null;
     }
     
@@ -217,8 +259,12 @@ export function extractDomain(input: string): string | null {
       return url.hostname.toLowerCase();
     }
     
-    // If it's just a domain
-    return input.toLowerCase();
+    // If it's just a domain (basic validation)
+    if (input.includes('.') && !input.includes(' ')) {
+      return input.toLowerCase();
+    }
+    
+    return null;
   } catch (error) {
     return null;
   }
