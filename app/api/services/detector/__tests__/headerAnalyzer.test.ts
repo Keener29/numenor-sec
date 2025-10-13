@@ -3,6 +3,7 @@
  * Tests for email header analysis and missing header detection
  */
 
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { headerAnalyzerService, type HeaderAnalysis } from '../headerAnalyzer.js';
 import { query } from '../../../../db/connection.js';
 
@@ -598,6 +599,188 @@ describe('HeaderAnalyzerService', () => {
 
       expect(result.isTrustedDomain).toBe(false);
       expect(mockQuery).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lookalike domain detection', () => {
+    it('should detect typosquatting with Levenshtein distance', async () => {
+      const headers = {
+        'from': 'sender@micros0ft.com', // 0 instead of o
+        'subject': 'Test Email',
+        'message-id': '<test@micros0ft.com>',
+        'return-path': '<sender@micros0ft.com>',
+        'received': 'from micros0ft.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@micros0ft.com',
+        1
+      );
+
+      expect(result.risks).toContain('Typosquatting detected: "micros0ft.com" is similar to "microsoft.com" (distance: 1)');
+      expect(result.score).toBeGreaterThan(35); // High score for typosquatting
+    });
+
+    it('should detect transposed letters typosquatting', async () => {
+      const headers = {
+        'from': 'sender@microsfot.com', // transposed 'o' and 'f'
+        'subject': 'Test Email',
+        'message-id': '<test@microsfot.com>',
+        'return-path': '<sender@microsfot.com>',
+        'received': 'from microsfot.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@microsfot.com',
+        1
+      );
+
+      expect(result.risks).toContain('Typosquatting detected: "microsfot.com" is similar to "microsoft.com" (distance: 2)');
+      expect(result.score).toBeGreaterThan(20);
+    });
+
+    it('should detect homoglyph attacks with Cyrillic characters', async () => {
+      const headers = {
+        'from': 'sender@аpple.com', // Cyrillic 'а' instead of Latin 'a'
+        'subject': 'Test Email',
+        'message-id': '<test@аpple.com>',
+        'return-path': '<sender@аpple.com>',
+        'received': 'from аpple.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@аpple.com',
+        1
+      );
+
+      expect(result.risks).toContain('Homoglyph attack detected: "аpple.com" contains visually similar characters to "apple.com"');
+      expect(result.score).toBeGreaterThan(30);
+    });
+
+    it('should detect homoglyph attacks with Greek characters', async () => {
+      const headers = {
+        'from': 'sender@gοοgle.com', // Greek 'ο' instead of Latin 'o'
+        'subject': 'Test Email',
+        'message-id': '<test@gοοgle.com>',
+        'return-path': '<sender@gοοgle.com>',
+        'received': 'from gοοgle.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@gοοgle.com',
+        1
+      );
+
+      expect(result.risks).toContain('Homoglyph attack detected: "gοοgle.com" contains visually similar characters to "google.com"');
+      expect(result.score).toBeGreaterThan(30);
+    });
+
+    it('should detect homoglyph attacks with number substitution', async () => {
+      const headers = {
+        'from': 'sender@paypa1.com', // 1 instead of l
+        'subject': 'Test Email',
+        'message-id': '<test@paypa1.com>',
+        'return-path': '<sender@paypa1.com>',
+        'received': 'from paypa1.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@paypa1.com',
+        1
+      );
+
+      expect(result.risks).toContain('Homoglyph attack detected: "paypa1.com" contains visually similar characters to "paypal.com"');
+      expect(result.score).toBeGreaterThan(30);
+    });
+
+    it('should detect multiple lookalike attacks in same email', async () => {
+      const headers = {
+        'from': 'sender@micr0s0ft.com', // Multiple substitutions
+        'subject': 'Test Email',
+        'message-id': '<test@micr0s0ft.com>',
+        'return-path': '<sender@micr0s0ft.com>',
+        'received': 'from micr0s0ft.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@micr0s0ft.com',
+        1
+      );
+
+      // Should detect both typosquatting and homoglyph attacks
+      expect(result.risks.some(risk => risk.includes('Typosquatting detected'))).toBe(true);
+      expect(result.risks.some(risk => risk.includes('Homoglyph attack detected'))).toBe(true);
+      expect(result.score).toBeGreaterThan(60); // Combined high score
+    });
+
+    it('should not flag legitimate domains', async () => {
+      const headers = {
+        'from': 'sender@legitimate-company.com',
+        'subject': 'Test Email',
+        'message-id': '<test@legitimate-company.com>',
+        'return-path': '<sender@legitimate-company.com>',
+        'received': 'from legitimate-company.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@legitimate-company.com',
+        1
+      );
+
+      expect(result.risks.some(risk => risk.includes('Typosquatting detected'))).toBe(false);
+      expect(result.risks.some(risk => risk.includes('Homoglyph attack detected'))).toBe(false);
+    });
+
+    it('should handle domains that are too different from brands', async () => {
+      const headers = {
+        'from': 'sender@completely-different.com',
+        'subject': 'Test Email',
+        'message-id': '<test@completely-different.com>',
+        'return-path': '<sender@completely-different.com>',
+        'received': 'from completely-different.com'
+      };
+
+      const result = await headerAnalyzerService.analyzeHeaders(
+        headers,
+        'sender@completely-different.com',
+        1
+      );
+
+      expect(result.risks.some(risk => risk.includes('Typosquatting detected'))).toBe(false);
+      expect(result.risks.some(risk => risk.includes('Homoglyph attack detected'))).toBe(false);
+    });
+
+    it('should generate recommendations for typosquatting', () => {
+      const analysis: HeaderAnalysis = {
+        missingHeaders: [],
+        risks: ['Typosquatting detected: "micros0ft.com" is similar to "microsoft.com" (distance: 1)'],
+        score: 40,
+        isTrustedDomain: false
+      };
+
+      const recommendations = headerAnalyzerService.generateHeaderRecommendations(analysis);
+
+      expect(recommendations).toContain('CRITICAL: Typosquatting detected - domain is very similar to a known brand, likely phishing attempt');
+    });
+
+    it('should generate recommendations for homoglyph attacks', () => {
+      const analysis: HeaderAnalysis = {
+        missingHeaders: [],
+        risks: ['Homoglyph attack detected: "аpple.com" contains visually similar characters to "apple.com"'],
+        score: 35,
+        isTrustedDomain: false
+      };
+
+      const recommendations = headerAnalyzerService.generateHeaderRecommendations(analysis);
+
+      expect(recommendations).toContain('CRITICAL: Homoglyph attack detected - domain uses visually similar characters to impersonate a brand');
     });
   });
 });
