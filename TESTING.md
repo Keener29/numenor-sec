@@ -46,6 +46,16 @@ npm run test:coverage
    - Tests recommendation generation
    - Tests real-world email scenarios
 
+2. **`app/api/services/detector/__tests__/headerAnalyzer.test.ts`**
+   - Comprehensive unit tests for Email Header Analyzer
+   - Tests missing header detection (From, Return-Path, Message-ID, Received)
+   - Tests From/Return-Path domain mismatch detection (high-risk spoofing indicator)
+   - Tests Reply-To vs From mismatch detection
+   - Tests trusted domain logic (localhost, 127.0.0.1, monitored emails)
+   - Tests suspicious header patterns (User-Agent, X- headers, excessive Received)
+   - Tests recommendation generation for header analysis
+   - Tests edge cases and error handling
+
 ### Test Organization
 
 Tests are organized in `__tests__` directories alongside the code they test:
@@ -56,8 +66,11 @@ app/
 │   └── services/
 │       └── detector/
 │           ├── emailAuthDetector.ts
+│           ├── headerAnalyzer.ts
+│           ├── phishingDetector.ts
 │           └── __tests__/
-│               └── emailAuthDetector.test.ts
+│               ├── emailAuthDetector.test.ts
+│               └── headerAnalyzer.test.ts
 ```
 
 ## Test Categories

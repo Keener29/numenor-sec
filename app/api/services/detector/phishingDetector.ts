@@ -2,6 +2,7 @@ import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
 import type { ThreatAssessment } from '../../types/email.js';
 import { emailAuthenticationService, type AuthenticationResults } from './emailAuthDetector.js';
+import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
 
 // Phishing detection patterns and rules
 interface PhishingPattern {
@@ -202,6 +203,7 @@ class PhishingDetector {
 
     // Analyze email authentication (SPF, DKIM, DMARC)
     let authenticationResults;
+    let headerAnalysis: HeaderAnalysis | undefined;
     let isAllowListed = false;
     if (businessId) {
       isAllowListed = await emailAuthenticationService.isDomainAllowListed(businessId, emailData.sender);
@@ -211,6 +213,11 @@ class PhishingDetector {
       const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
       riskFactors.push(...authAnalysis.risks);
       threatScore += authAnalysis.score;
+
+      // Analyze missing headers
+      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.headers, emailData.sender, businessId);
+      riskFactors.push(...headerAnalysis.risks);
+      threatScore += headerAnalysis.score;
     } else {
       // No headers available - this is a CRITICAL risk factor
       
@@ -232,14 +239,21 @@ class PhishingDetector {
     // Generate recommendations
     recommendations.push(...this.generateRecommendations(threatLevel, detectedPatterns, riskFactors));
 
+    // Add header-specific recommendations
+    if (headerAnalysis) {
+      const headerRecommendations = headerAnalyzerService.generateHeaderRecommendations(headerAnalysis);
+      recommendations.push(...headerRecommendations);
+    }
+
     return {
       threatLevel,
       confidence,
       detectedPatterns: [...new Set(detectedPatterns)],
       riskFactors: [...new Set(riskFactors)],
       recommendations: [...new Set(recommendations)],
-      authenticationResults
-    };
+      authenticationResults,
+      headerAnalysis
+    } as ThreatAssessment;
   }
 
   /**
