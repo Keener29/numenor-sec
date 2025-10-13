@@ -12,6 +12,9 @@ import type {
   OverallAuthResult
 } from '../services/detector/emailAuthDetector.js';
 
+// Import header analysis types
+import type { HeaderAnalysis } from '../services/detector/headerAnalyzer.js';
+
 // Re-export authentication types
 export type { 
   AuthenticationResults,
@@ -284,6 +287,7 @@ export interface ThreatAssessment {
   readonly riskFactors: string[];
   readonly recommendations: string[];
   readonly authenticationResults?: AuthenticationResults;
+  readonly headerAnalysis?: HeaderAnalysis;
 }
 
 // =============================================================================
