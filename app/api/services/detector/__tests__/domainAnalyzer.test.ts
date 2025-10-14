@@ -20,8 +20,8 @@ import {
 
 describe('Domain Analyzer Utilities', () => {
   describe('analyzeDomain', () => {
-    it('should detect typosquatting attacks', () => {
-      const result = analyzeDomain('micros0ft.com');
+    it('should detect typosquatting attacks', async () => {
+      const result = await analyzeDomain('micros0ft.com');
       
       expect(result.isSuspicious).toBe(true);
       expect(result.type).toBe('typosquatting');
@@ -30,8 +30,8 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBe(40);
     });
 
-    it('should detect homoglyph attacks', () => {
-      const result = analyzeDomain('аpple.com');
+    it('should detect homoglyph attacks', async () => {
+      const result = await analyzeDomain('аpple.com');
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of homoglyph due to Levenshtein distance
@@ -40,8 +40,8 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBeGreaterThan(0);
     });
 
-    it('should detect suspicious domain patterns', () => {
-      const result = analyzeDomain('gmail.co');
+    it('should detect suspicious domain patterns', async () => {
+      const result = await analyzeDomain('gmail.co');
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of suspicious_pattern due to Levenshtein distance
@@ -49,19 +49,33 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBeGreaterThan(0);
     });
 
-    it('should return clean result for legitimate domains', () => {
-      const result = analyzeDomain('legitimate-company.com');
+    it('should return clean result for legitimate domains', async () => {
+      const result = await analyzeDomain('legitimate-company.com');
       
       expect(result.isSuspicious).toBe(false);
       expect(result.riskScore).toBe(0);
     });
 
-    it('should prioritize typosquatting over homoglyph detection', () => {
+    it('should prioritize typosquatting over homoglyph detection', async () => {
       // This domain could be detected as both, but typosquatting should take precedence
-      const result = analyzeDomain('micros0ft.com');
+      const result = await analyzeDomain('micros0ft.com');
       
       expect(result.type).toBe('typosquatting');
       expect(result.type).not.toBe('homoglyph');
+    });
+
+    it('should include domain age analysis for new domains', async () => {
+      // This test will likely fail in real scenarios due to WHOIS API limitations
+      // but it demonstrates the structure
+      const result = await analyzeDomain('newly-registered-domain-12345.com');
+      
+      // The result should include domainAge information
+      expect(result.domainAge).toBeDefined();
+      if (result.domainAge) {
+        // ageInDays can be null if WHOIS lookup fails
+        expect(typeof result.domainAge.ageInDays === 'number' || result.domainAge.ageInDays === null).toBe(true);
+        expect(['very_high', 'high', 'medium', 'low', 'unknown']).toContain(result.domainAge.riskLevel);
+      }
     });
   });
 

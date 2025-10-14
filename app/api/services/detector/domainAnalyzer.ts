@@ -7,13 +7,15 @@
 import fastLevenshtein from 'fast-levenshtein';
 const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
+import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
-  type?: 'typosquatting' | 'homoglyph' | 'suspicious_pattern';
+  type?: 'typosquatting' | 'homoglyph' | 'suspicious_pattern' | 'domain_age';
   similarDomain?: string;
   distance?: number;
   riskScore: number;
+  domainAge?: DomainAgeResult;
 }
 
 export interface TyposquattingResult {
@@ -77,7 +79,7 @@ export const URL_SHORTENERS = [
 /**
  * Analyze a domain for various suspicious patterns
  */
-export function analyzeDomain(domain: string): DomainAnalysisResult {
+export async function analyzeDomain(domain: string, businessId?: number): Promise<DomainAnalysisResult> {
   // Check for typosquatting
   const typosquattingResult = detectTyposquatting(domain);
   if (typosquattingResult.isSuspicious) {
@@ -110,9 +112,20 @@ export function analyzeDomain(domain: string): DomainAnalysisResult {
     };
   }
   
+  const domainAgeResult = await analyzeDomainAge(domain, businessId);
+  if (domainAgeResult.isSuspicious) {
+    return {
+      isSuspicious: true,
+      type: 'domain_age',
+      riskScore: domainAgeResult.riskScore,
+      domainAge: domainAgeResult
+    };
+  }
+  
   return {
     isSuspicious: false,
-    riskScore: 0
+    riskScore: 0,
+    domainAge: domainAgeResult
   };
 }
 
