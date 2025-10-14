@@ -4,7 +4,8 @@
  * Used by both headerAnalyzer and linkAnalyzer
  */
 
-import { get as levenshteinDistance } from 'fast-levenshtein';
+import fastLevenshtein from 'fast-levenshtein';
+const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 
 export interface DomainAnalysisResult {
