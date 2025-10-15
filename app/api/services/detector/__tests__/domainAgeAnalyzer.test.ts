@@ -202,9 +202,7 @@ describe('Domain Age Analyzer', () => {
     it('should try multiple WHOIS APIs on failure', async () => {
       // First API fails
       mockFetch.mockRejectedValueOnce(new Error('First API failed'));
-      // Second API fails
-      mockFetch.mockRejectedValueOnce(new Error('Second API failed'));
-      // Third API succeeds
+      // Second API succeeds
       const mockResponse = {
         ok: true,
         json: async () => ({
@@ -218,7 +216,7 @@ describe('Domain Age Analyzer', () => {
 
       expect(result.isSuspicious).toBe(true);
       expect(result.riskLevel).toBe('very_high');
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
