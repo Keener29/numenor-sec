@@ -377,15 +377,7 @@ export class GmailOAuthService extends OAuthProvider {
       const messages = response.data.messages || [];
       
       if (messages.length === 0) {
-        oauthLogger.info('Email search completed - no matching messages', {
-          ...context,
-          metadata: {
-            ...context.metadata,
-            searchQuery: query,
-            gmailQuery,
-            totalMessages: 0
-          }
-        });
+        oauthLogger.debug('No emails found', context);
         return [];
       }
 

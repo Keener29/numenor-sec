@@ -1,10 +1,5 @@
-import { query } from '../../../db/connection.js';
-import { oauthLogger } from '../logger.js';
-import type { ThreatAssessment } from '../../types/email.js';
-import { emailAuthenticationService, type AuthenticationResults } from './emailAuthDetector.js';
-import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
-import { linkAnalyzerService, type LinkAnalysis } from './linkAnalyzer.js';
-import { attachmentAnalyzerService, type AttachmentAnalysis } from './attachmentAnalyzer.js';
+import { query } from '../../db/connection.js';
+import { oauthLogger } from './logger.js';
 
 // Phishing detection patterns and rules
 interface PhishingPattern {
@@ -21,9 +16,15 @@ interface EmailAnalysis {
   recipient: string;
   attachments?: string[];
   links?: string[];
-  headers?: Record<string, string>;
 }
 
+interface ThreatAssessment {
+  threatLevel: 'low' | 'medium' | 'high' | 'critical';
+  confidence: number; // 0-100
+  detectedPatterns: string[];
+  riskFactors: string[];
+  recommendations: string[];
+}
 
 class PhishingDetector {
   private phishingPatterns: PhishingPattern[] = [
@@ -61,6 +62,19 @@ class PhishingDetector {
       description: 'CEO fraud or business email compromise'
     },
     
+    // Suspicious links and domains
+    {
+      name: 'suspicious_domain',
+      pattern: /(bit\.ly|tinyurl|goo\.gl|t\.co|short\.link|redirect)/i,
+      severity: 'medium',
+      description: 'Uses URL shorteners or redirect services'
+    },
+    {
+      name: 'typo_squatting',
+      pattern: /(gmail\.co|yahoo\.co|outlook\.co|amazon\.co|paypal\.co|apple\.co)/i,
+      severity: 'high',
+      description: 'Potential typo-squatting domains'
+    },
     
     // Social engineering
     {
@@ -88,8 +102,7 @@ class PhishingDetector {
       pattern: /<iframe|<script|<embed|<object/i,
       severity: 'medium',
       description: 'Embedded HTML content that could be malicious'
-    },
-    
+    }
   ];
 
   private suspiciousKeywords = [
@@ -99,13 +112,16 @@ class PhishingDetector {
     'click here', 'download', 'install', 'update now'
   ];
 
+  private trustedDomains = [
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+    'apple.com', 'microsoft.com', 'google.com', 'amazon.com',
+    'paypal.com', 'ebay.com', 'facebook.com', 'twitter.com'
+  ];
 
   /**
    * Analyze email content for phishing indicators
-   * @param emailData - Email data to analyze
-   * @param businessId - Business ID to check for allow-listed domains
    */
-  async analyzeEmail(emailData: EmailAnalysis, businessId?: number): Promise<ThreatAssessment> {
+  async analyzeEmail(emailData: EmailAnalysis): Promise<ThreatAssessment> {
     const detectedPatterns: string[] = [];
     const riskFactors: string[] = [];
     const recommendations: string[] = [];
@@ -121,24 +137,21 @@ class PhishingDetector {
     detectedPatterns.push(...bodyAnalysis.patterns);
     threatScore += bodyAnalysis.score;
 
-    // Check if sender domain is allow-listed (needed for attachment analysis)
-    let isAllowListed = false;
-    if (businessId) {
-      isAllowListed = await emailAuthenticationService.isDomainAllowListed(businessId, emailData.sender);
-    }
+    // Analyze sender
+    const senderAnalysis = this.analyzeSender(emailData.sender);
+    riskFactors.push(...senderAnalysis.risks);
+    threatScore += senderAnalysis.score;
 
     // Analyze links
-    let linkAnalysis: LinkAnalysis | undefined;
     if (emailData.links && emailData.links.length > 0) {
-      linkAnalysis = await linkAnalyzerService.analyzeLinks(emailData.links, businessId);
+      const linkAnalysis = this.analyzeLinks(emailData.links);
       riskFactors.push(...linkAnalysis.risks);
       threatScore += linkAnalysis.score;
     }
 
     // Analyze attachments
-    let attachmentAnalysis: AttachmentAnalysis | undefined;
     if (emailData.attachments && emailData.attachments.length > 0) {
-      attachmentAnalysis = attachmentAnalyzerService.analyzeAttachments(emailData.attachments, isAllowListed);
+      const attachmentAnalysis = this.analyzeAttachments(emailData.attachments);
       riskFactors.push(...attachmentAnalysis.risks);
       threatScore += attachmentAnalysis.score;
     }
@@ -151,33 +164,6 @@ class PhishingDetector {
       recommendations.push('Verify sender identity through alternative communication channel');
     }
 
-    // Analyze email authentication (SPF, DKIM, DMARC)
-    let authenticationResults;
-    let headerAnalysis: HeaderAnalysis | undefined;
-    if (emailData.headers && Object.keys(emailData.headers).length > 0) {
-      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);      
-      const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
-      riskFactors.push(...authAnalysis.risks);
-      threatScore += authAnalysis.score;
-
-      // Analyze missing headers
-      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.headers, emailData.sender, businessId);
-      riskFactors.push(...headerAnalysis.risks);
-      threatScore += headerAnalysis.score;
-    } else {
-      // No headers available - this is a CRITICAL risk factor
-      
-      if (isAllowListed) {
-        riskFactors.push('No email headers available - sender domain is allow-listed');
-        threatScore += 20; // Reduced penalty for allow-listed domains
-        recommendations.push('Email headers missing - sender domain is trusted');
-      } else {
-        riskFactors.push('No email headers available for authentication analysis');
-        threatScore += 100; // Critical - cannot verify email authenticity at all
-        recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
-      }
-    }
-
     // Determine threat level
     const threatLevel = this.calculateThreatLevel(threatScore);
     const confidence = Math.min(100, Math.max(0, threatScore));
@@ -185,35 +171,13 @@ class PhishingDetector {
     // Generate recommendations
     recommendations.push(...this.generateRecommendations(threatLevel, detectedPatterns, riskFactors));
 
-    // Add header-specific recommendations
-    if (headerAnalysis) {
-      const headerRecommendations = headerAnalyzerService.generateHeaderRecommendations(headerAnalysis);
-      recommendations.push(...headerRecommendations);
-    }
-
-    // Add link-specific recommendations
-    if (linkAnalysis) {
-      const linkRecommendations = linkAnalyzerService.generateLinkRecommendations(linkAnalysis);
-      recommendations.push(...linkRecommendations);
-    }
-
-    // Add attachment-specific recommendations
-    if (attachmentAnalysis) {
-      const attachmentRecommendations = attachmentAnalyzerService.generateAttachmentRecommendations(attachmentAnalysis);
-      recommendations.push(...attachmentRecommendations);
-    }
-
     return {
       threatLevel,
       confidence,
       detectedPatterns: [...new Set(detectedPatterns)],
       riskFactors: [...new Set(riskFactors)],
-      recommendations: [...new Set(recommendations)],
-      authenticationResults,
-      headerAnalysis,
-      linkAnalysis,
-      attachmentAnalysis
-    } as ThreatAssessment;
+      recommendations: [...new Set(recommendations)]
+    };
   }
 
   /**
@@ -251,9 +215,115 @@ class PhishingDetector {
     return { patterns, score };
   }
 
+  /**
+   * Analyze sender information
+   */
+  private analyzeSender(sender: string): { risks: string[]; score: number } {
+    const risks: string[] = [];
+    let score = 0;
 
+    // Extract domain from email
+    const domain = sender.split('@')[1]?.toLowerCase();
+    
+    if (!domain) {
+      risks.push('Invalid sender format');
+      score += 20;
+      return { risks, score };
+    }
 
+    // Check if domain is trusted
+    if (!this.trustedDomains.includes(domain)) {
+      risks.push('Unknown sender domain');
+      score += 10;
+    }
 
+    // Check for suspicious sender patterns
+    if (domain.includes('temp') || domain.includes('disposable')) {
+      risks.push('Temporary or disposable email address');
+      score += 25;
+    }
+
+    // Check for domain spoofing indicators
+    if (this.isDomainSpoofing(sender)) {
+      risks.push('Potential domain spoofing');
+      score += 30;
+    }
+
+    return { risks, score };
+  }
+
+  /**
+   * Analyze links in email
+   */
+  private analyzeLinks(links: string[]): { risks: string[]; score: number } {
+    const risks: string[] = [];
+    let score = 0;
+
+    for (const link of links) {
+      try {
+        const url = new URL(link);
+        
+        // Check for URL shorteners
+        if (this.isUrlShortener(url.hostname)) {
+          risks.push('URL shortener detected');
+          score += 15;
+        }
+
+        // Check for suspicious domains
+        if (this.isSuspiciousDomain(url.hostname)) {
+          risks.push('Suspicious domain in link');
+          score += 20;
+        }
+
+        // Check for IP addresses in URLs
+        if (this.isIPAddress(url.hostname)) {
+          risks.push('IP address in URL');
+          score += 25;
+        }
+
+        // Check for mixed content (HTTP on HTTPS page)
+        if (url.protocol === 'http:') {
+          risks.push('Insecure HTTP link');
+          score += 10;
+        }
+
+      } catch (error) {
+        risks.push('Malformed URL');
+        score += 20;
+      }
+    }
+
+    return { risks, score };
+  }
+
+  /**
+   * Analyze email attachments
+   */
+  private analyzeAttachments(attachments: string[]): { risks: string[]; score: number } {
+    const risks: string[] = [];
+    let score = 0;
+
+    for (const attachment of attachments) {
+      const extension = attachment.split('.').pop()?.toLowerCase();
+      
+      if (this.isExecutableFile(extension)) {
+        risks.push('Executable file attachment');
+        score += 30;
+      }
+
+      if (this.isArchiveFile(extension)) {
+        risks.push('Archive file attachment');
+        score += 15;
+      }
+
+      if (this.isScriptFile(extension)) {
+        risks.push('Script file attachment');
+        score += 25;
+      }
+    }
+
+    return { risks, score };
+  }
 
   /**
    * Analyze for Business Email Compromise (BEC)
@@ -318,14 +388,12 @@ class PhishingDetector {
       recommendations.push('Be cautious of urgent requests - legitimate organizations rarely require immediate action');
     }
 
+    if (risks.includes('URL shortener detected')) {
+      recommendations.push('Avoid clicking shortened URLs - use a URL expander to check destination');
+    }
 
-
-    // Authentication-specific recommendations
-    const authRecommendations = emailAuthenticationService.generateAuthenticationRecommendations(risks);
-    recommendations.push(...authRecommendations);
-    
-    if (risks.some(risk => risk.includes('No email headers available'))) {
-      recommendations.push('CRITICAL: Email headers missing - this email cannot be verified and should be treated as highly suspicious');
+    if (risks.includes('Executable file attachment')) {
+      recommendations.push('Do not open executable files from unknown senders');
     }
 
     return recommendations;
@@ -342,8 +410,57 @@ class PhishingDetector {
     }
   }
 
+  private isDomainSpoofing(email: string): boolean {
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!domain) return false;
 
+    // Check for common spoofing patterns
+    const spoofingPatterns = [
+      /^[a-z0-9]+-[a-z0-9]+\./, // hyphenated domains
+      /\.co$/, // .co instead of .com
+      /^[a-z0-9]+[0-9]+\./, // domains with numbers
+    ];
 
+    return spoofingPatterns.some(pattern => pattern.test(domain));
+  }
+
+  private isUrlShortener(hostname: string): boolean {
+    const shorteners = [
+      'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'short.link',
+      'ow.ly', 'buff.ly', 'is.gd', 'v.gd', 'tiny.cc'
+    ];
+    return shorteners.includes(hostname.toLowerCase());
+  }
+
+  private isSuspiciousDomain(hostname: string): boolean {
+    // Check for domains that look like legitimate ones but aren't
+    const suspiciousPatterns = [
+      /gmail\.co$/, /yahoo\.co$/, /outlook\.co$/, /amazon\.co$/,
+      /paypal\.co$/, /apple\.co$/, /microsoft\.co$/
+    ];
+    
+    return suspiciousPatterns.some(pattern => pattern.test(hostname));
+  }
+
+  private isIPAddress(hostname: string): boolean {
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    return ipPattern.test(hostname);
+  }
+
+  private isExecutableFile(extension?: string): boolean {
+    const executables = ['exe', 'scr', 'bat', 'cmd', 'com', 'pif', 'vbs', 'js'];
+    return extension ? executables.includes(extension) : false;
+  }
+
+  private isArchiveFile(extension?: string): boolean {
+    const archives = ['zip', 'rar', '7z', 'tar', 'gz'];
+    return extension ? archives.includes(extension) : false;
+  }
+
+  private isScriptFile(extension?: string): boolean {
+    const scripts = ['js', 'vbs', 'ps1', 'sh', 'bat', 'cmd'];
+    return extension ? scripts.includes(extension) : false;
+  }
 
   /**
    * Store threat assessment in database
@@ -417,4 +534,4 @@ class PhishingDetector {
 }
 
 export const phishingDetector = new PhishingDetector();
-export type { EmailAnalysis };
+export type { EmailAnalysis, ThreatAssessment };

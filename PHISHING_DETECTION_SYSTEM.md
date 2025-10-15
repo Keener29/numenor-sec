@@ -9,7 +9,7 @@ The Numenor Security platform now includes a comprehensive phishing detection an
 ### 1. **Advanced Threat Detection**
 - **Pattern Recognition**: Detects 12+ common phishing patterns including urgency tactics, authority impersonation, and financial threats
 - **Content Analysis**: Analyzes email subject lines, body content, and metadata for suspicious indicators
-- **Link Analysis**: Scans URLs for malicious domains, URL shorteners, typo-squatting, and domain age analysis
+- **Link Analysis**: Scans URLs for malicious domains, URL shorteners, and typo-squatting
 - **Attachment Scanning**: Identifies potentially malicious file types and embedded content
 - **Business Email Compromise (BEC) Detection**: Specialized detection for CEO fraud and vendor impersonation
 
@@ -46,88 +46,13 @@ The system detects the following phishing patterns:
 - **Vendor Impersonation**: Fake invoices and payment requests
 
 ### Technical Indicators
-- **Suspicious Domains**: URL shorteners, typo-squatting domains, newly registered domains
+- **Suspicious Domains**: URL shorteners, typo-squatting domains
 - **Malicious Attachments**: Executable files, scripts, archives
 - **Embedded Content**: Suspicious HTML, iframes, scripts
 
 ### Social Engineering
 - **Personal Info Requests**: Requests for passwords, SSN, credit cards
 - **Prize Scams**: Lottery wins, inheritance, fake prizes
-
-## 🔍 Domain Age Analysis
-
-The system includes advanced domain age analysis to detect newly registered domains commonly used in phishing campaigns. This feature provides an additional layer of protection by identifying domains that are too new to be legitimate business domains.
-
-### Risk Scoring System
-
-#### Link Domain Analysis
-- **< 7 days old**: 40 points (Very High Risk) - Extremely suspicious, likely phishing
-- **7-30 days old**: 20 points (High Risk) - Suspicious, requires verification
-- **30+ days old**: 0 points (Low Risk) - Normal domain age
-
-#### Sender Domain Analysis  
-- **< 30 days old**: 20 points (Medium Risk) - New sender domain, verify legitimacy
-- **30+ days old**: 0 points (Low Risk) - Established sender domain
-
-#### Malformed Domain Analysis
-- **Invalid/Unparseable**: 40 points (High Risk) - Malformed domains are often used to bypass detection
-
-### Key Features
-
-#### WHOIS Lookup System
-- **Multiple API Endpoints**: Uses 3 different WHOIS APIs with automatic fallback
-- **Rate Limit Protection**: 10-second timeout per request to prevent hanging
-- **Error Handling**: Graceful fallback when WHOIS services are unavailable
-- **Response Validation**: Validates WHOIS response structure before processing
-
-#### Intelligent Caching
-- **24-Hour Cache**: Stores domain age results to avoid repeated API calls
-- **Performance Optimization**: Reduces API usage and improves response times
-- **Cache Statistics**: Tracks cache hit rates and performance metrics
-- **Manual Cache Management**: Ability to clear cache for testing
-
-#### Trusted Domain Allowlist
-- **Built-in Trusted Domains**: Pre-configured list of major legitimate domains
-- **Business-Specific Allowlist**: Automatically includes domains from monitored business emails
-- **Database Integration**: Queries monitored_emails table for business-specific trusted domains
-- **Bypass WHOIS Lookup**: Trusted domains skip expensive WHOIS API calls
-
-#### Robust Error Handling
-- **API Failure Recovery**: Continues operation even when WHOIS APIs fail
-- **Zero Impact Scoring**: Failed lookups don't negatively impact threat scores
-- **Comprehensive Logging**: Detailed logs for troubleshooting and monitoring
-- **Fallback Mechanisms**: Multiple API endpoints ensure reliability
-
-### Integration Points
-
-The domain age analysis integrates seamlessly with existing detection systems:
-
-- **Link Analyzer**: Analyzes domains in email links for age-based threats
-- **Header Analyzer**: Checks sender domain age for spoofing indicators  
-- **Phishing Detector**: Combines domain age with other threat indicators
-- **Alert System**: Generates specific alerts for newly registered domains
-
-### Example Alerts
-
-```
-🚨 DOMAIN AGE ALERT: Newly Registered Domain Detected
-
-SUSPICIOUS DOMAIN DETAILS:
-- Domain: fake-bank-verification.com
-- Age: 3 days old
-- Risk Level: Very High (40 points)
-- Detection Type: Link Domain Age Analysis
-
-THREAT ASSESSMENT:
-- This domain was registered only 3 days ago
-- Very high likelihood of being used for phishing
-- Recommend immediate verification of email legitimacy
-
-RECOMMENDED ACTIONS:
-- Do not click any links from this domain
-- Verify sender identity through alternative channels
-- Report as suspicious if confirmed phishing attempt
-```
 
 ## 🚀 System Architecture
 
@@ -138,38 +63,22 @@ RECOMMENDED ACTIONS:
    - Pattern matching and scoring algorithms
    - Threat assessment and classification
 
-2. **Domain Age Analyzer** (`app/api/services/detector/domainAgeAnalyzer.ts`)
-   - WHOIS lookup and domain age analysis
-   - Risk scoring based on domain registration date
-   - Intelligent caching and trusted domain allowlist
-   - Multiple API endpoint fallback system
-
-3. **Link Analyzer** (`app/api/services/detector/linkAnalyzer.ts`)
-   - URL and domain analysis for email links
-   - Integration with domain age analysis
-   - Typosquatting and homoglyph detection
-
-4. **Header Analyzer** (`app/api/services/detector/headerAnalyzer.ts`)
-   - Email header analysis and validation
-   - Sender domain age checking
-   - Lookalike domain detection
-
-5. **EmailMonitor Service** (`app/api/services/emailMonitor.ts`)
+2. **EmailMonitor Service** (`app/api/services/emailMonitor.ts`)
    - Real-time email monitoring
    - Batch processing and scheduling
    - Service management and health checks
 
-6. **Enhanced Email Service** (`app/api/utils/emailService.ts`)
+3. **Enhanced Email Service** (`app/api/utils/emailService.ts`)
    - Threat alert notifications
    - Professional HTML email templates
    - SMTP integration and delivery
 
-7. **API Routes** (`app/api/routes/phishing.ts`)
+4. **API Routes** (`app/api/routes/phishing.ts`)
    - RESTful endpoints for threat analysis
    - Manual scanning and monitoring control
    - Statistics and recommendations
 
-8. **Frontend Components**
+5. **Frontend Components**
    - **PhishingDetectionDashboard**: Main dashboard with tabs for overview, prevention, and monitoring
    - **PhishingPrevention**: Security recommendations and prevention tips
 
@@ -214,7 +123,7 @@ const emailData: EmailAnalysis = {
 The system applies 12+ detection patterns:
 - Regex pattern matching
 - Keyword density analysis
-- Domain reputation checking and age analysis
+- Domain reputation checking
 - File type analysis
 
 ### 3. Threat Scoring
@@ -222,11 +131,6 @@ The system applies 12+ detection patterns:
 - **Medium (30-59 points)**: Moderate suspicious activity
 - **High (60-79 points)**: Strong phishing indicators
 - **Critical (80+ points)**: Immediate threat requiring action
-
-#### Domain Age Scoring Contribution
-- **Link Domain Age**: Up to 40 points (very high risk for <7 days)
-- **Sender Domain Age**: Up to 20 points (medium risk for <30 days)
-- **Malformed Domains**: 40 points (high risk for invalid domains)
 
 ### 4. Alert Generation
 For High/Critical threats:
@@ -248,10 +152,6 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 
 # Frontend URL (for alert links)
 FRONTEND_URL=http://localhost:3000
-
-# Domain Age Analysis (Optional - uses free WHOIS APIs)
-# No additional configuration required - system uses multiple free WHOIS endpoints
-# with automatic fallback and caching for optimal performance
 ```
 
 ### Monitoring Settings
