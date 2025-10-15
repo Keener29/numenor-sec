@@ -130,7 +130,7 @@ class PhishingDetector {
     // Analyze links
     let linkAnalysis: LinkAnalysis | undefined;
     if (emailData.links && emailData.links.length > 0) {
-      linkAnalysis = await linkAnalyzerService.analyzeLinks(emailData.links);
+      linkAnalysis = await linkAnalyzerService.analyzeLinks(emailData.links, businessId);
       riskFactors.push(...linkAnalysis.risks);
       threatScore += linkAnalysis.score;
     }

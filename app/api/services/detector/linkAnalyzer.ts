@@ -41,13 +41,13 @@ export class LinkAnalyzerService {
   /**
    * Analyze all links in an email
    */
-  async analyzeLinks(links: string[]): Promise<LinkAnalysis> {
+  async analyzeLinks(links: string[], businessId?: number): Promise<LinkAnalysis> {
     const risks: string[] = [];
     const suspiciousLinks: string[] = [];
     let totalScore = 0;
     
     for (const link of links) {
-      const result = this.analyzeSingleLink(link);
+      const result = await this.analyzeSingleLink(link, businessId);
       
       if (result.isSuspicious) {
         suspiciousLinks.push(link);
@@ -67,7 +67,7 @@ export class LinkAnalyzerService {
   /**
    * Analyze a single link
    */
-  private analyzeSingleLink(link: string): LinkAnalysisResult {
+  private async analyzeSingleLink(link: string, businessId?: number): Promise<LinkAnalysisResult> {
     const risks: string[] = [];
     let score = 0;
     
@@ -93,8 +93,8 @@ export class LinkAnalyzerService {
         score += 10;
       }
       
-      // Analyze domain for typosquatting, homoglyphs, etc.
-      const domainAnalysis = analyzeDomain(hostname);
+      // Analyze domain for typosquatting, homoglyphs, domain age, etc.
+      const domainAnalysis = await analyzeDomain(hostname, businessId);
       if (domainAnalysis.isSuspicious) {
         switch (domainAnalysis.type) {
           case 'typosquatting':
@@ -105,6 +105,14 @@ export class LinkAnalyzerService {
             break;
           case 'suspicious_pattern':
             risks.push(`Suspicious domain pattern: "${hostname}"`);
+            break;
+          case 'domain_age':
+            if (domainAnalysis.domainAge) {
+              const ageText = domainAnalysis.domainAge.ageInDays 
+                ? `${domainAnalysis.domainAge.ageInDays} days old`
+                : 'unknown age';
+              risks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
+            }
             break;
         }
         score += domainAnalysis.riskScore;

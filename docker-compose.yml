@@ -71,6 +71,10 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
       FRONTEND_URL: ${FRONTEND_URL}
+      
+      # WHOIS API Configuration (from .env file)
+      WHOIS_JSON_API_KEY: ${WHOIS_JSON_API_KEY}
+      WHOIS_XML_API_KEY: ${WHOIS_XML_API_KEY}
     ports:
       - "3001:3000"
     volumes:

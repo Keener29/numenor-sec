@@ -6,9 +6,27 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { linkAnalyzerService, type LinkAnalysis } from '../linkAnalyzer.js';
 
+const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+global.fetch = mockFetch;
+
+// Helper function to mock WHOIS API responses
+const mockWhoisApiResponse = (domain: string, ageInDays: number = 365) => {
+  const mockResponse = {
+    ok: true,
+    json: async () => ({
+      domain: domain,
+      created_date: new Date(Date.now() - ageInDays * 24 * 60 * 60 * 1000).toISOString()
+    })
+  };
+  mockFetch.mockResolvedValue(mockResponse as Response);
+};
+
 describe('LinkAnalyzerService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFetch.mockReset();
+    // Default mock for all tests - return a legitimate domain (1 year old)
+    mockWhoisApiResponse('legitimate-site.com', 365);
   });
 
   describe('analyzeLinks', () => {

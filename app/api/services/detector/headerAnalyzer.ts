@@ -24,6 +24,7 @@
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
 import { analyzeDomain, extractDomain as extractDomainUtil, isTemporaryEmailDomain } from './domainAnalyzer.js';
+import { analyzeSenderDomainAge } from './domainAgeAnalyzer.js';
 
 export interface HeaderAnalysis {
   missingHeaders: string[];
@@ -153,16 +154,18 @@ export class HeaderAnalyzerService {
     risks.push(...suspiciousPatterns.risks);
     score += suspiciousPatterns.score;
 
-    // Check for lookalike domains (typosquatting and homoglyph attacks)
-    const lookalikeAnalysis = this.analyzeLookalikeDomains(senderEmail);
-    risks.push(...lookalikeAnalysis.risks);
-    score += lookalikeAnalysis.score;
+    if (!isTrustedDomain) {
+      const lookalikeAnalysis = await this.analyzeLookalikeDomains(senderEmail, businessId);
+      risks.push(...lookalikeAnalysis.risks);
+      score += lookalikeAnalysis.score;
+    }
 
-    // Check for temporary/disposable email domains
-    const senderDomain = extractDomainUtil(senderEmail);
-    if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
-      risks.push('Temporary or disposable email address');
-      score += 25;
+    if (!isTrustedDomain) {
+      const senderDomain = extractDomainUtil(senderEmail);
+      if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
+        risks.push('Temporary or disposable email address');
+        score += 25;
+      }
     }
 
     return {
@@ -287,7 +290,7 @@ export class HeaderAnalyzerService {
   /**
    * Analyze domains for lookalike attacks (typosquatting and homoglyphs)
    */
-  private analyzeLookalikeDomains(senderEmail: string): { risks: string[]; score: number } {
+  private async analyzeLookalikeDomains(senderEmail: string, businessId?: number): Promise<{ risks: string[]; score: number }> {
     const risks: string[] = [];
     let score = 0;
 
@@ -296,8 +299,8 @@ export class HeaderAnalyzerService {
       return { risks, score };
     }
 
-    // Check for lookalike attacks using shared domain analyzer
-    const domainAnalysis = analyzeDomain(senderDomain);
+    // Check for lookalike attacks and domain age using shared domain analyzer
+    const domainAnalysis = await analyzeDomain(senderDomain, businessId);
     if (domainAnalysis.isSuspicious) {
       switch (domainAnalysis.type) {
         case 'typosquatting':
@@ -308,6 +311,14 @@ export class HeaderAnalyzerService {
           break;
         case 'suspicious_pattern':
           risks.push(`Suspicious domain pattern: "${senderDomain}"`);
+          break;
+        case 'domain_age':
+          if (domainAnalysis.domainAge) {
+            const ageText = domainAnalysis.domainAge.ageInDays 
+              ? `${domainAnalysis.domainAge.ageInDays} days old`
+              : 'unknown age';
+            risks.push(`Newly registered sender domain: "${senderDomain}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
+          }
           break;
       }
       score += domainAnalysis.riskScore;

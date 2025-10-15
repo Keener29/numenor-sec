@@ -3,7 +3,7 @@
  * Tests for shared domain analysis functionality
  */
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 import {
   analyzeDomain,
   detectTyposquatting,
@@ -18,10 +18,18 @@ import {
   URL_SHORTENERS
 } from '../domainAnalyzer.js';
 
+// Mock fetch for WHOIS API calls
+const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+global.fetch = mockFetch;
+
 describe('Domain Analyzer Utilities', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
   describe('analyzeDomain', () => {
-    it('should detect typosquatting attacks', () => {
-      const result = analyzeDomain('micros0ft.com');
+    it('should detect typosquatting attacks', async () => {
+      const result = await analyzeDomain('micros0ft.com');
       
       expect(result.isSuspicious).toBe(true);
       expect(result.type).toBe('typosquatting');
@@ -30,8 +38,8 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBe(40);
     });
 
-    it('should detect homoglyph attacks', () => {
-      const result = analyzeDomain('аpple.com');
+    it('should detect homoglyph attacks', async () => {
+      const result = await analyzeDomain('аpple.com');
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of homoglyph due to Levenshtein distance
@@ -40,8 +48,8 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBeGreaterThan(0);
     });
 
-    it('should detect suspicious domain patterns', () => {
-      const result = analyzeDomain('gmail.co');
+    it('should detect suspicious domain patterns', async () => {
+      const result = await analyzeDomain('gmail.co');
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of suspicious_pattern due to Levenshtein distance
@@ -49,19 +57,51 @@ describe('Domain Analyzer Utilities', () => {
       expect(result.riskScore).toBeGreaterThan(0);
     });
 
-    it('should return clean result for legitimate domains', () => {
-      const result = analyzeDomain('legitimate-company.com');
+    it('should return clean result for legitimate domains', async () => {
+      // Mock WHOIS API response for legitimate domain
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          domain: 'legitimate-company.com',
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as Response);
+
+      const result = await analyzeDomain('legitimate-company.com');
       
       expect(result.isSuspicious).toBe(false);
       expect(result.riskScore).toBe(0);
     });
 
-    it('should prioritize typosquatting over homoglyph detection', () => {
+    it('should prioritize typosquatting over homoglyph detection', async () => {
       // This domain could be detected as both, but typosquatting should take precedence
-      const result = analyzeDomain('micros0ft.com');
+      const result = await analyzeDomain('micros0ft.com');
       
       expect(result.type).toBe('typosquatting');
       expect(result.type).not.toBe('homoglyph');
+    });
+
+    it('should include domain age analysis for new domains', async () => {
+      // Mock WHOIS API response for newly registered domain
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          domain: 'newly-registered-domain-12345.com',
+          created_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as Response);
+
+      const result = await analyzeDomain('newly-registered-domain-12345.com');
+      
+      // The result should include domainAge information
+      expect(result.domainAge).toBeDefined();
+      if (result.domainAge) {
+        expect(result.domainAge.ageInDays).toBe(3);
+        expect(result.domainAge.riskLevel).toBe('very_high');
+        expect(result.domainAge.riskScore).toBe(40);
+      }
     });
   });
 
