@@ -258,6 +258,26 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
     const emailData = emailResult.rows[0] as { id: number; email_address: string };
     const emailAddress = emailData.email_address;
 
+    // Disconnect OAuth tokens before deleting the email
+    try {
+      // Check if there are OAuth tokens for this email
+      const oauthResult = await query(
+        'SELECT provider FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
+        [businessId, emailAddress]
+      );
+      
+      if (oauthResult.rows.length > 0) {
+        // Disconnect OAuth tokens
+        await query(
+          'DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
+          [businessId, emailAddress]
+        );
+      }
+    } catch (oauthError) {
+      // Log OAuth cleanup error but don't fail the email deletion
+      console.error('Failed to cleanup OAuth tokens during email deletion:', oauthError);
+    }
+
     // Delete the email
     await query('DELETE FROM monitored_emails WHERE id = $1 AND business_id = $2', [emailId, businessId]);
 
@@ -265,7 +285,7 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
     await query(
       `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
        VALUES ($1, 'email_deleted', $2, $3, $4)`,
-      [businessId, `Email monitoring removed for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+      [businessId, `Email monitoring and OAuth connection removed for: ${emailAddress}`, req.ip, req.get('User-Agent')]
     );
 
     res.json({
