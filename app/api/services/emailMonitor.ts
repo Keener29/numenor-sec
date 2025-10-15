@@ -313,7 +313,7 @@ class EmailMonitor {
       });
 
       // Store threat assessment if threat level is medium or higher
-      if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+      if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
         await phishingDetector.storeThreatAssessment(
           monitoredEmail.businessId,
           monitoredEmail.id,
@@ -344,10 +344,7 @@ class EmailMonitor {
           // Continue processing even if marking fails
         }
 
-        // Send alert notification for high/critical threats
-        if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
-          await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
-        }
+        await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
 
         // Log security event
         await this.logSecurityEvent(
