@@ -1,0 +1,557 @@
+/**
+ * Domain Age Analyzer
+ * Analyzes domain registration age for phishing detection
+ * 
+ * Phishing campaigns often use newly registered domains:
+ * - 0-30 days old = very high risk (score: 50)
+ * - 30-180 days = medium risk (score: 25)
+ * - 180+ days = lower risk (score: 0)
+ * 
+ * Uses WHOIS lookup with caching to avoid rate limits
+ */
+
+import { oauthLogger } from '../logger.js';
+import { query } from '../../../db/connection.js';
+
+export interface DomainAgeResult {
+  isSuspicious: boolean;
+  ageInDays: number | null;
+  registrationDate: Date | null;
+  riskScore: number;
+  riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  error?: string;
+}
+
+export interface WhoisResponse {
+  domain: string;
+  created_date?: string;
+  updated_date?: string;
+  expires_date?: string;
+  registrar?: string;
+  status?: string;
+}
+
+// In-memory cache for WHOIS lookups (in production, use Redis)
+const whoisCache = new Map<string, { data: DomainAgeResult; timestamp: number }>();
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+const WHOIS_APIS = [
+  'https://whoisjson.com/api/v1/whois',
+  'https://api.whoisjson.com/v1/whois',
+  'https://whoisjson.com/whois'
+];
+
+export async function analyzeDomainAge(domain: string, businessId?: number): Promise<DomainAgeResult> {
+  try {
+    const cached = getCachedResult(domain);
+    if (cached) {
+      oauthLogger.info(`Domain age cache hit for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain });
+      return cached;
+    }
+
+    // Clean domain (remove protocol, www, etc.)
+    const cleanDomain = cleanDomainName(domain);
+    if (!cleanDomain) {
+      return {
+        isSuspicious: true,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 40, // High risk for malformed domains
+        riskLevel: 'high',
+        error: 'Invalid domain format'
+      };
+    }
+
+    // Skip known trusted domains (built-in + business allowlist)
+    if (await isTrustedDomain(cleanDomain, businessId)) {
+      const result: DomainAgeResult = {
+        isSuspicious: false,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 0,
+        riskLevel: 'low'
+      };
+      cacheResult(domain, result);
+      return result;
+    }
+
+    // Perform WHOIS lookup
+    const whoisData = await performWhoisLookup(cleanDomain);
+    if (!whoisData) {
+      const result: DomainAgeResult = {
+        isSuspicious: false,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 0,
+        riskLevel: 'unknown',
+        error: 'WHOIS lookup failed'
+      };
+      cacheResult(domain, result);
+      return result;
+    }
+
+    // Calculate age and risk
+    const result = calculateDomainAgeRisk(whoisData);
+    
+    // Cache the result
+    cacheResult(domain, result);
+    
+    oauthLogger.info(`Domain age analysis for ${domain}: ${result.ageInDays} days, risk: ${result.riskLevel}`, { operation: 'domain-age-analysis', emailAddress: domain });
+    return result;
+
+  } catch (error) {
+    oauthLogger.error(`Domain age analysis error for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, error instanceof Error ? error : new Error(String(error)));
+    return {
+      isSuspicious: false,
+      ageInDays: null,
+      registrationDate: null,
+      riskScore: 0,
+      riskLevel: 'unknown',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Perform WHOIS lookup using available APIs
+ */
+async function performWhoisLookup(domain: string): Promise<WhoisResponse | null> {
+  for (const apiUrl of WHOIS_APIS) {
+    try {
+      const response = await fetch(`${apiUrl}?domain=${encodeURIComponent(domain)}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'ClickSafe-Phishing-Detector/1.0',
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!response.ok) {
+        oauthLogger.warn(`WHOIS API ${apiUrl} returned ${response.status} for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain });
+        continue;
+      }
+
+      const data = await response.json();
+      
+      if (data && (data.created_date || data.creation_date || data.registered_date)) {
+        return {
+          domain: data.domain || domain,
+          created_date: data.created_date || data.creation_date || data.registered_date,
+          updated_date: data.updated_date || data.last_updated,
+          expires_date: data.expires_date || data.expiration_date,
+          registrar: data.registrar,
+          status: data.status
+        };
+      }
+    } catch (error) {
+      oauthLogger.warn(`WHOIS API ${apiUrl} failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
+      continue;
+    }
+  }
+
+  // If all APIs fail, try a simple fallback approach
+  return await fallbackWhoisLookup(domain);
+}
+
+/**
+ * Fallback WHOIS lookup using a different approach
+ */
+async function fallbackWhoisLookup(domain: string): Promise<WhoisResponse | null> {
+  try {
+    // Try using a different free WHOIS service
+    const response = await fetch(`https://api.whoisjson.com/v1/whois?domain=${encodeURIComponent(domain)}`, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'ClickSafe-Phishing-Detector/1.0',
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(5000)
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.creation_date) {
+        return {
+          domain: domain,
+          created_date: data.creation_date,
+          updated_date: data.last_updated,
+          expires_date: data.expiration_date,
+          registrar: data.registrar,
+          status: data.status
+        };
+      }
+    }
+  } catch (error) {
+    oauthLogger.warn(`Fallback WHOIS lookup failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
+  }
+
+  return null;
+}
+
+/**
+ * Calculate domain age and risk score
+ */
+function calculateDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult {
+  const registrationDate = parseRegistrationDate(whoisData.created_date);
+  
+  if (!registrationDate) {
+    return {
+      isSuspicious: false,
+      ageInDays: null,
+      registrationDate: null,
+      riskScore: 0,
+      riskLevel: 'unknown',
+      error: 'Could not parse registration date'
+    };
+  }
+
+  const now = new Date();
+  const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  let riskScore: number;
+  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let isSuspicious: boolean;
+
+  if (ageInDays < 7) {
+    riskScore = 40;
+    riskLevel = 'very_high';
+    isSuspicious = true;
+  } else if (ageInDays < 30) {
+    riskScore = 20;
+    riskLevel = 'high';
+    isSuspicious = true;
+  } else {
+    riskScore = 0;
+    riskLevel = 'low';
+    isSuspicious = false;
+  }
+
+  return {
+    isSuspicious,
+    ageInDays,
+    registrationDate,
+    riskScore,
+    riskLevel
+  };
+}
+
+/**
+ * Parse registration date from various formats
+ */
+function parseRegistrationDate(dateString: string | undefined): Date | null {
+  if (!dateString) return null;
+
+  try {
+    // Try parsing as ISO date
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+
+    // Try parsing common WHOIS date formats
+    const formats = [
+      /(\d{4})-(\d{2})-(\d{2})/, // YYYY-MM-DD
+      /(\d{2})\/(\d{2})\/(\d{4})/, // MM/DD/YYYY
+      /(\d{2})-(\d{2})-(\d{4})/, // MM-DD-YYYY
+      /(\d{4})\/(\d{2})\/(\d{2})/, // YYYY/MM/DD
+    ];
+
+    for (const format of formats) {
+      const match = dateString.match(format);
+      if (match) {
+        const [, year, month, day] = match;
+        const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        if (!isNaN(parsedDate.getTime())) {
+          return parsedDate;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    oauthLogger.warn(`Failed to parse date: ${dateString}`, { operation: 'domain-age-analysis' }, { error: error instanceof Error ? error.message : String(error) });
+    return null;
+  }
+}
+
+/**
+ * Clean domain name for WHOIS lookup
+ */
+function cleanDomainName(input: string): string | null {
+  try {
+    let domain = input.replace(/^https?:\/\//, '');
+    domain = domain.replace(/^www\./, '');
+    domain = domain.split('/')[0].split('?')[0].split('#')[0];
+    domain = domain.split(':')[0];
+    if (!domain || !domain.includes('.') || domain.length < 3) {
+      return null;
+    }
+    
+    return domain.toLowerCase();
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Check if domain is a known trusted domain (skip age analysis)
+ */
+function isKnownTrustedDomain(domain: string): boolean {
+  const trustedDomains = [
+    // Major email providers
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
+    'icloud.com', 'protonmail.com', 'zoho.com',
+    
+    // Major tech companies
+    'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
+    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com',
+    
+    // Major financial institutions
+    'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',
+    'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
+    
+    // Government domains
+    'gov', 'mil', 'edu',
+    
+    // Major cloud providers
+    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com'
+  ];
+
+  return trustedDomains.some(trusted => 
+    domain === trusted || domain.endsWith('.' + trusted)
+  );
+}
+
+/**
+ * Check if domain is trusted (built-in + business allowlist)
+ */
+async function isTrustedDomain(domain: string, businessId?: number): Promise<boolean> {
+  // First check built-in trusted domains
+  if (isKnownTrustedDomain(domain)) {
+    return true;
+  }
+
+  // Check if domain matches any monitored email domain for this business
+  if (businessId) {
+    try {
+      const result = await query(
+        `SELECT COUNT(*) as count 
+         FROM monitored_emails 
+         WHERE business_id = $1 
+         AND LOWER(SUBSTRING(email_address FROM '@(.*)$')) = $2`,
+        [businessId, domain]
+      );
+
+      const count = parseInt((result.rows[0] as { count: string }).count);
+      return count > 0;
+    } catch (error) {
+      oauthLogger.error('Failed to check monitored email domains for domain age analysis', {
+        operation: 'check-monitored-domains',
+        emailAddress: domain,
+        metadata: { businessId, domain }
+      }, error as Error);
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Get cached result if available and not expired
+ */
+function getCachedResult(domain: string): DomainAgeResult | null {
+  const cached = whoisCache.get(domain);
+  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+}
+
+/**
+ * Cache result for future use
+ */
+function cacheResult(domain: string, result: DomainAgeResult): void {
+  whoisCache.set(domain, {
+    data: result,
+    timestamp: Date.now()
+  });
+  
+  // Clean up old cache entries periodically
+  if (whoisCache.size > 1000) {
+    const now = Date.now();
+    for (const [key, value] of whoisCache.entries()) {
+      if ((now - value.timestamp) > CACHE_DURATION) {
+        whoisCache.delete(key);
+      }
+    }
+  }
+}
+
+/**
+ * Clear cache (useful for testing)
+ */
+export function clearDomainAgeCache(): void {
+  whoisCache.clear();
+}
+
+/**
+ * Analyze domain age for sender domains (lower scoring)
+ * Uses lower scoring: +10 if < 30 days old
+ */
+export async function analyzeSenderDomainAge(domain: string, businessId?: number): Promise<DomainAgeResult> {
+  try {
+    // Check cache first
+    const cached = getCachedResult(domain);
+    if (cached) {
+      // Adjust the cached result for sender domain scoring
+      const adjustedResult = adjustResultForSenderDomain(cached);
+      oauthLogger.info(`Sender domain age cache hit for ${domain}`, { operation: 'sender-domain-age-analysis', emailAddress: domain });
+      return adjustedResult;
+    }
+
+    // Clean domain (remove protocol, www, etc.)
+    const cleanDomain = cleanDomainName(domain);
+    if (!cleanDomain) {
+      return {
+        isSuspicious: true,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 40,
+        riskLevel: 'high',
+        error: 'Invalid domain format'
+      };
+    }
+
+    // Skip known trusted domains (built-in + business allowlist)
+    if (await isTrustedDomain(cleanDomain, businessId)) {
+      const result: DomainAgeResult = {
+        isSuspicious: false,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 0,
+        riskLevel: 'low'
+      };
+      cacheResult(domain, result);
+      return result;
+    }
+
+    // Perform WHOIS lookup
+    const whoisData = await performWhoisLookup(cleanDomain);
+    if (!whoisData) {
+      const result: DomainAgeResult = {
+        isSuspicious: false,
+        ageInDays: null,
+        registrationDate: null,
+        riskScore: 0,
+        riskLevel: 'unknown',
+        error: 'WHOIS lookup failed'
+      };
+      cacheResult(domain, result);
+      return result;
+    }
+
+    // Calculate age and risk with sender domain scoring
+    const result = calculateSenderDomainAgeRisk(whoisData);
+    
+    // Cache the result
+    cacheResult(domain, result);
+    
+    oauthLogger.info(`Sender domain age analysis for ${domain}: ${result.ageInDays} days, risk: ${result.riskLevel}`, { operation: 'sender-domain-age-analysis', emailAddress: domain });
+    return result;
+
+  } catch (error) {
+    oauthLogger.error(`Sender domain age analysis error for ${domain}`, { operation: 'sender-domain-age-analysis', emailAddress: domain }, error instanceof Error ? error : new Error(String(error)));
+    return {
+      isSuspicious: false,
+      ageInDays: null,
+      registrationDate: null,
+      riskScore: 0,
+      riskLevel: 'unknown',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Adjust cached result for sender domain scoring
+ */
+function adjustResultForSenderDomain(cachedResult: DomainAgeResult): DomainAgeResult {
+  if (!cachedResult.ageInDays) {
+    return cachedResult;
+  }
+
+  let riskScore: number;
+  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let isSuspicious: boolean;
+
+  if (cachedResult.ageInDays < 30) {
+    riskScore = 20;
+    riskLevel = 'medium';
+    isSuspicious = true;
+  } else {
+    riskScore = 0;
+    riskLevel = 'low';
+    isSuspicious = false;
+  }
+
+  return {
+    ...cachedResult,
+    riskScore,
+    riskLevel,
+    isSuspicious
+  };
+}
+
+/**
+ * Calculate domain age and risk score for sender domains (lower scoring)
+ */
+function calculateSenderDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult {
+  const registrationDate = parseRegistrationDate(whoisData.created_date);
+  
+  if (!registrationDate) {
+    return {
+      isSuspicious: false,
+      ageInDays: null,
+      registrationDate: null,
+      riskScore: 0,
+      riskLevel: 'unknown',
+      error: 'Could not parse registration date'
+    };
+  }
+
+  const now = new Date();
+  const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  let riskScore: number;
+  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let isSuspicious: boolean;
+
+  if (ageInDays < 30) {
+    riskScore = 20;
+    riskLevel = 'medium';
+    isSuspicious = true;
+  } else {
+    riskScore = 0;
+    riskLevel = 'low';
+    isSuspicious = false;
+  }
+
+  return {
+    isSuspicious,
+    ageInDays,
+    registrationDate,
+    riskScore,
+    riskLevel
+  };
+}
+
+/**
+ * Get cache statistics
+ */
+export function getCacheStats(): { size: number; entries: string[] } {
+  return {
+    size: whoisCache.size,
+    entries: Array.from(whoisCache.keys())
+  };
+}
