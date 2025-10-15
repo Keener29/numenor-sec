@@ -521,8 +521,9 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 1. **Register any needed emails** - Set up proper email addresses for production use
 2. **Double check terms and conditions** - Review and update legal documentation
 3. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
-4. **Server muli-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
+4. **Server multi-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
 5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
+6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 
 ### Future Enhancements
 - Implement machine learning for threat detection
