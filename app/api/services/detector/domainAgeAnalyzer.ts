@@ -36,9 +36,16 @@ const whoisCache = new Map<string, { data: DomainAgeResult; timestamp: number }>
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 const WHOIS_APIS = [
-  'https://whoisjson.com/api/v1/whois',
-  'https://api.whoisjson.com/v1/whois',
-  'https://whoisjson.com/whois'
+  {
+    url: 'https://whoisjson.com/api/v1/whois',
+    apiKeyEnv: 'WHOIS_JSON_API_KEY',
+    queryParam: 'domain'
+  },
+  {
+    url: 'https://www.whoisxmlapi.com/whoisserver/WhoisService',
+    apiKeyEnv: 'WHOIS_XML_API_KEY',
+    queryParam: 'domainName'
+  }
 ];
 
 export async function analyzeDomainAge(domain: string, businessId?: number): Promise<DomainAgeResult> {
@@ -116,74 +123,77 @@ export async function analyzeDomainAge(domain: string, businessId?: number): Pro
  * Perform WHOIS lookup using available APIs
  */
 async function performWhoisLookup(domain: string): Promise<WhoisResponse | null> {
-  for (const apiUrl of WHOIS_APIS) {
+  for (const apiConfig of WHOIS_APIS) {
     try {
-      const response = await fetch(`${apiUrl}?domain=${encodeURIComponent(domain)}`, {
+      const queryParam = apiConfig.queryParam;
+      const apiKey = apiConfig.apiKeyEnv ? process.env[apiConfig.apiKeyEnv] : null;
+      
+      let url = `${apiConfig.url}?${queryParam}=${encodeURIComponent(domain)}`;
+      
+      const headers: Record<string, string> = {
+        'User-Agent': 'Numenor-Detector/1.0',
+        'Accept': 'application/json'
+      };
+      
+      // Add API key to headers for WHOIS JSON API
+      if (apiKey && apiConfig.url.includes('whoisjson.com')) {
+        headers['Authorization'] = `TOKEN=${apiKey}`;
+      } else if (apiKey) {
+        // For WHOIS XML API, add as query parameter and request JSON format
+        url += `&apiKey=${encodeURIComponent(apiKey)}&outputFormat=JSON`;
+      }
+
+      const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'User-Agent': 'ClickSafe-Phishing-Detector/1.0',
-          'Accept': 'application/json'
-        },
+        headers,
         signal: AbortSignal.timeout(10000)
       });
 
       if (!response.ok) {
-        oauthLogger.warn(`WHOIS API ${apiUrl} returned ${response.status} for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain });
+        oauthLogger.warn(`WHOIS API ${apiConfig.url} returned ${response.status} for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain });
         continue;
       }
 
       const data = await response.json();
       
-      if (data && (data.created_date || data.creation_date || data.registered_date)) {
+      // Handle different API response formats
+      let createdDate: string | undefined;
+      let updatedDate: string | undefined;
+      let expiresDate: string | undefined;
+      let registrar: string | undefined;
+      let status: string | undefined;
+      
+      if (data && data.WhoisRecord) {
+        // WHOIS XML API format
+        const whoisRecord = data.WhoisRecord;
+        createdDate = whoisRecord.createdDate;
+        updatedDate = whoisRecord.updatedDate;
+        expiresDate = whoisRecord.expiresDate;
+        registrar = whoisRecord.registrar?.name;
+        status = whoisRecord.status;
+      } else if (data && (data.created_date || data.creation_date || data.registered_date)) {
+        // WHOIS JSON API format
+        createdDate = data.created_date || data.creation_date || data.registered_date;
+        updatedDate = data.updated_date || data.last_updated;
+        expiresDate = data.expires_date || data.expiration_date;
+        registrar = data.registrar;
+        status = data.status;
+      }
+      
+      if (createdDate) {
         return {
           domain: data.domain || domain,
-          created_date: data.created_date || data.creation_date || data.registered_date,
-          updated_date: data.updated_date || data.last_updated,
-          expires_date: data.expires_date || data.expiration_date,
-          registrar: data.registrar,
-          status: data.status
+          created_date: createdDate,
+          updated_date: updatedDate,
+          expires_date: expiresDate,
+          registrar: registrar,
+          status: status
         };
       }
     } catch (error) {
-      oauthLogger.warn(`WHOIS API ${apiUrl} failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
+      oauthLogger.warn(`WHOIS API ${apiConfig.url} failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
       continue;
     }
-  }
-
-  // If all APIs fail, try a simple fallback approach
-  return await fallbackWhoisLookup(domain);
-}
-
-/**
- * Fallback WHOIS lookup using a different approach
- */
-async function fallbackWhoisLookup(domain: string): Promise<WhoisResponse | null> {
-  try {
-    // Try using a different free WHOIS service
-    const response = await fetch(`https://api.whoisjson.com/v1/whois?domain=${encodeURIComponent(domain)}`, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'ClickSafe-Phishing-Detector/1.0',
-        'Accept': 'application/json'
-      },
-      signal: AbortSignal.timeout(5000)
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data && data.creation_date) {
-        return {
-          domain: domain,
-          created_date: data.creation_date,
-          updated_date: data.last_updated,
-          expires_date: data.expiration_date,
-          registrar: data.registrar,
-          status: data.status
-        };
-      }
-    }
-  } catch (error) {
-    oauthLogger.warn(`Fallback WHOIS lookup failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
   }
 
   return null;
