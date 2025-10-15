@@ -309,6 +309,9 @@ function cleanDomainName(input: string): string | null {
  */
 function isKnownTrustedDomain(domain: string): boolean {
   const trustedDomains = [
+    // Internal systems (always safe)
+    'localhost', '127.0.0.1',
+    
     // Major email providers
     'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
     'icloud.com', 'protonmail.com', 'zoho.com',
