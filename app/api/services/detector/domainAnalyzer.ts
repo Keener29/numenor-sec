@@ -6,7 +6,7 @@
 
 import fastLevenshtein from 'fast-levenshtein';
 const levenshteinDistance = fastLevenshtein.get;
-import * as confusables from 'confusables';
+import confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 
 export interface DomainAnalysisResult {
@@ -165,8 +165,8 @@ export function detectHomoglyphs(domain: string): HomoglyphResult {
     // Check if domains are same length and contain homoglyphs
     if (domainWithoutTld.length === brandWithoutTld.length) {
       // Use confusables library for Unicode homoglyphs (Cyrillic, Greek, etc.)
-      const normalizedDomain = confusables.default(domainWithoutTld);
-      const normalizedBrand = confusables.default(brandWithoutTld);
+      const normalizedDomain = confusables(domainWithoutTld);
+      const normalizedBrand = confusables(brandWithoutTld);
       
       if (normalizedDomain === normalizedBrand && domainWithoutTld !== brandWithoutTld) {
         return {
