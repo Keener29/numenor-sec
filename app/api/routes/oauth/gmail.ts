@@ -113,18 +113,18 @@ router.get("/callback", async (req, res, next) => {
     const { code, state, error } = req.query;
 
     if (error) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth_error=${error}`);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=${error}`);
     }
 
     if (!code || !state) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth_error=missing_parameters`);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=missing_parameters`);
     }
 
     let stateData;
     try {
       stateData = JSON.parse(state as string);
     } catch (parseError) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth_error=invalid_state`);
+      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=invalid_state`);
     }
 
     const { businessId, emailAddress } = stateData;
@@ -141,8 +141,8 @@ router.get("/callback", async (req, res, next) => {
       [businessId, emailAddress]
     );
 
-    // Redirect back to dashboard with success
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth_success=gmail_connected&email=${encodeURIComponent(emailAddress)}`);
+    // Redirect to success page (no login required)
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (error) {
     oauthLogger.error('Error handling Gmail OAuth callback', {
@@ -152,7 +152,7 @@ router.get("/callback", async (req, res, next) => {
         state: req.query.state as string
       }
     }, error as Error);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard?oauth_error=callback_failed`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=callback_failed`);
   }
 });
 
