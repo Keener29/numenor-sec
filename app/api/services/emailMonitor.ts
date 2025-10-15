@@ -250,21 +250,8 @@ class EmailMonitor {
       // gmailMessages are already parsed EmailMessage objects from fetchEmails()
       const emails: EmailMessage[] = gmailMessages;
       
-      // Mark emails as read in Gmail
-      for (const emailMessage of emails) {
-        try {
-          await gmailOAuthService.markAsRead(email.businessId, email.emailAddress, emailMessage.id);
-        } catch (markError) {
-          monitoringLogger.error('Error marking email as read', {
-            operation: 'mark-email-read',
-            emailAddress: email.emailAddress,
-            metadata: {
-              messageId: emailMessage.id
-            }
-          }, markError as Error);
-          // Continue processing other emails even if marking fails
-        }
-      }
+      // Don't mark emails as read here - only mark phishing emails as read after analysis
+      // This prevents legitimate emails from being marked as read unnecessarily
 
       return emails;
 
@@ -334,6 +321,29 @@ class EmailMonitor {
           emailData
         );
 
+        // Mark email as read in Gmail - only for detected phishing threats
+        try {
+          await gmailOAuthService.markAsRead(monitoredEmail.businessId, monitoredEmail.emailAddress, emailMessage.id);
+          monitoringLogger.debug('Email marked as read after phishing detection', {
+            operation: 'mark-phishing-email-read',
+            emailAddress: monitoredEmail.emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              threatLevel: threatAssessment.threatLevel
+            }
+          });
+        } catch (markError) {
+          monitoringLogger.error('Error marking phishing email as read', {
+            operation: 'mark-phishing-email-read',
+            emailAddress: monitoredEmail.emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              threatLevel: threatAssessment.threatLevel
+            }
+          }, markError as Error);
+          // Continue processing even if marking fails
+        }
+
         // Send alert notification for high/critical threats
         if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
           await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
@@ -352,6 +362,17 @@ class EmailMonitor {
             patterns: threatAssessment.detectedPatterns
           }
         );
+      } else {
+        // For safe/low threat emails, log that they were not marked as read
+        monitoringLogger.debug('Email not marked as read - no phishing threat detected', {
+          operation: 'process-email-message',
+          emailAddress: monitoredEmail.emailAddress,
+          metadata: {
+            messageId: emailMessage.id,
+            threatLevel: threatAssessment.threatLevel,
+            subject: emailMessage.subject
+          }
+        });
       }
 
     } catch (error) {
