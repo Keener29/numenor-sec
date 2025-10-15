@@ -154,16 +154,18 @@ export class HeaderAnalyzerService {
     risks.push(...suspiciousPatterns.risks);
     score += suspiciousPatterns.score;
 
-    // Check for lookalike domains (typosquatting and homoglyph attacks)
-    const lookalikeAnalysis = await this.analyzeLookalikeDomains(senderEmail, businessId);
-    risks.push(...lookalikeAnalysis.risks);
-    score += lookalikeAnalysis.score;
+    if (!isTrustedDomain) {
+      const lookalikeAnalysis = await this.analyzeLookalikeDomains(senderEmail, businessId);
+      risks.push(...lookalikeAnalysis.risks);
+      score += lookalikeAnalysis.score;
+    }
 
-    // Check for temporary/disposable email domains
-    const senderDomain = extractDomainUtil(senderEmail);
-    if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
-      risks.push('Temporary or disposable email address');
-      score += 25;
+    if (!isTrustedDomain) {
+      const senderDomain = extractDomainUtil(senderEmail);
+      if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
+        risks.push('Temporary or disposable email address');
+        score += 25;
+      }
     }
 
     return {
