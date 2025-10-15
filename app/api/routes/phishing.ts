@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
-import { phishingDetector, type EmailAnalysis } from '../services/detector/phishingDetector.js';
+import { phishingDetector, type EmailAnalysis } from '../services/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
 import { securityLogger } from '../services/logger.js';
@@ -16,8 +16,7 @@ const emailAnalysisSchema = z.object({
   sender: z.string().email('Valid sender email is required'),
   recipient: z.string().email('Valid recipient email is required'),
   attachments: z.array(z.string()).optional(),
-  links: z.array(z.string()).optional(),
-  headers: z.record(z.string()).optional()
+  links: z.array(z.string()).optional()
 });
 
 // Schema for manual scan request
@@ -47,7 +46,7 @@ router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAn
     });
 
     // Analyze email for phishing threats
-    const threatAssessment = await phishingDetector.analyzeEmail(emailData, businessId);
+    const threatAssessment = await phishingDetector.analyzeEmail(emailData);
 
     // Store assessment if threat level is medium or higher
     if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
