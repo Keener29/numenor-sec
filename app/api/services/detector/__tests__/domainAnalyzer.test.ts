@@ -3,7 +3,7 @@
  * Tests for shared domain analysis functionality
  */
 
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 import {
   analyzeDomain,
   detectTyposquatting,
@@ -18,7 +18,15 @@ import {
   URL_SHORTENERS
 } from '../domainAnalyzer.js';
 
+// Mock fetch for WHOIS API calls
+const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+global.fetch = mockFetch;
+
 describe('Domain Analyzer Utilities', () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
   describe('analyzeDomain', () => {
     it('should detect typosquatting attacks', async () => {
       const result = await analyzeDomain('micros0ft.com');
@@ -50,6 +58,16 @@ describe('Domain Analyzer Utilities', () => {
     });
 
     it('should return clean result for legitimate domains', async () => {
+      // Mock WHOIS API response for legitimate domain
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          domain: 'legitimate-company.com',
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as Response);
+
       const result = await analyzeDomain('legitimate-company.com');
       
       expect(result.isSuspicious).toBe(false);
@@ -65,16 +83,24 @@ describe('Domain Analyzer Utilities', () => {
     });
 
     it('should include domain age analysis for new domains', async () => {
-      // This test will likely fail in real scenarios due to WHOIS API limitations
-      // but it demonstrates the structure
+      // Mock WHOIS API response for newly registered domain
+      const mockResponse = {
+        ok: true,
+        json: async () => ({
+          domain: 'newly-registered-domain-12345.com',
+          created_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
+        })
+      };
+      mockFetch.mockResolvedValueOnce(mockResponse as Response);
+
       const result = await analyzeDomain('newly-registered-domain-12345.com');
       
       // The result should include domainAge information
       expect(result.domainAge).toBeDefined();
       if (result.domainAge) {
-        // ageInDays can be null if WHOIS lookup fails
-        expect(typeof result.domainAge.ageInDays === 'number' || result.domainAge.ageInDays === null).toBe(true);
-        expect(['very_high', 'high', 'medium', 'low', 'unknown']).toContain(result.domainAge.riskLevel);
+        expect(result.domainAge.ageInDays).toBe(3);
+        expect(result.domainAge.riskLevel).toBe('very_high');
+        expect(result.domainAge.riskScore).toBe(40);
       }
     });
   });
