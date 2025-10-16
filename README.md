@@ -20,7 +20,8 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **User Management**: Registration, login, profile management
 - **Business Management**: Business information and statistics
 - **Email Monitoring**: Add, remove, and manage monitored email addresses with smart UI controls
-- **Phishing Alerts**: Create, update, and track phishing threats
+- **Intelligent Phishing Detection**: Advanced text analysis with subject/body distinction and false positive reduction
+- **Phishing Alerts**: Create, update, and track phishing threats with improved accuracy
 - **Security Logging**: Comprehensive audit trail of all activities
 - **Data Validation**: Input validation with Zod schemas
 - **Error Handling**: Centralized error handling and logging
@@ -525,6 +526,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
 6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 7. **attachment analyzer is weak, can be improved**
+8. **Polling every 30 seconds, is there something better?**
 
 
 ### Future Enhancements
