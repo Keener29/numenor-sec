@@ -5,14 +5,9 @@ import { emailAuthenticationService, type AuthenticationResults } from './emailA
 import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
 import { linkAnalyzerService, type LinkAnalysis } from './linkAnalyzer.js';
 import { attachmentAnalyzerService, type AttachmentAnalysis } from './attachmentAnalyzer.js';
+import { textAnalyzer, type EmailTextAnalysis } from './textAnalyzer.js';
 
 // Phishing detection patterns and rules
-interface PhishingPattern {
-  name: string;
-  pattern: RegExp;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-}
 
 interface EmailAnalysis {
   subject: string;
@@ -26,78 +21,6 @@ interface EmailAnalysis {
 
 
 class PhishingDetector {
-  private phishingPatterns: PhishingPattern[] = [
-    // Urgency and fear tactics
-    {
-      name: 'urgent_action_required',
-      pattern: /(urgent|immediate|asap|expires?|deadline|limited time|act now|click here|verify now)/i,
-      severity: 'medium',
-      description: 'Uses urgency tactics to pressure immediate action'
-    },
-    {
-      name: 'account_suspension',
-      pattern: /(account.*suspend|suspended|locked|disabled|terminated|expired|compromised)/i,
-      severity: 'high',
-      description: 'Threatens account suspension or compromise'
-    },
-    {
-      name: 'financial_threat',
-      pattern: /(payment.*due|overdue|charge|billing|invoice|refund|credit card|bank account)/i,
-      severity: 'high',
-      description: 'Financial pressure or fake billing'
-    },
-    
-    // Authority impersonation
-    {
-      name: 'authority_impersonation',
-      pattern: /(irs|fbi|police|court|legal|government|official|security|admin|support)/i,
-      severity: 'medium',
-      description: 'Impersonates authority figures or institutions'
-    },
-    {
-      name: 'ceo_fraud',
-      pattern: /(ceo|president|director|manager|boss|executive).*(urgent|confidential|wire|transfer)/i,
-      severity: 'critical',
-      description: 'CEO fraud or business email compromise'
-    },
-    
-    
-    // Social engineering
-    {
-      name: 'personal_info_request',
-      pattern: /(password|ssn|social security|credit card|bank account|personal information)/i,
-      severity: 'high',
-      description: 'Requests sensitive personal information'
-    },
-    {
-      name: 'prize_winner',
-      pattern: /(congratulations|winner|prize|lucky|lottery|inheritance|million)/i,
-      severity: 'medium',
-      description: 'Prize or lottery scam tactics'
-    },
-    
-    // Technical indicators
-    {
-      name: 'suspicious_attachments',
-      pattern: /\.(exe|scr|bat|cmd|com|pif|vbs|js|jar|zip|rar|7z)$/i,
-      severity: 'high',
-      description: 'Potentially malicious file attachments'
-    },
-    {
-      name: 'html_embedded_content',
-      pattern: /<iframe|<script|<embed|<object/i,
-      severity: 'medium',
-      description: 'Embedded HTML content that could be malicious'
-    },
-    
-  ];
-
-  private suspiciousKeywords = [
-    'verify', 'confirm', 'update', 'validate', 'secure', 'protect',
-    'suspended', 'locked', 'expired', 'compromised', 'breach',
-    'immediately', 'urgent', 'asap', 'deadline', 'limited time',
-    'click here', 'download', 'install', 'update now'
-  ];
 
 
   /**
@@ -111,15 +34,17 @@ class PhishingDetector {
     const recommendations: string[] = [];
     let threatScore = 0;
 
-    // Analyze subject line
-    const subjectAnalysis = this.analyzeText(emailData.subject);
-    detectedPatterns.push(...subjectAnalysis.patterns);
-    threatScore += subjectAnalysis.score;
-
-    // Analyze email body
-    const bodyAnalysis = this.analyzeText(emailData.body);
-    detectedPatterns.push(...bodyAnalysis.patterns);
-    threatScore += bodyAnalysis.score;
+    // Analyze email text with subject and body distinction
+    const emailTextData: EmailTextAnalysis = {
+      subject: emailData.subject,
+      body: emailData.body,
+      sender: emailData.sender,
+      recipient: emailData.recipient
+    };
+    
+    const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
+    detectedPatterns.push(...textAnalysis.patterns);
+    threatScore += textAnalysis.score;
 
     // Check if sender domain is allow-listed (needed for attachment analysis)
     let isAllowListed = false;
@@ -216,44 +141,6 @@ class PhishingDetector {
     } as ThreatAssessment;
   }
 
-  /**
-   * Analyze text content for phishing patterns
-   */
-  private analyzeText(text: string): { patterns: string[]; score: number } {
-    const patterns: string[] = [];
-    let score = 0;
-
-    for (const pattern of this.phishingPatterns) {
-      if (pattern.pattern.test(text)) {
-        patterns.push(pattern.name);
-        score += this.getSeverityScore(pattern.severity);
-      }
-    }
-
-    // Check for suspicious keyword density
-    const keywordCount = this.suspiciousKeywords.filter(keyword => 
-      text.toLowerCase().includes(keyword.toLowerCase())
-    ).length;
-    
-    if (keywordCount >= 3) {
-      patterns.push('high_keyword_density');
-      score += 15;
-    }
-
-    // Check for excessive punctuation (common in phishing)
-    const exclamationCount = (text.match(/!/g) || []).length;
-    const questionCount = (text.match(/\?/g) || []).length;
-    if (exclamationCount > 3 || questionCount > 3) {
-      patterns.push('excessive_punctuation');
-      score += 10;
-    }
-
-    return { patterns, score };
-  }
-
-
-
-
 
   /**
    * Analyze for Business Email Compromise (BEC)
@@ -262,8 +149,16 @@ class PhishingDetector {
     const indicators: string[] = [];
     let isBEC = false;
 
-    // Check for executive impersonation
-    if (this.phishingPatterns.find(p => p.name === 'ceo_fraud')?.pattern.test(emailData.subject + ' ' + emailData.body)) {
+    // Check for executive impersonation using new text analyzer
+    const emailTextData: EmailTextAnalysis = {
+      subject: emailData.subject,
+      body: emailData.body,
+      sender: emailData.sender,
+      recipient: emailData.recipient
+    };
+    
+    const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
+    if (textAnalysis.patterns.includes('ceo_fraud')) {
       indicators.push('Executive impersonation detected');
       isBEC = true;
     }
@@ -282,20 +177,12 @@ class PhishingDetector {
 
     return { isBEC, indicators };
   }
-
-  /**
-   * Calculate threat level based on score
-   */
   private calculateThreatLevel(score: number): 'low' | 'medium' | 'high' | 'critical' {
     if (score >= 80) return 'critical';
     if (score >= 60) return 'high';
     if (score >= 30) return 'medium';
     return 'low';
   }
-
-  /**
-   * Generate recommendations based on threat assessment
-   */
   private generateRecommendations(
     threatLevel: string, 
     patterns: string[], 
@@ -332,18 +219,6 @@ class PhishingDetector {
   }
 
   // Helper methods
-  private getSeverityScore(severity: string): number {
-    switch (severity) {
-      case 'critical': return 30;
-      case 'high': return 20;
-      case 'medium': return 10;
-      case 'low': return 5;
-      default: return 0;
-    }
-  }
-
-
-
 
   /**
    * Store threat assessment in database
