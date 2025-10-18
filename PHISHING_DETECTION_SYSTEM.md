@@ -195,7 +195,6 @@ The system extends the existing database schema with:
 ## 📊 API Endpoints
 
 ### Threat Analysis
-- `POST /api/phishing/analyze` - Analyze email content for threats
 - `POST /api/phishing/scan` - Manually trigger email scan
 - `GET /api/phishing/statistics` - Get threat statistics and trends
 
@@ -293,28 +292,6 @@ FRONTEND_URL=http://localhost:3000
 - **Control Panel**: Start/stop monitoring service
 
 ## 🔧 Usage Examples
-
-### Manual Email Analysis
-```typescript
-const response = await fetch('/api/phishing/analyze', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  },
-  body: JSON.stringify({
-    subject: "URGENT: Account Verification Required",
-    body: "Click here to verify your account immediately...",
-    sender: "noreply@fake-bank.com",
-    recipient: "user@business.com",
-    links: ["https://bit.ly/fake-verification"]
-  })
-});
-
-const result = await response.json();
-console.log(`Threat Level: ${result.threatAssessment.threatLevel}`);
-console.log(`Confidence: ${result.threatAssessment.confidence}%`);
-```
 
 ### Start Monitoring Service
 ```typescript

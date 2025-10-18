@@ -544,7 +544,7 @@ class EmailService {
       
       const fromAddress = process.env.SMTP_FROM || this.config.auth.user;
       const mailOptions = {
-        from: `"Numenor Security" <${fromAddress}>`,
+        from: `${fromAddress}`,
         to: ownerEmail,
         subject: template.subject,
         html: template.html,

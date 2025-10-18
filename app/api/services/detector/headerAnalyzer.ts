@@ -44,7 +44,61 @@ export class HeaderAnalyzerService {
     '127.0.0.1',
   ];
 
+  // Legitimate email service providers that businesses commonly use
+  private legitimateEmailServices: string[] = [
+    'amazonses.com',
+    'sendgrid.net',
+    'mailgun.org',
+    'mailgun.net',
+    'postmarkapp.com',
+    'mandrillapp.com',
+    'sparkpostmail.com',
+    'mailchimp.com',
+    'constantcontact.com',
+    'aweber.com',
+    'getresponse.com',
+    'mailerlite.com',
+    'convertkit.com',
+    'activecampaign.com',
+    'hubspot.com',
+    'salesforce.com',
+    'zendesk.com',
+    'freshdesk.com',
+    'intercom.io',
+    'helpscout.com'
+  ];
 
+  /**
+   * Check if a domain is a legitimate email service provider
+   */
+  private isLegitimateEmailService(domain: string): boolean {
+    if (!domain) return false;
+    
+    // Limit input length to prevent DoS attacks
+    if (domain.length > 255) return false;
+    
+    const domainLower = domain.toLowerCase().trim();
+    
+    // Basic domain format validation
+    if (!/^[a-zA-Z0-9.-]+$/.test(domainLower)) return false;
+    
+    // Check exact matches
+    if (this.legitimateEmailServices.includes(domainLower)) {
+      return true;
+    }
+    
+    // Check for legitimate subdomains of email services
+    // Prevent spoofing like evil-amazonses.com or fake.mailchimp.com.evil.com
+    return this.legitimateEmailServices.some(service => {
+      if (domainLower.endsWith('.' + service)) {
+        const subdomain = domainLower.slice(0, -(service.length + 1));
+        // Ensure subdomain doesn't contain dots (prevents nested subdomain attacks)
+        // Allow legitimate subdomains like us-east-2.amazonses.com
+        return !subdomain.includes('.');
+      }
+      return false;
+    });
+  }
 
   /**
    * Analyze email headers for missing critical headers
@@ -122,13 +176,19 @@ export class HeaderAnalyzerService {
       const returnPathDomain = extractDomainUtil(headers['return-path']);
       
       if (fromDomain && returnPathDomain && fromDomain !== returnPathDomain) {
-        const domainMismatchScore = isTrustedDomain ? 15 : 50; // High risk for external domains
-        score += domainMismatchScore;
+        // Check if Return-Path is from a legitimate email service (e.g., Amazon SES, SendGrid)
+        const isLegitimateService = this.isLegitimateEmailService(returnPathDomain);
         
-        if (isTrustedDomain) {
+        if (isLegitimateService) {
+          // Legitimate email service - this is normal business practice
+          risks.push(`From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - using legitimate email service`);
+          score += 5; // Very low risk for legitimate services
+        } else if (isTrustedDomain) {
           risks.push(`From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - sender domain is trusted`);
+          score += 15; // Medium risk for trusted domains
         } else {
           risks.push(`CRITICAL: From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - high spoofing risk`);
+          score += 50; // High risk for external domains
         }
       }
     }
@@ -256,8 +316,19 @@ export class HeaderAnalyzerService {
     // User-Agent: Identifies the email client/software that sent the email
     // Missing = unusual for legitimate emails (most email clients include this)
     if (!headers['user-agent']) {
-      risks.push('User-Agent header missing - unusual for legitimate emails');
-      score += 15;
+      // Check if this is from a legitimate email service (they often don't include User-Agent)
+      const fromDomain = headers['from'] ? extractDomainUtil(headers['from']) : null;
+      const returnPathDomain = headers['return-path'] ? extractDomainUtil(headers['return-path']) : null;
+      const isFromLegitimateService = (fromDomain && this.isLegitimateEmailService(fromDomain)) || 
+                                     (returnPathDomain && this.isLegitimateEmailService(returnPathDomain));
+      
+      if (isFromLegitimateService) {
+        risks.push('User-Agent header missing - common for email services');
+        score += 5; // Lower penalty for legitimate services
+      } else {
+        risks.push('User-Agent header missing - unusual for legitimate emails');
+        score += 15;
+      }
     }
 
     // Check for suspicious X- headers (potential spoofing indicators)
@@ -344,7 +415,15 @@ export class HeaderAnalyzerService {
     }
 
     if (analysis.risks.some(risk => risk.includes('From domain') && risk.includes('differs from Return-Path domain'))) {
-      recommendations.push('CRITICAL: From and Return-Path domains differ - this is a strong indicator of email spoofing');
+      const hasLegitimateService = analysis.risks.some(risk => 
+        risk.includes('From domain') && risk.includes('differs from Return-Path domain') && risk.includes('using legitimate email service')
+      );
+      
+      if (hasLegitimateService) {
+        recommendations.push('From and Return-Path domains differ - this is normal when using legitimate email services like Amazon SES, SendGrid, etc.');
+      } else {
+        recommendations.push('CRITICAL: From and Return-Path domains differ - this is a strong indicator of email spoofing');
+      }
     }
 
     if (analysis.risks.some(risk => risk.includes('Reply-To differs from From'))) {

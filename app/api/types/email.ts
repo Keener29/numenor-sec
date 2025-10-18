@@ -317,6 +317,7 @@ export interface LogContext {
   readonly userId?: number;
   readonly businessId?: number;
   readonly emailAddress?: string;
+  readonly sender?: string;
   readonly operation: string;
   readonly metadata?: Record<string, unknown>;
 }

@@ -3,6 +3,7 @@ import { phishingDetector, type EmailAnalysis } from './detector/phishingDetecto
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
+import { isFromOwnService } from '../utils/emailUtils.js';
 
 interface MonitoredEmail {
   id: number;
@@ -232,27 +233,9 @@ class EmailMonitor {
       );
 
       if (gmailMessages.length === 0) {
-        monitoringLogger.debug('No new emails found', {
-          operation: 'fetch-new-emails',
-          emailAddress: email.emailAddress
-        });
         return [];
       }
-
-      monitoringLogger.info('Found new Gmail messages', {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress,
-        metadata: {
-          messageCount: gmailMessages.length
-        }
-      });
-
-      // gmailMessages are already parsed EmailMessage objects from fetchEmails()
       const emails: EmailMessage[] = gmailMessages;
-      
-      // Don't mark emails as read here - only mark phishing emails as read after analysis
-      // This prevents legitimate emails from being marked as read unnecessarily
-
       return emails;
 
     } catch (error) {
@@ -288,6 +271,19 @@ class EmailMonitor {
         }
       });
 
+      // Skip analysis for emails from our own service (localhost, 127.0.0.1, etc.)
+      if (isFromOwnService(emailMessage.sender)) {
+        monitoringLogger.debug('Skipping analysis for email from own service', {
+          operation: 'process-email-message',
+          emailAddress: monitoredEmail.emailAddress,
+          sender: emailMessage.sender,
+          metadata: {
+            subject: emailMessage.subject
+          }
+        });
+        return;
+      }
+
       // Prepare email data for analysis
       const emailData: EmailAnalysis = {
         subject: emailMessage.subject,
@@ -305,6 +301,7 @@ class EmailMonitor {
       monitoringLogger.info('Threat assessment completed', {
         operation: 'process-email-message',
         emailAddress: monitoredEmail.emailAddress,
+        sender: emailMessage.sender,
         metadata: {
           threatLevel: threatAssessment.threatLevel,
           confidence: threatAssessment.confidence,
