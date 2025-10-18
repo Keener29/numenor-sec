@@ -276,8 +276,8 @@ class EmailMonitor {
         monitoringLogger.debug('Skipping analysis for email from own service', {
           operation: 'process-email-message',
           emailAddress: monitoredEmail.emailAddress,
+          sender: emailMessage.sender,
           metadata: {
-            sender: emailMessage.sender,
             subject: emailMessage.subject
           }
         });
