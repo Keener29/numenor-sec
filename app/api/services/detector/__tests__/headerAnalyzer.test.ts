@@ -832,4 +832,64 @@ describe('HeaderAnalyzerService', () => {
       expect(recommendations).toContain('CRITICAL: Homoglyph attack detected - domain uses visually similar characters to impersonate a brand');
     });
   });
+
+  describe('legitimate email service detection', () => {
+    it('should recognize Amazon SES as legitimate email service', async () => {
+      const headers = {
+        'from': 'noreply@officepoolstop.com',
+        'return-path': '<bounce@us-east-2.amazonses.com>',
+        'message-id': '<test@us-east-2.amazonses.com>',
+        'received': 'from mail-server.example.com'
+      };
+
+      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+
+      // Should detect the domain mismatch but with low risk for legitimate service
+      expect(analysis.risks).toContain('From domain (officepoolstop.com) differs from Return-Path domain (us-east-2.amazonses.com) - using legitimate email service');
+      expect(analysis.score).toBeLessThan(20); // Low score for legitimate service
+    });
+
+    it('should recognize SendGrid as legitimate email service', async () => {
+      const headers = {
+        'from': 'support@mybusiness.com',
+        'return-path': '<bounce@sendgrid.net>',
+        'message-id': '<test@sendgrid.net>',
+        'received': 'from mail-server.example.com'
+      };
+
+      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'support@mybusiness.com');
+
+      expect(analysis.risks).toContain('From domain (mybusiness.com) differs from Return-Path domain (sendgrid.net) - using legitimate email service');
+      expect(analysis.score).toBeLessThan(20);
+    });
+
+    it('should apply reduced User-Agent penalty for legitimate email services', async () => {
+      const headers = {
+        'from': 'noreply@officepoolstop.com',
+        'return-path': '<bounce@us-east-2.amazonses.com>',
+        'message-id': '<test@us-east-2.amazonses.com>',
+        'received': 'from mail-server.example.com'
+        // No User-Agent header
+      };
+
+      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+
+      expect(analysis.risks).toContain('User-Agent header missing - common for email services');
+      expect(analysis.score).toBeLessThanOrEqual(15); // Lower penalty than normal (15 vs 30+ for non-legitimate services)
+    });
+
+    it('should generate appropriate recommendations for legitimate email services', async () => {
+      const headers = {
+        'from': 'noreply@officepoolstop.com',
+        'return-path': '<bounce@us-east-2.amazonses.com>',
+        'message-id': '<test@us-east-2.amazonses.com>',
+        'received': 'from mail-server.example.com'
+      };
+
+      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+      const recommendations = headerAnalyzerService.generateHeaderRecommendations(analysis);
+
+      expect(recommendations).toContain('From and Return-Path domains differ - this is normal when using legitimate email services like Amazon SES, SendGrid, etc.');
+    });
+  });
 });
