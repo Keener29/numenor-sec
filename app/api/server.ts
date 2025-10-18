@@ -106,7 +106,6 @@ app.get('/api', (req, res) => {
         'GET /api/alerts/stats': 'Get alert statistics'
       },
       phishing: {
-        'POST /api/phishing/analyze': 'Analyze email content for phishing threats',
         'POST /api/phishing/scan': 'Manually trigger email scan',
         'GET /api/phishing/statistics': 'Get phishing threat statistics',
         'GET /api/phishing/patterns': 'Get detected phishing patterns',
