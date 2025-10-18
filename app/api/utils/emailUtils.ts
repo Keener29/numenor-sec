@@ -26,8 +26,8 @@ export function isFromOwnService(senderEmail: string): boolean {
     }
   }
   
-  // Validate email format more strictly
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  // Validate email format - allow IP addresses, localhost, and their subdomains
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9.-]*localhost|[a-zA-Z0-9.-]*127\.0\.0\.1|[a-zA-Z0-9.-]*0\.0\.0\.0|[a-zA-Z0-9.-]*::1)$/;
   if (!emailRegex.test(emailAddress)) return false;
   
   // Extract domain from email address
@@ -55,8 +55,13 @@ export function isFromOwnService(senderEmail: string): boolean {
     // Prevent spoofing like evil-numenorsecurity.com
     if (domain.endsWith('.' + ownDomain)) {
       const subdomain = domain.slice(0, -(ownDomain.length + 1));
-      // Ensure subdomain doesn't contain dots (prevents nested subdomain attacks)
-      return !subdomain.includes('.');
+      // For IP addresses, allow any subdomain (e.g., internal.127.0.0.1)
+      // For domain names, ensure subdomain doesn't contain dots (prevents nested subdomain attacks)
+      if (ownDomain.includes('.')) {
+        return !subdomain.includes('.');
+      } else {
+        return true; // Allow any subdomain for localhost, IP addresses
+      }
     }
     
     return false;
