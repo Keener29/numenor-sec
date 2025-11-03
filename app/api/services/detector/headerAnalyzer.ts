@@ -171,41 +171,64 @@ export class HeaderAnalyzerService {
     // From: Who the email appears to be from
     // Return-Path: Actual sending server's email address
     // Domain mismatch = email appears from one domain but sent from another (classic spoofing)
-    if (headers['from'] && headers['return-path']) {
-      const fromDomain = extractDomainUtil(headers['from']);
-      const returnPathDomain = extractDomainUtil(headers['return-path']);
+    // Check From vs Return-Path mismatch
+  if (headers['from'] && headers['return-path']) {
+    const fromDomain = extractDomainUtil(headers['from']);
+    const returnPathDomain = extractDomainUtil(headers['return-path']);
+    
+    if (fromDomain && returnPathDomain && fromDomain !== returnPathDomain) {
+      const isLegitESP = this.isLegitimateEmailService(returnPathDomain);
+      const returnPathTrusted = await this.isTrustedDomain(returnPathDomain);
       
-      if (fromDomain && returnPathDomain && fromDomain !== returnPathDomain) {
-        // Check if Return-Path is from a legitimate email service (e.g., Amazon SES, SendGrid)
-        const isLegitimateService = this.isLegitimateEmailService(returnPathDomain);
-        
-        if (isLegitimateService) {
-          // Legitimate email service - this is normal business practice
-          risks.push(`From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - using legitimate email service`);
-          score += 5; // Very low risk for legitimate services
-        } else if (isTrustedDomain) {
-          risks.push(`From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - sender domain is trusted`);
-          score += 15; // Medium risk for trusted domains
-        } else {
-          risks.push(`CRITICAL: From domain (${fromDomain}) differs from Return-Path domain (${returnPathDomain}) - high spoofing risk`);
-          score += 50; // High risk for external domains
-        }
+      if (isLegitESP) {
+        risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - sent via trusted mail service`);
+        score += 3; // almost no risk
+      }
+      else if (returnPathTrusted && !isTrustedDomain) {
+        // Return-Path is trusted but From isn't -> spoof attempt
+        risks.push(`Return-Path (${returnPathDomain}) trusted but From (${fromDomain}) is not - likely spoof`);
+        score += 35;
+      }
+      else if (isTrustedDomain) {
+        // Spoof of a known org
+        risks.push(`From domain (${fromDomain}) trusted but Return-Path (${returnPathDomain}) differs - possible brand spoof`);
+        score += 25;
+      } 
+      else {
+        // Generic mismatch
+        risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - high spoofing risk`);
+        score += 35;
       }
     }
+}
 
     // Check for Reply-To vs From mismatch (potential spoofing)
     // Reply-To: Where replies should be sent (can differ from From)
     // From: Who the email appears to be from
     // Mismatch can indicate spoofing - email appears from one person but replies go elsewhere
-    if (headers['reply-to'] && headers['from'] && 
-        headers['reply-to'].toLowerCase() !== headers['from'].toLowerCase()) {
-      const replyToScore = isTrustedDomain ? 5 : 25;
-      score += replyToScore;
-      
-      if (isTrustedDomain) {
-        risks.push('Reply-To differs from From - sender domain is trusted');
+    const from = headers['from']?.toLowerCase() || '';
+    const replyTo = headers['reply-to']?.toLowerCase() || '';
+
+    if (replyTo && from && replyTo !== from) {
+      const fromDomain = extractDomainUtil(from);
+      const replyDomain = extractDomainUtil(replyTo);
+
+      let mismatchScore = 0;
+      let reason = '';
+
+      if (fromDomain !== replyDomain) {
+        // Completely different domain = high risk
+        mismatchScore = isTrustedDomain ? 5 : 25;
+        reason = `Reply-To domain (${replyDomain}) differs from From domain (${fromDomain})`;
       } else {
-        risks.push('Reply-To differs from From - potential spoofing indicator');
+        // Same domain, different mailbox => could be legit marketing/support flow
+        mismatchScore = isTrustedDomain ? 0 : 5;
+        reason = `Reply-To mailbox differs from From mailbox within same domain`;
+      }
+
+      if (mismatchScore > 0) {
+        score += mismatchScore;
+        risks.push(`${reason} - potential spoofing`);
       }
     }
 
@@ -315,6 +338,9 @@ export class HeaderAnalyzerService {
     // Check for missing or suspicious User-Agent
     // User-Agent: Identifies the email client/software that sent the email
     // Missing = unusual for legitimate emails (most email clients include this)
+    // But this check should be less strict - many legitimate emails don't have User-Agent
+    // We'll only flag it if other suspicious indicators are present
+    // (This check is kept but with reduced severity since User-Agent is often missing in legitimate emails)
     if (!headers['user-agent']) {
       // Check if this is from a legitimate email service (they often don't include User-Agent)
       const fromDomain = headers['from'] ? extractDomainUtil(headers['from']) : null;
@@ -323,26 +349,44 @@ export class HeaderAnalyzerService {
                                      (returnPathDomain && this.isLegitimateEmailService(returnPathDomain));
       
       if (isFromLegitimateService) {
-        risks.push('User-Agent header missing - common for email services');
-        score += 5; // Lower penalty for legitimate services
+        risks.push('User-Agent header missing - common for email services and educational institutions');
+        score += 3; // Very low penalty for legitimate services
       } else {
         risks.push('User-Agent header missing - unusual for legitimate emails');
-        score += 15;
+        score += 10; // Reduced from 15 to 10 - User-Agent is often missing in legitimate emails
       }
     }
 
     // Check for suspicious X- headers (potential spoofing indicators)
     // X- headers: Custom headers (non-standard, start with "X-")
     // Excessive X- headers can indicate spoofing attempts or malicious modifications
+    // Note: Many legitimate email systems (especially enterprise/university) include multiple X- headers
+    // So we'll use a higher threshold to reduce false positives
     const xHeaders = Object.keys(headers).filter(key => 
       key.toLowerCase().startsWith('x-')
     );
-    
-    if (xHeaders.length > 5) {
-      risks.push('Excessive X- headers - potential spoofing attempt');
-      score += 20;
-    }
 
+    // Enterprise fingerprints
+    const enterpriseIndicators = [
+      'x-microsoft-', 'x-ms-', 'x-google-', 'x-gm-', 
+      'x-proofpoint', 'x-mimecast', 'x-amz-', 'x-ses-'
+    ];
+    const hasEnterpriseHeaders = Object.keys(headers).some(key =>
+      enterpriseIndicators.some(ind => key.toLowerCase().startsWith(ind))
+    );
+    const baseThreshold = 10;
+    const enterpriseBuffer = 8; 
+    const threshold = hasEnterpriseHeaders ? baseThreshold + enterpriseBuffer : baseThreshold;
+    if (xHeaders.length > threshold) {
+      const excess = xHeaders.length - threshold;
+      let penalty = 2;
+      if (excess > 5) penalty = 5;
+      if (excess > 15) penalty = 10;
+    
+      risks.push(`Unusual volume of X- headers (${xHeaders.length})`);
+      score += penalty;
+    }
+    
     // Check for suspicious Received header patterns
     // Received headers: Show email routing path (one per mail server)
     // Excessive Received headers (>10) can indicate email loops or spoofing attempts
@@ -350,9 +394,12 @@ export class HeaderAnalyzerService {
       key.toLowerCase().startsWith('received')
     );
     
-    if (receivedHeaders.length > 10) {
+    if (receivedHeaders.length > 18) {
       risks.push('Excessive Received headers - potential email loop or spoofing');
       score += 25;
+    } else if (receivedHeaders.length > 12) {
+      risks.push('Excessive Received headers - potential email loop or spoofing');
+      score += 10;
     }
 
     return { risks, score };
