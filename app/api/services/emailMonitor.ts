@@ -215,21 +215,41 @@ class EmailMonitor {
       // Get the OAuth connection timestamp to only fetch emails after connection
       const connectionTimestamp = (tokenResult.rows[0] as { created_at: Date }).created_at;
 
-      monitoringLogger.debug('Fetching emails after OAuth connection time', {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress,
-        metadata: {
-          connectionTimestamp: connectionTimestamp.toISOString()
-        }
-      });
+      // Use the most recent timestamp: either last check or OAuth connection
+      // This creates a time window to avoid reprocessing the same emails
+      let timestampToUse = connectionTimestamp;
+      
+      if (email.lastChecked) {
+        // Use the more recent timestamp to avoid reprocessing emails from previous scans
+        timestampToUse = email.lastChecked > connectionTimestamp ? email.lastChecked : connectionTimestamp;
+        
+        monitoringLogger.debug('Fetching emails after last check time', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            lastChecked: email.lastChecked.toISOString(),
+            connectionTimestamp: connectionTimestamp.toISOString(),
+            timestampToUse: timestampToUse.toISOString()
+          }
+        });
+      } else {
+        monitoringLogger.debug('Fetching emails after OAuth connection time (first scan)', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            connectionTimestamp: connectionTimestamp.toISOString()
+          }
+        });
+      }
 
-      // Fetch emails from Gmail API (only emails after connection time)
+      // Fetch emails from Gmail API (only emails after the timestamp window)
+      // Remove 'is:unread' filter since we're using time-based filtering instead
       const gmailMessages = await gmailOAuthService.fetchEmails(
         email.businessId,
         email.emailAddress,
         10, // max 10 emails per scan
-        'is:unread', // only unread emails
-        connectionTimestamp // only emails after OAuth connection
+        '', // empty query - we'll use timestamp filtering
+        timestampToUse // only emails after the last check/connection time
       );
 
       if (gmailMessages.length === 0) {
