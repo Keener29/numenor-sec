@@ -44,13 +44,9 @@ export class EmailAuthenticationService {
    * Analyze email authentication headers (SPF, DKIM, DMARC)
    */
   analyzeEmailAuthentication(headers: Record<string, string>): AuthenticationResults {
-    const normalizedHeaders: Record<string, string> = {};
-    for (const [key, value] of Object.entries(headers)) {
-      normalizedHeaders[key.toLowerCase()] = value;
-    }
-    const spf = this.analyzeSPF(normalizedHeaders);
-    const dkim = this.analyzeDKIM(normalizedHeaders);
-    const dmarc = this.analyzeDMARC(normalizedHeaders);
+    const spf = this.analyzeSPF(headers);
+    const dkim = this.analyzeDKIM(headers);
+    const dmarc = this.analyzeDMARC(headers);
     
     // Determine overall authentication status
     let overall: OverallAuthResult = 'none';
@@ -70,9 +66,10 @@ export class EmailAuthenticationService {
    */
   private analyzeSPF(headers: Record<string, string>): SPFResult {
     // Check for SPF results in Authentication-Results header
-    const authResults = headers['authentication-results'];
+    const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     if (authResults) {
-      const spfMatch = authResults.match(/spf=([a-z]+)/i);
+      const normalized = this.normalizeHeaderValue(authResults);
+      const spfMatch = normalized.match(/spf=([a-z]+)/i);
       if (spfMatch) {
         const result = spfMatch[1].toLowerCase();
         if (isValidSPFResult(result)) {
@@ -84,7 +81,8 @@ export class EmailAuthenticationService {
     // Check for Received-SPF header
     const receivedSPF = headers['received-spf'];
     if (receivedSPF) {
-      const spfMatch = receivedSPF.match(/^([a-z]+)\s*\(/i);
+      const normalized = this.normalizeHeaderValue(receivedSPF);
+      const spfMatch = normalized.match(/^([a-z]+)\s*\(/i);
       if (spfMatch) {
         const result = spfMatch[1].toLowerCase();
         if (isValidSPFResult(result)) {
@@ -97,24 +95,35 @@ export class EmailAuthenticationService {
   }
 
   /**
+   * Normalize header value by removing newlines and extra whitespace
+   * Email headers can be folded across multiple lines with whitespace
+   */
+  private normalizeHeaderValue(headerValue: string): string {
+    // Replace newlines and carriage returns with spaces, then normalize multiple spaces to single space
+    return headerValue.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
    * Analyze DKIM (DomainKeys Identified Mail) authentication
    */
   private analyzeDKIM(headers: Record<string, string>): DKIMResult {
-    // Check for DKIM results in Authentication-Results header
-    const authResults = headers['authentication-results'];
+    const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     if (authResults) {
-      const dkimMatch = authResults.match(/dkim=([a-z]+)/i);
+      const normalized = this.normalizeHeaderValue(authResults);
+      const dkimMatch = normalized.match(/dkim=([a-z]+)/i);
       if (dkimMatch) {
         const result = dkimMatch[1].toLowerCase();
         if (isValidDKIMResult(result)) {
-          return result;
+          if (result === 'pass') {
+            return 'pass';
+          }
         }
       }
     }
 
     // Check for DKIM results in ARC-Authentication-Results header
     // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
-    const arcAuthResults = headers['arc-authentication-results'];
+    const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     if (arcAuthResults) {
       const dkimMatch = arcAuthResults.match(/dkim=([a-z]+)/i);
       if (dkimMatch) {
@@ -141,20 +150,21 @@ export class EmailAuthenticationService {
    * Analyze DMARC (Domain-based Message Authentication) authentication
    */
   private analyzeDMARC(headers: Record<string, string>): DMARCResult {
-    // Check for DMARC results in Authentication-Results header
-    const authResults = headers['authentication-results'];
+    const results: DMARCResult[] = [];
+    const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     if (authResults) {
-      const dmarcMatch = authResults.match(/dmarc=([a-z]+)/i);
+      const normalized = this.normalizeHeaderValue(authResults);
+      const dmarcMatch = normalized.match(/dmarc=([a-z]+)/i);
       if (dmarcMatch) {
         const result = dmarcMatch[1].toLowerCase();
         if (isValidDMARCResult(result)) {
-          return result;
+          if (result === 'pass') {
+            return 'pass';
+          }
         }
       }
     }
-    // Check for DMARC results in ARC-Authentication-Results header
-    // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
-    const arcAuthResults = headers['arc-authentication-results'];
+    const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     if (arcAuthResults) {
       const dmarcMatch = arcAuthResults.match(/dmarc=([a-z]+)/i);
       if (dmarcMatch) {
