@@ -44,9 +44,13 @@ export class EmailAuthenticationService {
    * Analyze email authentication headers (SPF, DKIM, DMARC)
    */
   analyzeEmailAuthentication(headers: Record<string, string>): AuthenticationResults {
-    const spf = this.analyzeSPF(headers);
-    const dkim = this.analyzeDKIM(headers);
-    const dmarc = this.analyzeDMARC(headers);
+    const normalizedHeaders: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) {
+      normalizedHeaders[key.toLowerCase()] = value;
+    }
+    const spf = this.analyzeSPF(normalizedHeaders);
+    const dkim = this.analyzeDKIM(normalizedHeaders);
+    const dmarc = this.analyzeDMARC(normalizedHeaders);
     
     // Determine overall authentication status
     let overall: OverallAuthResult = 'none';
@@ -108,10 +112,23 @@ export class EmailAuthenticationService {
       }
     }
 
+    // Check for DKIM results in ARC-Authentication-Results header
+    // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
+    const arcAuthResults = headers['arc-authentication-results'];
+    if (arcAuthResults) {
+      const dkimMatch = arcAuthResults.match(/dkim=([a-z]+)/i);
+      if (dkimMatch) {
+        const result = dkimMatch[1].toLowerCase();
+        if (isValidDKIMResult(result)) {
+          return result;
+        }
+      }
+    }
+
     // Check for DKIM-Signature header presence
     const dkimSignature = headers['dkim-signature'];
     if (dkimSignature) {
-      // If DKIM signature exists but no result in Authentication-Results,
+      // If DKIM signature exists but no result in Authentication-Results or ARC-Authentication-Results,
       // this likely means the signature verification failed
       return 'fail';
     }
@@ -128,6 +145,18 @@ export class EmailAuthenticationService {
     const authResults = headers['authentication-results'];
     if (authResults) {
       const dmarcMatch = authResults.match(/dmarc=([a-z]+)/i);
+      if (dmarcMatch) {
+        const result = dmarcMatch[1].toLowerCase();
+        if (isValidDMARCResult(result)) {
+          return result;
+        }
+      }
+    }
+    // Check for DMARC results in ARC-Authentication-Results header
+    // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
+    const arcAuthResults = headers['arc-authentication-results'];
+    if (arcAuthResults) {
+      const dmarcMatch = arcAuthResults.match(/dmarc=([a-z]+)/i);
       if (dmarcMatch) {
         const result = dmarcMatch[1].toLowerCase();
         if (isValidDMARCResult(result)) {

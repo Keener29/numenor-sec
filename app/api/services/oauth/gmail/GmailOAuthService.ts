@@ -354,7 +354,8 @@ export class GmailOAuthService extends OAuthProvider {
       if (connectionTimestamp) {
         // Convert connection timestamp to Gmail date format (YYYY/MM/DD)
         const connectionDate = connectionTimestamp.toISOString().split('T')[0].replace(/-/g, '/');
-        gmailQuery = `${query} after:${connectionDate}`;
+        // If query is empty, just use the date filter; otherwise combine them
+        gmailQuery = query.trim() ? `${query} after:${connectionDate}` : `after:${connectionDate}`;
         
         oauthLogger.debug('Fetching emails from Gmail after connection time', {
           ...context,
