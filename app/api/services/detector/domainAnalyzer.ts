@@ -104,7 +104,7 @@ export async function analyzeDomain(domain: string, businessId?: number): Promis
       type: 'typosquatting',
       similarDomain: typosquattingResult.similarDomain,
       distance: typosquattingResult.distance,
-      riskScore: typosquattingResult.distance! <= 1 ? 40 : 25
+      riskScore: typosquattingResult.distance! <= 1 ? 40 : 35 // Distance 2 still high risk
     };
   }
   

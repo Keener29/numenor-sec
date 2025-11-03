@@ -75,11 +75,10 @@ export class LinkAnalyzerService {
       const hostname = url.hostname;
       
       // Check for URL shorteners
-      // Known URL shorteners should not receive penalties - they are common and legitimate
-      // Skip penalty for known URL shorteners
+      // Popular URL shorteners should be detected but receive minimal penalty
       if (isPopularUrlShortener(hostname)) {
-        // Small penalty for popular URL shorteners
-        score += 2;
+        risks.push(`URL shortener detected: ${hostname}, small penalty`);
+        score += 2; // Small penalty for popular URL shorteners
       }
       
       // Check for IP addresses in URLs

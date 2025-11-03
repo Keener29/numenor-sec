@@ -190,9 +190,9 @@ export class HeaderAnalyzerService {
         score += 35;
       }
       else if (isTrustedDomain) {
-        // Spoof of a known org
+        // Spoof of a known org - but trusted domain, so lower penalty
         risks.push(`From domain (${fromDomain}) trusted but Return-Path (${returnPathDomain}) differs - possible brand spoof`);
-        score += 25;
+        score += 20; // Reduced from 25 to 20 for trusted domains
       } 
       else {
         // Generic mismatch
@@ -228,7 +228,11 @@ export class HeaderAnalyzerService {
 
       if (mismatchScore > 0) {
         score += mismatchScore;
-        risks.push(`${reason} - potential spoofing`);
+        if (isTrustedDomain) {
+          risks.push('Reply-To differs from From - sender domain is trusted');
+        } else {
+          risks.push(`${reason} - potential spoofing`);
+        }
       }
     }
 
@@ -308,32 +312,7 @@ export class HeaderAnalyzerService {
     const risks: string[] = [];
     let score = 0;
 
-    // Check for suspicious From header patterns
-    // From header format: "Display Name <email@domain.com>" or just "email@domain.com"
-    if (headers['from']) {
-      const fromHeader = headers['from'].toLowerCase();
-      
-      // Check for display name spoofing
-      // Format: "Display Name <email@domain.com>"
-      if (fromHeader.includes('<') && fromHeader.includes('>')) {
-        const displayName = fromHeader.split('<')[0].trim();
-        const emailPart = fromHeader.split('<')[1].split('>')[0].trim();
-        
-        // Check if display name contains suspicious patterns
-        // "noreply" in display name can indicate automated/spoofed emails
-        if (displayName.includes('noreply') || displayName.includes('no-reply')) {
-          risks.push('Suspicious display name in From header');
-          score += 10;
-        }
-      }
-
-      // Check for suspicious email patterns
-      // "noreply@" addresses are often used by automated systems and can be spoofed
-      if (fromHeader.includes('noreply@') || fromHeader.includes('no-reply@')) {
-        risks.push('No-reply email address - verify legitimacy');
-        score += 5;
-      }
-    }
+  
 
     // Check for missing or suspicious User-Agent
     // User-Agent: Identifies the email client/software that sent the email
@@ -349,7 +328,7 @@ export class HeaderAnalyzerService {
                                      (returnPathDomain && this.isLegitimateEmailService(returnPathDomain));
       
       if (isFromLegitimateService) {
-        risks.push('User-Agent header missing - common for email services and educational institutions');
+        risks.push('User-Agent header missing - common for email services');
         score += 3; // Very low penalty for legitimate services
       } else {
         risks.push('User-Agent header missing - unusual for legitimate emails');
@@ -383,7 +362,7 @@ export class HeaderAnalyzerService {
       if (excess > 5) penalty = 5;
       if (excess > 15) penalty = 10;
     
-      risks.push(`Unusual volume of X- headers (${xHeaders.length})`);
+      risks.push(`Excessive X- headers - potential spoofing attempt`);
       score += penalty;
     }
     
@@ -461,9 +440,17 @@ export class HeaderAnalyzerService {
       }
     }
 
-    if (analysis.risks.some(risk => risk.includes('From domain') && risk.includes('differs from Return-Path domain'))) {
+    // Check for From vs Return-Path domain mismatch
+    const hasFromReturnPathMismatch = analysis.risks.some(risk => 
+      (risk.includes('From (') && risk.includes('!= Return-Path (')) || 
+      (risk.includes('From domain') && risk.includes('differs from Return-Path domain'))
+    );
+    
+    if (hasFromReturnPathMismatch) {
+      // Check if it's a legitimate email service
       const hasLegitimateService = analysis.risks.some(risk => 
-        risk.includes('From domain') && risk.includes('differs from Return-Path domain') && risk.includes('using legitimate email service')
+        (risk.includes('From (') && risk.includes('!= Return-Path (') && risk.includes('sent via trusted mail service')) ||
+        (risk.includes('From domain') && risk.includes('differs from Return-Path domain') && risk.includes('using legitimate email service'))
       );
       
       if (hasLegitimateService) {
@@ -473,7 +460,11 @@ export class HeaderAnalyzerService {
       }
     }
 
-    if (analysis.risks.some(risk => risk.includes('Reply-To differs from From'))) {
+    if (analysis.risks.some(risk => 
+      risk.includes('Reply-To differs from From') || 
+      risk.includes('Reply-To domain') || 
+      risk.includes('Reply-To mailbox')
+    )) {
       recommendations.push('Reply-To header differs from From - verify sender identity through alternative channel');
     }
 
