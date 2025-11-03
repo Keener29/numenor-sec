@@ -114,9 +114,7 @@ export class EmailAuthenticationService {
       if (dkimMatch) {
         const result = dkimMatch[1].toLowerCase();
         if (isValidDKIMResult(result)) {
-          if (result === 'pass') {
-            return 'pass';
-          }
+          return result;
         }
       }
     }
@@ -125,7 +123,8 @@ export class EmailAuthenticationService {
     // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     if (arcAuthResults) {
-      const dkimMatch = arcAuthResults.match(/dkim=([a-z]+)/i);
+      const normalized = this.normalizeHeaderValue(arcAuthResults);
+      const dkimMatch = normalized.match(/dkim=([a-z]+)/i);
       if (dkimMatch) {
         const result = dkimMatch[1].toLowerCase();
         if (isValidDKIMResult(result)) {
@@ -150,7 +149,6 @@ export class EmailAuthenticationService {
    * Analyze DMARC (Domain-based Message Authentication) authentication
    */
   private analyzeDMARC(headers: Record<string, string>): DMARCResult {
-    const results: DMARCResult[] = [];
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     if (authResults) {
       const normalized = this.normalizeHeaderValue(authResults);
@@ -158,15 +156,14 @@ export class EmailAuthenticationService {
       if (dmarcMatch) {
         const result = dmarcMatch[1].toLowerCase();
         if (isValidDMARCResult(result)) {
-          if (result === 'pass') {
-            return 'pass';
-          }
+          return result;
         }
       }
     }
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     if (arcAuthResults) {
-      const dmarcMatch = arcAuthResults.match(/dmarc=([a-z]+)/i);
+      const normalized = this.normalizeHeaderValue(arcAuthResults);
+      const dmarcMatch = normalized.match(/dmarc=([a-z]+)/i);
       if (dmarcMatch) {
         const result = dmarcMatch[1].toLowerCase();
         if (isValidDMARCResult(result)) {
