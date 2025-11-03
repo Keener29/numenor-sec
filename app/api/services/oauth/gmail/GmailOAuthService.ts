@@ -333,7 +333,7 @@ export class GmailOAuthService extends OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults: number = 10,
-    query: string = 'is:unread',
+    query: string = '',
     connectionTimestamp?: Date
   ): Promise<EmailMessage[]> {
     const context: LogContext = {
@@ -641,7 +641,7 @@ export class GmailOAuthService extends OAuthProvider {
         : undefined;
 
       // Test the connection by fetching a few emails (only after connection time)
-      const emails = await this.fetchEmails(businessId, emailAddress, 5, 'is:unread', connectionTimestamp);
+      const emails = await this.fetchEmails(businessId, emailAddress, 5, '', connectionTimestamp);
       
       return {
         success: true,

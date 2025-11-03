@@ -243,19 +243,38 @@ class EmailMonitor {
       }
 
       // Fetch emails from Gmail API (only emails after the timestamp window)
+      // Note: Gmail's after: filter only works with dates, not times, so we need to filter by timestamp client-side
       const gmailMessages = await gmailOAuthService.fetchEmails(
         email.businessId,
         email.emailAddress,
-        10, // max 10 emails per scan
-        'is:unread', // only unread emails
-        timestampToUse // only emails after the last check/connection time
+        50, // Fetch more emails to account for same-day filtering, then filter client-side
+        '', // Empty query - we'll filter by timestamp client-side
+        timestampToUse // only emails after the last check/connection time (date-based filter)
       );
 
       if (gmailMessages.length === 0) {
         return [];
       }
-      const emails: EmailMessage[] = gmailMessages;
-      return emails;
+
+      // Filter emails by timestamp client-side (Gmail API only filters by date, not time)
+      // Only include emails received after the timestampToUse
+      const filteredEmails = gmailMessages.filter(emailMessage => {
+        const emailTimestamp = emailMessage.timestamp.getTime();
+        const cutoffTimestamp = timestampToUse.getTime();
+        return emailTimestamp > cutoffTimestamp;
+      });
+
+      monitoringLogger.debug(`Filtered emails by timestamp: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`, {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress,
+        metadata: {
+          fetchedCount: gmailMessages.length,
+          filteredCount: filteredEmails.length,
+          cutoffTimestamp: timestampToUse.toISOString()
+        }
+      });
+
+      return filteredEmails;
 
     } catch (error) {
       monitoringLogger.error('Error fetching emails from Gmail', {
