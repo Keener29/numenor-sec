@@ -69,11 +69,27 @@ export const SUSPICIOUS_DOMAIN_PATTERNS = [
 
 /**
  * URL shortener domains
+ * Known URL shorteners should not receive penalties as they are common and legitimate
  */
-export const URL_SHORTENERS = [
+export const POPULAR_URL_SHORTENERS = [
   'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'short.link',
   'ow.ly', 'buff.ly', 'is.gd', 'v.gd', 'tiny.cc', 'rebrand.ly',
-  'shorturl.at', 'cutt.ly', 'short.to', 'tiny.cc'
+  'shorturl.at', 'cutt.ly', 'short.to', 'aka.ms'
+];
+
+/**
+ * Known legitimate domains that should not be flagged as typosquatting
+ * This includes legitimate URL shorteners, service domains, etc.
+ */
+export const LEGITIMATE_DOMAINS = [
+  'office.com',
+  'microsoft.com',
+  'microsoftonline.com',
+  'live.com',
+  'outlook.com',
+  'hotmail.com',
+  'msn.com',
+  'office365.com'
 ];
 
 /**
@@ -130,24 +146,71 @@ export async function analyzeDomain(domain: string, businessId?: number): Promis
 }
 
 /**
+ * Extract the actual domain name from a domain string, ignoring subdomains
+ * Examples:
+ * - "example.com" -> "example"
+ * - "mail.example.com" -> "example"
+ * - "view.email.movember.com" -> "movember"
+ */
+function extractDomainName(domain: string): string {
+  const parts = domain.toLowerCase().split('.');
+  
+  // If we have 2 parts (domain.com), return the first part
+  if (parts.length === 2) {
+    return parts[0];
+  }
+  
+  // If we have more than 2 parts (sub.domain.com), return the second-to-last part
+  // This is the actual domain name (not the subdomain)
+  if (parts.length > 2) {
+    return parts[parts.length - 2]; // Second-to-last part
+  }
+  
+  // Fallback: if somehow only 1 part, return it
+  return parts[0] || '';
+}
+
+/**
  * Detect typosquatting using Levenshtein distance
  */
 export function detectTyposquatting(domain: string): TyposquattingResult {
-  const domainWithoutTld = domain.split('.')[0].toLowerCase();
+  const domainLower = domain.toLowerCase();
+  
+  // First check if this is a known legitimate domain - skip typosquatting check
+  if (LEGITIMATE_DOMAINS.some(legit => domainLower === legit || domainLower.endsWith('.' + legit))) {
+    return { isSuspicious: false };
+  }
+  
+  // Also skip if domain ends with .edu (educational institutions)
+  if (domainLower.endsWith('.edu')) {
+    return { isSuspicious: false };
+  }
+  
+  // Extract the actual domain name (not subdomains)
+  // For "view.email.movember.com", extract "movember" not "view"
+  const domainName = extractDomainName(domain);
+  
+  // Skip if domain name is too short (less than 3 chars) - likely not typosquatting
+  if (domainName.length < 3) {
+    return { isSuspicious: false };
+  }
   
   for (const brandDomain of KNOWN_BRAND_DOMAINS) {
-    const brandWithoutTld = brandDomain.split('.')[0];
-    const distance = levenshteinDistance(domainWithoutTld.toLowerCase(), brandWithoutTld.toLowerCase());
-    
-    // Consider suspicious if distance is 1-2 and domains are reasonably similar length
-    // But don't flag exact matches or domains that are too different
-    if (distance > 0 && distance <= 2 && Math.abs(domainWithoutTld.length - brandWithoutTld.length) <= 2) {
-      return {
-        isSuspicious: true,
-        similarDomain: brandDomain,
-        distance
-      };
-    }
+    const brandName = extractDomainName(brandDomain);
+    const distance = levenshteinDistance(domainName, brandName);
+    const ratio = distance / Math.max(domainName.length, brandName.length);
+
+    // Early exits
+    if (!distance || distance > 2) continue;
+    if (Math.abs(domainName.length - brandName.length) > 2) continue;
+    if (domainName[0] !== brandName[0]) continue; // must start similarly
+    if (ratio >= 0.34) continue; // normalized distance too big
+
+    return {
+      isSuspicious: true,
+      similarDomain: brandDomain,
+      distance
+    };
   }
 
   return { isSuspicious: false };
@@ -157,18 +220,18 @@ export function detectTyposquatting(domain: string): TyposquattingResult {
  * Detect homoglyph attacks using confusables library + number-to-letter substitutions
  */
 export function detectHomoglyphs(domain: string): HomoglyphResult {
-  const domainWithoutTld = domain.split('.')[0].toLowerCase();
+  const domainName = extractDomainName(domain);
   
   for (const brandDomain of KNOWN_BRAND_DOMAINS) {
-    const brandWithoutTld = brandDomain.split('.')[0].toLowerCase();
+    const brandName = extractDomainName(brandDomain);
     
     // Check if domains are same length and contain homoglyphs
-    if (domainWithoutTld.length === brandWithoutTld.length) {
+    if (domainName.length === brandName.length) {
       // Use confusables library for Unicode homoglyphs (Cyrillic, Greek, etc.)
-      const normalizedDomain = confusables.remove(domainWithoutTld);
-      const normalizedBrand = confusables.remove(brandWithoutTld);
+      const normalizedDomain = confusables.remove(domainName);
+      const normalizedBrand = confusables.remove(brandName);
       
-      if (normalizedDomain === normalizedBrand && domainWithoutTld !== brandWithoutTld) {
+      if (normalizedDomain === normalizedBrand && domainName !== brandName) {
         return {
           isSuspicious: true,
           similarDomain: brandDomain
@@ -176,10 +239,10 @@ export function detectHomoglyphs(domain: string): HomoglyphResult {
       }
       
       // Also check for number-to-letter substitutions (confusables doesn't handle these)
-      const numberSubstitutedDomain = normalizeNumberSubstitutions(domainWithoutTld);
-      const numberSubstitutedBrand = normalizeNumberSubstitutions(brandWithoutTld);
+      const numberSubstitutedDomain = normalizeNumberSubstitutions(domainName);
+      const numberSubstitutedBrand = normalizeNumberSubstitutions(brandName);
       
-      if (numberSubstitutedDomain === numberSubstitutedBrand && domainWithoutTld !== brandWithoutTld) {
+      if (numberSubstitutedDomain === numberSubstitutedBrand && domainName !== brandName) {
         return {
           isSuspicious: true,
           similarDomain: brandDomain
@@ -221,8 +284,8 @@ export function isTemporaryEmailDomain(domain: string): boolean {
 /**
  * Check if domain is a URL shortener
  */
-export function isUrlShortener(hostname: string): boolean {
-  return URL_SHORTENERS.includes(hostname.toLowerCase());
+export function isPopularUrlShortener(hostname: string): boolean {
+  return POPULAR_URL_SHORTENERS.includes(hostname.toLowerCase());
 }
 
 /**
