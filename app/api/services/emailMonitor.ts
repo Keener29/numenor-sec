@@ -243,12 +243,11 @@ class EmailMonitor {
       }
 
       // Fetch emails from Gmail API (only emails after the timestamp window)
-      // Remove 'is:unread' filter since we're using time-based filtering instead
       const gmailMessages = await gmailOAuthService.fetchEmails(
         email.businessId,
         email.emailAddress,
         10, // max 10 emails per scan
-        '', // empty query - we'll use timestamp filtering
+        'is:unread', // only unread emails
         timestampToUse // only emails after the last check/connection time
       );
 
