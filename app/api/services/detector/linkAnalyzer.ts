@@ -13,9 +13,8 @@
 
 import { 
   analyzeDomain, 
-  isUrlShortener, 
+  isPopularUrlShortener, 
   isIPAddress, 
-  extractDomain,
   type DomainAnalysisResult 
 } from './domainAnalyzer.js';
 
@@ -76,9 +75,11 @@ export class LinkAnalyzerService {
       const hostname = url.hostname;
       
       // Check for URL shorteners
-      if (isUrlShortener(hostname)) {
-        risks.push(`URL shortener detected: ${hostname}`);
-        score += 15;
+      // Known URL shorteners should not receive penalties - they are common and legitimate
+      // Skip penalty for known URL shorteners
+      if (isPopularUrlShortener(hostname)) {
+        // Small penalty for popular URL shorteners
+        score += 2;
       }
       
       // Check for IP addresses in URLs
