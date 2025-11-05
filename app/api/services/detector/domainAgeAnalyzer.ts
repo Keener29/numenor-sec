@@ -318,7 +318,9 @@ function isKnownTrustedDomain(domain: string): boolean {
     
     // Major tech companies
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
-    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com',
+    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'grammarly.com',
+    'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
+    'tiktok.com', 'spotify.com',
     
     // Major financial institutions
     'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',
@@ -339,7 +341,7 @@ function isKnownTrustedDomain(domain: string): boolean {
 /**
  * Check if domain is trusted (built-in + business allowlist)
  */
-async function isTrustedDomain(domain: string, businessId?: number): Promise<boolean> {
+export async function isTrustedDomain(domain: string, businessId?: number): Promise<boolean> {
   // First check built-in trusted domains
   if (isKnownTrustedDomain(domain)) {
     return true;
