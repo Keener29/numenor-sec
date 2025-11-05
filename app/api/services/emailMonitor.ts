@@ -23,6 +23,7 @@ interface EmailMessage {
   attachments?: string[];
   links?: string[];
   headers?: Record<string, string>;
+  labels?: string[];
 }
 
 class EmailMonitor {
@@ -258,13 +259,29 @@ class EmailMonitor {
 
       // Filter emails by timestamp client-side (Gmail API only filters by date, not time)
       // Only include emails received after the timestampToUse
+      // Also exclude emails from the sent folder
       const filteredEmails = gmailMessages.filter(emailMessage => {
         const emailTimestamp = emailMessage.timestamp.getTime();
         const cutoffTimestamp = timestampToUse.getTime();
+        
+        // Skip emails from sent folder
+        const labels = emailMessage.labels || [];
+        if (labels.includes('SENT')) {
+          monitoringLogger.debug('Skipping email from sent folder', {
+            operation: 'fetch-new-emails',
+            emailAddress: email.emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              subject: emailMessage.subject
+            }
+          });
+          return false;
+        }
+        
         return emailTimestamp > cutoffTimestamp;
       });
 
-      monitoringLogger.debug(`Filtered emails by timestamp: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`, {
+      monitoringLogger.debug(`Filtered emails by timestamp and sent folder: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`, {
         operation: 'fetch-new-emails',
         emailAddress: email.emailAddress,
         metadata: {
