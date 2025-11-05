@@ -164,9 +164,9 @@ class PhishingDetector {
     }
 
     // Check for wire transfer requests
-    if (/(wire|transfer|payment|urgent.*funds|confidential.*transaction)/i.test(emailData.body)) {
+    if (/(wire|e-transfer|payment|urgent.*funds|confidential.*transaction)/i.test(emailData.body)) {
       indicators.push('Wire transfer request');
-      score += 10;
+      score += 5;
     }
 
     // Check for vendor impersonation
