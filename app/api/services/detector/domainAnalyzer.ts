@@ -11,7 +11,7 @@ import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
-  type?: 'typosquatting' | 'homoglyph' | 'suspicious_pattern' | 'domain_age';
+  types: Array<'typosquatting' | 'homoglyph' | 'suspicious_pattern' | 'domain_age'>;
   similarDomain?: string;
   distance?: number;
   riskScore: number;
@@ -96,52 +96,52 @@ export const LEGITIMATE_DOMAINS = [
  * Analyze a domain for various suspicious patterns
  */
 export async function analyzeDomain(domain: string, businessId?: number): Promise<DomainAnalysisResult> {
+  let riskScore = 0;
+  let similarDomain: string | undefined;
+  let distance: number | undefined;
+  let domainAge: DomainAgeResult | undefined;
+  const types: ('typosquatting' | 'homoglyph' | 'suspicious_pattern' | 'domain_age')[] = [];
   // Check for typosquatting
   const typosquattingResult = detectTyposquatting(domain);
   if (typosquattingResult.isSuspicious) {
-    return {
-      isSuspicious: true,
-      type: 'typosquatting',
-      similarDomain: typosquattingResult.similarDomain,
-      distance: typosquattingResult.distance,
-      riskScore: typosquattingResult.distance! <= 1 ? 40 : 35 // Distance 2 still high risk
-    };
+    if (typosquattingResult.distance === 1) {
+      riskScore += 25;
+    } else if (typosquattingResult.distance === 2) {
+      riskScore += 10;
+    }
+    similarDomain = typosquattingResult.similarDomain;
+    distance = typosquattingResult.distance;
+    types.push('typosquatting');
   }
   
   // Check for homoglyph attacks
   const homoglyphResult = detectHomoglyphs(domain);
   if (homoglyphResult.isSuspicious) {
-    return {
-      isSuspicious: true,
-      type: 'homoglyph',
-      similarDomain: homoglyphResult.similarDomain,
-      riskScore: 35
-    };
+    riskScore += 35;
+    types.push('homoglyph');
+    similarDomain = homoglyphResult.similarDomain;
   }
   
   // Check for suspicious patterns (incomplete domains)
   if (isSuspiciousDomainPattern(domain)) {
-    return {
-      isSuspicious: true,
-      type: 'suspicious_pattern',
-      riskScore: 20
-    };
+    riskScore += 20;
+    types.push('suspicious_pattern');
   }
   
   const domainAgeResult = await analyzeDomainAge(domain, businessId);
   if (domainAgeResult.isSuspicious) {
-    return {
-      isSuspicious: true,
-      type: 'domain_age',
-      riskScore: domainAgeResult.riskScore,
-      domainAge: domainAgeResult
-    };
+    riskScore += domainAgeResult.riskScore;
+    types.push('domain_age');
+    domainAge = domainAgeResult;
   }
   
   return {
-    isSuspicious: false,
-    riskScore: 0,
-    domainAge: domainAgeResult
+    isSuspicious: riskScore > 0,
+    riskScore: riskScore,
+    types: types,
+    similarDomain: similarDomain,
+    distance: distance,
+    domainAge: domainAge
   };
 }
 

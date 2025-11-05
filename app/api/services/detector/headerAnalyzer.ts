@@ -399,24 +399,26 @@ export class HeaderAnalyzerService {
     // Check for lookalike attacks and domain age using shared domain analyzer
     const domainAnalysis = await analyzeDomain(senderDomain, businessId);
     if (domainAnalysis.isSuspicious) {
-      switch (domainAnalysis.type) {
-        case 'typosquatting':
-          risks.push(`Typosquatting detected: "${senderDomain}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
-          break;
-        case 'homoglyph':
-          risks.push(`Homoglyph attack detected: "${senderDomain}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
-          break;
-        case 'suspicious_pattern':
-          risks.push(`Suspicious domain pattern: "${senderDomain}"`);
-          break;
-        case 'domain_age':
-          if (domainAnalysis.domainAge) {
-            const ageText = domainAnalysis.domainAge.ageInDays 
-              ? `${domainAnalysis.domainAge.ageInDays} days old`
-              : 'unknown age';
-            risks.push(`Newly registered sender domain: "${senderDomain}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
-          }
-          break;
+      for (const type of domainAnalysis.types) {
+        switch (type) {
+          case 'typosquatting':
+            risks.push(`Typosquatting detected: "${senderDomain}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
+            break;
+          case 'homoglyph':
+            risks.push(`Homoglyph attack detected: "${senderDomain}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
+            break;
+          case 'suspicious_pattern':
+            risks.push(`Suspicious domain pattern: "${senderDomain}"`);
+            break;
+          case 'domain_age':
+            if (domainAnalysis.domainAge) {
+              const ageText = domainAnalysis.domainAge.ageInDays 
+                ? `${domainAnalysis.domainAge.ageInDays} days old`
+                : 'unknown age';
+              risks.push(`Newly registered sender domain: "${senderDomain}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
+            }
+            break;
+        }
       }
       score += domainAnalysis.riskScore;
     }

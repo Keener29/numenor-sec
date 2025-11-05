@@ -197,24 +197,26 @@ export class LinkAnalyzerService {
 
       // Use cached domain analysis
       if (domainAnalysis.isSuspicious) {
-        switch (domainAnalysis.type) {
-          case 'typosquatting':
-            risks.push(`Typosquatting detected: "${hostname}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
-            break;
-          case 'homoglyph':
-            risks.push(`Homoglyph attack detected: "${hostname}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
-            break;
-          case 'suspicious_pattern':
-            risks.push(`Suspicious domain pattern: "${hostname}"`);
-            break;
-          case 'domain_age':
-            if (domainAnalysis.domainAge) {
-              const ageText = domainAnalysis.domainAge.ageInDays 
-                ? `${domainAnalysis.domainAge.ageInDays} days old`
-                : 'unknown age';
-              risks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
-            }
-            break;
+        for (const type of domainAnalysis.types) {
+          switch (type) {
+            case 'typosquatting':
+              risks.push(`Typosquatting detected: "${hostname}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
+              break;
+            case 'homoglyph':
+              risks.push(`Homoglyph attack detected: "${hostname}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
+              break;
+            case 'suspicious_pattern':
+              risks.push(`Suspicious domain pattern: "${hostname}"`);
+              break;
+            case 'domain_age':
+              if (domainAnalysis.domainAge) {
+                const ageText = domainAnalysis.domainAge.ageInDays 
+                  ? `${domainAnalysis.domainAge.ageInDays} days old`
+                  : 'unknown age';
+                risks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
+              }
+              break;
+          }
         }
         score += domainAnalysis.riskScore;
       }
