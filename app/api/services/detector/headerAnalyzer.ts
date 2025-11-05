@@ -229,22 +229,26 @@ export class HeaderAnalyzerService {
       let mismatchScore = 0;
       let reason = '';
 
-      if (fromDomain !== replyDomain) {
-        // Completely different domain = high risk
-        mismatchScore = isTrustedDomain ? 5 : 25;
-        reason = `Reply-To domain (${replyDomain}) differs from From domain (${fromDomain})`;
-      } else {
-        // Same domain, different mailbox => could be legit marketing/support flow
-        mismatchScore = isTrustedDomain ? 0 : 5;
-        reason = `Reply-To mailbox differs from From mailbox within same domain`;
-      }
-
-      if (mismatchScore > 0) {
-        score += mismatchScore;
-        if (isTrustedDomain) {
-          risks.push('Reply-To differs from From - sender domain is trusted');
+      if (fromDomain && replyDomain && fromDomain !== replyDomain) {
+        const fromOrgDomain = getOrgDomain(fromDomain);
+        const replyOrgDomain = getOrgDomain(replyDomain);
+        if (fromOrgDomain !== replyOrgDomain) {
+          // Completely different domain = high risk
+          mismatchScore = isTrustedDomain ? 5 : 25;
+          reason = `Reply-To domain (${replyDomain}) differs from From domain (${fromDomain})`;
         } else {
-          risks.push(`${reason} - potential spoofing`);
+          // Same domain, different mailbox => could be legit marketing/support flow
+          mismatchScore = isTrustedDomain ? 0 : 5;
+          reason = `Reply-To mailbox differs from From mailbox within same domain`;
+        }
+
+        if (mismatchScore > 0) {
+          score += mismatchScore;
+          if (isTrustedDomain) {
+            risks.push('Reply-To differs from From - sender domain is trusted');
+          } else {
+            risks.push(`${reason} - potential spoofing`);
+          }
         }
       }
     }
