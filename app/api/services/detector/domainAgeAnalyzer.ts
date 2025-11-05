@@ -314,7 +314,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     
     // Major email providers
     'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
-    'icloud.com', 'protonmail.com', 'zoho.com',
+    'icloud.com', 'zoho.com',
     
     // Major tech companies
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
@@ -325,6 +325,12 @@ function isKnownTrustedDomain(domain: string): boolean {
     // Major financial institutions
     'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',
     'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
+    'questrade.com', 'robinhood.com', 'wealthsimple.com',
+
+    // Banks
+    'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
+    'chase.com', 'td.com', 'scotiabank.com', 'cibc.com', 
+    'bmo.com', 'rbc.com',
     
     // Government domains
     'gov', 'mil', 'edu',
