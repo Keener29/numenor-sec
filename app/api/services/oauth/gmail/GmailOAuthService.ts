@@ -698,7 +698,8 @@ export class GmailOAuthService extends OAuthProvider {
       recipient: headers.to || emailAddress || 'Unknown Recipient',
       timestamp: new Date(parseInt(message.internalDate)),
       links,
-      headers
+      headers,
+      labels: message.labelIds || []
     };
   }
 

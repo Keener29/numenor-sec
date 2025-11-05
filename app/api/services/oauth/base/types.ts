@@ -35,6 +35,7 @@ export interface EmailMessage {
   timestamp: Date;
   links: string[];
   headers: Record<string, string>;
+  labels?: string[];
 }
 
 export interface LogContext {
