@@ -110,8 +110,8 @@ describe('LinkAnalyzerService', () => {
 
     it('should detect typosquatting in domains', async () => {
       const links = [
-        'https://micros0ft.com/login',
-        'https://gοοgle.com/search',
+        'https://microsfft.com/login',
+        'https://gοggle.com/search',
         'https://legitimate-site.com'
       ];
 

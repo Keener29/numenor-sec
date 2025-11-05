@@ -101,19 +101,6 @@ export async function analyzeDomain(domain: string, businessId?: number): Promis
   let distance: number | undefined;
   let domainAge: DomainAgeResult | undefined;
   const types: ('typosquatting' | 'homoglyph' | 'suspicious_pattern' | 'domain_age')[] = [];
-  // Check for typosquatting
-  const typosquattingResult = detectTyposquatting(domain);
-  if (typosquattingResult.isSuspicious) {
-    if (typosquattingResult.distance === 1) {
-      riskScore += 25;
-    } else if (typosquattingResult.distance === 2) {
-      riskScore += 10;
-    }
-    similarDomain = typosquattingResult.similarDomain;
-    distance = typosquattingResult.distance;
-    types.push('typosquatting');
-  }
-  
   // Check for homoglyph attacks
   const homoglyphResult = detectHomoglyphs(domain);
   if (homoglyphResult.isSuspicious) {
@@ -121,10 +108,25 @@ export async function analyzeDomain(domain: string, businessId?: number): Promis
     types.push('homoglyph');
     similarDomain = homoglyphResult.similarDomain;
   }
+
+  // Check for typosquatting if not already detected as homoglyph
+  if (!types.includes('homoglyph')) {
+    const typosquattingResult = detectTyposquatting(domain);
+    if (typosquattingResult.isSuspicious) {
+      if (typosquattingResult.distance === 1) {
+        riskScore += 25;
+      } else if (typosquattingResult.distance === 2) {
+        riskScore += 10;
+      }
+      similarDomain = typosquattingResult.similarDomain;
+      distance = typosquattingResult.distance;
+        types.push('typosquatting');
+    }
+  }
   
   // Check for suspicious patterns (incomplete domains)
   if (isSuspiciousDomainPattern(domain)) {
-    riskScore += 20;
+    riskScore += riskScore > 0 ? 5 : 10;
     types.push('suspicious_pattern');
   }
   
