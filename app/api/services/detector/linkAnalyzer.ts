@@ -226,7 +226,7 @@ export class LinkAnalyzerService {
       
     } catch (error) {
       risks.push(`Malformed URL: ${link}`);
-      score += 20;
+      score += 3;
     }
     
     return {
