@@ -125,12 +125,6 @@ export class EmailAuthenticationService {
       }
     }
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
-    oauthLogger.debug(`Analyzing DKIM authentication for headers: ${JSON.stringify(headers)}`, {
-      operation: 'fetch-new-emails',
-      metadata: {
-        authResults
-      }
-    });
     if (authResults) {
       const normalized = this.normalizeHeaderValue(authResults);
       const dkimMatch = normalized.match(/dkim=([a-z]+)/i);
