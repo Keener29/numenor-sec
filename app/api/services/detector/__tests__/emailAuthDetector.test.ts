@@ -22,7 +22,7 @@ describe('EmailAuthenticationService', () => {
   describe('SPF Authentication Analysis', () => {
     test('should detect SPF pass from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=pass smtp.mailfrom=example.com'
+        'Authentication-Results': 'example.com; spf=pass smtp.mailfrom=example.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -31,7 +31,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should detect SPF fail from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=fail smtp.mailfrom=fake-domain.com'
+        'Authentication-Results': 'example.com; spf=fail smtp.mailfrom=fake-domain.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -40,7 +40,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should detect SPF softfail from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=softfail smtp.mailfrom=example.com'
+        'Authentication-Results': 'example.com; spf=softfail smtp.mailfrom=example.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -69,7 +69,7 @@ describe('EmailAuthenticationService', () => {
   describe('DKIM Authentication Analysis', () => {
     test('should detect DKIM pass from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; dkim=pass header.d=example.com'
+        'Authentication-Results': 'example.com; dkim=pass header.d=example.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -78,7 +78,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should detect DKIM fail from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; dkim=fail header.d=fake-domain.com'
+        'Authentication-Results': 'example.com; dkim=fail header.d=fake-domain.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -107,7 +107,7 @@ describe('EmailAuthenticationService', () => {
   describe('DMARC Authentication Analysis', () => {
     test('should detect DMARC pass from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; dmarc=pass policy.d=example.com'
+        'Authentication-Results': 'example.com; dmarc=pass policy.d=example.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -116,7 +116,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should detect DMARC fail from Authentication-Results header', () => {
       const headers = {
-        'authentication-results': 'example.com; dmarc=fail policy.d=fake-domain.com'
+        'Authentication-Results': 'example.com; dmarc=fail policy.d=fake-domain.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -136,7 +136,7 @@ describe('EmailAuthenticationService', () => {
   describe('Overall Authentication Status', () => {
     test('should return pass when all authentication passes', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com; dmarc=pass policy.d=example.com'
+        'Authentication-Results': 'example.com; spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com; dmarc=pass policy.d=example.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -145,7 +145,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should return fail when all authentication fails', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=fail smtp.mailfrom=fake.com; dkim=fail header.d=fake.com; dmarc=fail policy.d=fake.com'
+        'Authentication-Results': 'example.com; spf=fail smtp.mailfrom=fake.com; dkim=fail header.d=fake.com; dmarc=fail policy.d=fake.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -154,7 +154,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should return partial when some authentication passes', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=pass smtp.mailfrom=example.com; dkim=fail header.d=example.com; dmarc=none'
+        'Authentication-Results': 'example.com; spf=pass smtp.mailfrom=example.com; dkim=fail header.d=example.com; dmarc=none'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);
@@ -462,7 +462,7 @@ describe('EmailAuthenticationService', () => {
   describe('Real-world Email Scenarios', () => {
     test('should handle legitimate Gmail email with full authentication', () => {
       const headers = {
-        'authentication-results': 'gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass header.d=gmail.com; dmarc=pass policy.d=gmail.com',
+        'Authentication-Results': 'gmail.com; spf=pass smtp.mailfrom=gmail.com; dkim=pass header.d=gmail.com; dmarc=pass policy.d=gmail.com',
         'received-spf': 'pass (gmail.com: domain of gmail.com designates 209.85.128.1 as permitted sender)',
         'dkim-signature': 'v=1; a=rsa-sha256; c=relaxed/relaxed; d=gmail.com; s=20210112; h=from:to:subject:date; bh=valid; b=valid'
       };
@@ -479,7 +479,7 @@ describe('EmailAuthenticationService', () => {
 
     test('should handle phishing email with failed authentication', () => {
       const headers = {
-        'authentication-results': 'example.com; spf=fail smtp.mailfrom=fake-bank.com; dkim=fail header.d=fake-bank.com; dmarc=fail policy.d=fake-bank.com'
+        'Authentication-Results': 'example.com; spf=fail smtp.mailfrom=fake-bank.com; dkim=fail header.d=fake-bank.com; dmarc=fail policy.d=fake-bank.com'
       };
 
       const result = authService.analyzeEmailAuthentication(headers);

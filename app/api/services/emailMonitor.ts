@@ -23,6 +23,7 @@ interface EmailMessage {
   attachments?: string[];
   links?: string[];
   headers?: Record<string, string>;
+  labels?: string[];
 }
 
 class EmailMonitor {
@@ -215,28 +216,75 @@ class EmailMonitor {
       // Get the OAuth connection timestamp to only fetch emails after connection
       const connectionTimestamp = (tokenResult.rows[0] as { created_at: Date }).created_at;
 
-      monitoringLogger.debug('Fetching emails after OAuth connection time', {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress,
-        metadata: {
-          connectionTimestamp: connectionTimestamp.toISOString()
-        }
-      });
+      // Use the most recent timestamp: either last check or OAuth connection
+      // This creates a time window to avoid reprocessing the same emails
+      let timestampToUse = connectionTimestamp;
+      
+      if (email.lastChecked) {
+        // Use the more recent timestamp to avoid reprocessing emails from previous scans
+        timestampToUse = email.lastChecked > connectionTimestamp ? email.lastChecked : connectionTimestamp;
+        
+        monitoringLogger.debug('Fetching emails after last check time', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            lastChecked: email.lastChecked.toISOString(),
+            connectionTimestamp: connectionTimestamp.toISOString(),
+            timestampToUse: timestampToUse.toISOString()
+          }
+        });
+      } else {
+        monitoringLogger.debug('Fetching emails after OAuth connection time (first scan)', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            connectionTimestamp: connectionTimestamp.toISOString()
+          }
+        });
+      }
 
-      // Fetch emails from Gmail API (only emails after connection time)
+      // Fetch emails from Gmail API (only emails after the timestamp window)
+      // Note: Gmail's after: filter only works with dates, not times, so we need to filter by timestamp client-side
       const gmailMessages = await gmailOAuthService.fetchEmails(
         email.businessId,
         email.emailAddress,
-        10, // max 10 emails per scan
-        'is:unread', // only unread emails
-        connectionTimestamp // only emails after OAuth connection
+        50, // Fetch more emails to account for same-day filtering, then filter client-side
+        '', // Empty query - we'll filter by timestamp client-side
+        timestampToUse // only emails after the last check/connection time (date-based filter)
       );
 
       if (gmailMessages.length === 0) {
         return [];
       }
-      const emails: EmailMessage[] = gmailMessages;
-      return emails;
+
+      // Filter emails by timestamp client-side (Gmail API only filters by date, not time)
+      // Also exclude emails from the sent folder
+      const filteredEmails = gmailMessages.filter(emailMessage => {
+        const emailTimestamp = emailMessage.timestamp.getTime();
+        const cutoffTimestamp = timestampToUse.getTime();
+        
+        // Skip emails from sent folder
+        const labels = emailMessage.labels || [];
+        if (labels.includes('SENT')) {
+          return false;
+        }
+        if (emailMessage.sender === (email.emailAddress)) {
+          return false;
+        }
+        return emailTimestamp > cutoffTimestamp;
+      });
+
+      monitoringLogger.debug(`Filtered emails by timestamp and sent folder: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`, {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress,
+        metadata: {
+          fetchedCount: gmailMessages.length,
+          filteredCount: filteredEmails.length,
+          cutoffTimestamp: timestampToUse.toISOString()
+        }
+      });
+
+      return filteredEmails;
 
     } catch (error) {
       monitoringLogger.error('Error fetching emails from Gmail', {

@@ -333,7 +333,7 @@ export class GmailOAuthService extends OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults: number = 10,
-    query: string = 'is:unread',
+    query: string = '',
     connectionTimestamp?: Date
   ): Promise<EmailMessage[]> {
     const context: LogContext = {
@@ -354,7 +354,8 @@ export class GmailOAuthService extends OAuthProvider {
       if (connectionTimestamp) {
         // Convert connection timestamp to Gmail date format (YYYY/MM/DD)
         const connectionDate = connectionTimestamp.toISOString().split('T')[0].replace(/-/g, '/');
-        gmailQuery = `${query} after:${connectionDate}`;
+        // If query is empty, just use the date filter; otherwise combine them
+        gmailQuery = query.trim() ? `${query} after:${connectionDate}` : `after:${connectionDate}`;
         
         oauthLogger.debug('Fetching emails from Gmail after connection time', {
           ...context,
@@ -640,7 +641,7 @@ export class GmailOAuthService extends OAuthProvider {
         : undefined;
 
       // Test the connection by fetching a few emails (only after connection time)
-      const emails = await this.fetchEmails(businessId, emailAddress, 5, 'is:unread', connectionTimestamp);
+      const emails = await this.fetchEmails(businessId, emailAddress, 5, '', connectionTimestamp);
       
       return {
         success: true,
@@ -697,7 +698,8 @@ export class GmailOAuthService extends OAuthProvider {
       recipient: headers.to || emailAddress || 'Unknown Recipient',
       timestamp: new Date(parseInt(message.internalDate)),
       links,
-      headers
+      headers,
+      labels: message.labelIds || []
     };
   }
 

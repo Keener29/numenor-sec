@@ -70,9 +70,9 @@ class PhishingDetector {
 
     // Check for business email compromise patterns
     const becAnalysis = this.analyzeBusinessEmailCompromise(emailData);
-    if (becAnalysis.isBEC) {
-      threatScore += 50;
-      riskFactors.push('Potential Business Email Compromise');
+    if (becAnalysis.score > 0) {
+      threatScore += becAnalysis.score;
+      riskFactors.push(...becAnalysis.indicators);
       recommendations.push('Verify sender identity through alternative communication channel');
     }
 
@@ -145,9 +145,9 @@ class PhishingDetector {
   /**
    * Analyze for Business Email Compromise (BEC)
    */
-  private analyzeBusinessEmailCompromise(emailData: EmailAnalysis): { isBEC: boolean; indicators: string[] } {
+  private analyzeBusinessEmailCompromise(emailData: EmailAnalysis): { score: number; indicators: string[] } {
     const indicators: string[] = [];
-    let isBEC = false;
+    let score = 0;
 
     // Check for executive impersonation using new text analyzer
     const emailTextData: EmailTextAnalysis = {
@@ -160,22 +160,22 @@ class PhishingDetector {
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     if (textAnalysis.patterns.includes('ceo_fraud')) {
       indicators.push('Executive impersonation detected');
-      isBEC = true;
+      score += 30;
     }
 
     // Check for wire transfer requests
-    if (/(wire|transfer|payment|urgent.*funds|confidential.*transaction)/i.test(emailData.body)) {
+    if (/(wire|e-transfer|payment|urgent.*funds|confidential.*transaction)/i.test(emailData.body)) {
       indicators.push('Wire transfer request');
-      isBEC = true;
+      score += 5;
     }
 
     // Check for vendor impersonation
     if (/(invoice|payment.*due|vendor|supplier|urgent.*payment)/i.test(emailData.body)) {
       indicators.push('Vendor impersonation');
-      isBEC = true;
+      score += 10;
     }
 
-    return { isBEC, indicators };
+    return { score, indicators };
   }
   private calculateThreatLevel(score: number): 'low' | 'medium' | 'high' | 'critical' {
     if (score >= 80) return 'critical';

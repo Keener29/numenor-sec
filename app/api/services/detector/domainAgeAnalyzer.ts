@@ -310,25 +310,36 @@ function cleanDomainName(input: string): string | null {
 function isKnownTrustedDomain(domain: string): boolean {
   const trustedDomains = [
     // Internal systems (always safe)
-    'localhost', '127.0.0.1',
+    'localhost', '127.0.0.1', 'numenorsecurity.com',
     
     // Major email providers
     'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
-    'icloud.com', 'protonmail.com', 'zoho.com',
+    'icloud.com', 'zoho.com',
     
     // Major tech companies
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
-    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com',
+    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'grammarly.com',
+    'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
+    'tiktok.com', 'spotify.com',
     
     // Major financial institutions
     'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',
     'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
+    'questrade.com', 'robinhood.com', 'wealthsimple.com',
+
+    // Banks
+    'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
+    'chase.com', 'td.com', 'scotiabank.com', 'cibc.com', 
+    'bmo.com', 'rbc.com',
     
     // Government domains
     'gov', 'mil', 'edu',
     
     // Major cloud providers
-    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com'
+    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com',
+
+    // Extra
+    'boxd.it'
   ];
 
   return trustedDomains.some(trusted => 
@@ -339,7 +350,7 @@ function isKnownTrustedDomain(domain: string): boolean {
 /**
  * Check if domain is trusted (built-in + business allowlist)
  */
-async function isTrustedDomain(domain: string, businessId?: number): Promise<boolean> {
+export async function isTrustedDomain(domain: string, businessId?: number): Promise<boolean> {
   // First check built-in trusted domains
   if (isKnownTrustedDomain(domain)) {
     return true;

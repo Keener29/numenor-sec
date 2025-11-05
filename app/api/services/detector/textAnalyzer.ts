@@ -218,16 +218,37 @@ export class TextAnalyzer {
     const exclamationCount = (text.match(/!/g) || []).length;
     const questionCount = (text.match(/\?/g) || []).length;
     
-    if (exclamationCount > 3 || questionCount > 5) {
+    // Ratio based on size (avoid punishing short messages too harshly)
+    const punctuationRatio = (exclamationCount + questionCount) / Math.max(text.length, 1);
+
+    // Detect clusters like "!!!", "??", "!?!?", etc
+    const punctuationClusters = (text.match(/([!?]{3,})/g) || []).length;
+
+    // Score logic
+    if (punctuationRatio > 0.05 || punctuationClusters > 0) {
       patterns.push('excessive_punctuation');
-      score += 10;
+
+      // weighted scoring
+      let punctScore = 0;
+
+      if (punctuationRatio > 0.1) punctScore += 5;      // aggressive punctuation density
+      if (punctuationClusters >= 3) punctScore += 10;   // ultra spammy
+
+      score += punctScore;
     }
 
-    // Check for all caps
-    const capsRatio = (text.match(/[A-Z]/g) || []).length / Math.max(text.length, 1);
-    if (capsRatio > 0.7 && text.length > 10) {
+    const capsSequences = (text.match(/[A-Z]{5,}/g) || []).length;
+    const capsPercentage = (text.match(/[A-Z]/g) || []).length / Math.max(text.length, 1);
+
+    if (capsPercentage > 0.4 && capsSequences > 0) {
       patterns.push('excessive_caps');
-      score += 5;
+
+      // scale
+      let capsScore = 5;
+      if (capsPercentage > 0.6) capsScore += 5;
+      if (capsSequences > 2) capsScore += 5;
+
+      score += capsScore;
     }
 
     return { patterns, score };

@@ -10,12 +10,12 @@ import {
   detectHomoglyphs,
   isSuspiciousDomainPattern,
   isTemporaryEmailDomain,
-  isUrlShortener,
+  isPopularUrlShortener,
   isIPAddress,
   extractDomain,
   KNOWN_BRAND_DOMAINS,
   SUSPICIOUS_DOMAIN_PATTERNS,
-  URL_SHORTENERS
+  POPULAR_URL_SHORTENERS
 } from '../domainAnalyzer.js';
 
 // Mock fetch for WHOIS API calls
@@ -29,13 +29,13 @@ describe('Domain Analyzer Utilities', () => {
 
   describe('analyzeDomain', () => {
     it('should detect typosquatting attacks', async () => {
-      const result = await analyzeDomain('micros0ft.com');
+      const result = await analyzeDomain('microsfft.com');
       
       expect(result.isSuspicious).toBe(true);
-      expect(result.type).toBe('typosquatting');
+      expect(result.types).toContain('typosquatting');
       expect(result.similarDomain).toBe('microsoft.com');
       expect(result.distance).toBe(1);
-      expect(result.riskScore).toBe(40);
+      expect(result.riskScore).toBe(25);
     });
 
     it('should detect homoglyph attacks', async () => {
@@ -43,9 +43,9 @@ describe('Domain Analyzer Utilities', () => {
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of homoglyph due to Levenshtein distance
-      expect(['typosquatting', 'homoglyph']).toContain(result.type);
+      expect(result.types).toContain('homoglyph');
       expect(result.similarDomain).toBe('apple.com');
-      expect(result.riskScore).toBeGreaterThan(0);
+      expect(result.riskScore).toBe(35);
     });
 
     it('should detect suspicious domain patterns', async () => {
@@ -53,8 +53,8 @@ describe('Domain Analyzer Utilities', () => {
       
       expect(result.isSuspicious).toBe(true);
       // Note: This might be detected as typosquatting instead of suspicious_pattern due to Levenshtein distance
-      expect(['typosquatting', 'suspicious_pattern']).toContain(result.type);
-      expect(result.riskScore).toBeGreaterThan(0);
+      expect(result.types).toContain('suspicious_pattern');
+      expect(result.riskScore).toBe(10);
     });
 
     it('should return clean result for legitimate domains', async () => {
@@ -72,14 +72,6 @@ describe('Domain Analyzer Utilities', () => {
       
       expect(result.isSuspicious).toBe(false);
       expect(result.riskScore).toBe(0);
-    });
-
-    it('should prioritize typosquatting over homoglyph detection', async () => {
-      // This domain could be detected as both, but typosquatting should take precedence
-      const result = await analyzeDomain('micros0ft.com');
-      
-      expect(result.type).toBe('typosquatting');
-      expect(result.type).not.toBe('homoglyph');
     });
 
     it('should include domain age analysis for new domains', async () => {
@@ -296,72 +288,72 @@ describe('Domain Analyzer Utilities', () => {
     });
   });
 
-  describe('isUrlShortener', () => {
+  describe('isPopularUrlShortener', () => {
     it('should detect bit.ly', () => {
-      expect(isUrlShortener('bit.ly')).toBe(true);
+      expect(isPopularUrlShortener('bit.ly')).toBe(true);
     });
 
     it('should detect tinyurl.com', () => {
-      expect(isUrlShortener('tinyurl.com')).toBe(true);
+      expect(isPopularUrlShortener('tinyurl.com')).toBe(true);
     });
 
     it('should detect goo.gl', () => {
-      expect(isUrlShortener('goo.gl')).toBe(true);
+      expect(isPopularUrlShortener('goo.gl')).toBe(true);
     });
 
     it('should detect t.co', () => {
-      expect(isUrlShortener('t.co')).toBe(true);
+      expect(isPopularUrlShortener('t.co')).toBe(true);
     });
 
     it('should detect short.link', () => {
-      expect(isUrlShortener('short.link')).toBe(true);
+      expect(isPopularUrlShortener('short.link')).toBe(true);
     });
 
     it('should detect ow.ly', () => {
-      expect(isUrlShortener('ow.ly')).toBe(true);
+      expect(isPopularUrlShortener('ow.ly')).toBe(true);
     });
 
     it('should detect buff.ly', () => {
-      expect(isUrlShortener('buff.ly')).toBe(true);
+      expect(isPopularUrlShortener('buff.ly')).toBe(true);
     });
 
     it('should detect is.gd', () => {
-      expect(isUrlShortener('is.gd')).toBe(true);
+      expect(isPopularUrlShortener('is.gd')).toBe(true);
     });
 
     it('should detect v.gd', () => {
-      expect(isUrlShortener('v.gd')).toBe(true);
+      expect(isPopularUrlShortener('v.gd')).toBe(true);
     });
 
     it('should detect tiny.cc', () => {
-      expect(isUrlShortener('tiny.cc')).toBe(true);
+      expect(isPopularUrlShortener('tiny.cc')).toBe(true);
     });
 
     it('should detect rebrand.ly', () => {
-      expect(isUrlShortener('rebrand.ly')).toBe(true);
+      expect(isPopularUrlShortener('rebrand.ly')).toBe(true);
     });
 
     it('should detect shorturl.at', () => {
-      expect(isUrlShortener('shorturl.at')).toBe(true);
+      expect(isPopularUrlShortener('shorturl.at')).toBe(true);
     });
 
     it('should detect cutt.ly', () => {
-      expect(isUrlShortener('cutt.ly')).toBe(true);
+      expect(isPopularUrlShortener('cutt.ly')).toBe(true);
     });
 
     it('should detect short.to', () => {
-      expect(isUrlShortener('short.to')).toBe(true);
+      expect(isPopularUrlShortener('short.to')).toBe(true);
     });
 
     it('should not flag legitimate domains', () => {
-      expect(isUrlShortener('google.com')).toBe(false);
-      expect(isUrlShortener('github.com')).toBe(false);
-      expect(isUrlShortener('stackoverflow.com')).toBe(false);
+      expect(isPopularUrlShortener('google.com')).toBe(false);
+      expect(isPopularUrlShortener('github.com')).toBe(false);
+      expect(isPopularUrlShortener('stackoverflow.com')).toBe(false);
     });
 
     it('should be case insensitive', () => {
-      expect(isUrlShortener('BIT.LY')).toBe(true);
-      expect(isUrlShortener('Bit.Ly')).toBe(true);
+      expect(isPopularUrlShortener('BIT.LY')).toBe(true);
+      expect(isPopularUrlShortener('Bit.Ly')).toBe(true);
     });
   });
 
@@ -476,10 +468,10 @@ describe('Domain Analyzer Utilities', () => {
     });
 
     it('should have URL shorteners', () => {
-      expect(URL_SHORTENERS).toContain('bit.ly');
-      expect(URL_SHORTENERS).toContain('tinyurl.com');
-      expect(URL_SHORTENERS).toContain('goo.gl');
-      expect(URL_SHORTENERS.length).toBeGreaterThan(10);
+      expect(POPULAR_URL_SHORTENERS).toContain('bit.ly');
+      expect(POPULAR_URL_SHORTENERS).toContain('tinyurl.com');
+      expect(POPULAR_URL_SHORTENERS).toContain('goo.gl');
+      expect(POPULAR_URL_SHORTENERS.length).toBeGreaterThan(10);
     });
   });
 });
