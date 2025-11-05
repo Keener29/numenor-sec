@@ -33,6 +33,16 @@ export interface HeaderAnalysis {
   isTrustedDomain: boolean;
 }
 
+export function getOrgDomain(domain: string): string {
+  // handle multi-level TLDs (co.uk, com.au etc.)
+  const parts = domain.split('.');
+  if (parts.length <= 2) return domain;
+  
+  const tld = parts.slice(-2).join('.');
+  return tld;
+}
+
+
 
 /**
  * Header Analyzer Service Class
@@ -175,29 +185,32 @@ export class HeaderAnalyzerService {
   if (headers['from'] && headers['return-path']) {
     const fromDomain = extractDomainUtil(headers['from']);
     const returnPathDomain = extractDomainUtil(headers['return-path']);
-    
     if (fromDomain && returnPathDomain && fromDomain !== returnPathDomain) {
-      const isLegitESP = this.isLegitimateEmailService(returnPathDomain);
-      const returnPathTrusted = await this.isTrustedDomain(returnPathDomain);
-      
-      if (isLegitESP) {
-        risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - sent via trusted mail service`);
-        score += 3; // almost no risk
-      }
-      else if (returnPathTrusted && !isTrustedDomain) {
-        // Return-Path is trusted but From isn't -> spoof attempt
-        risks.push(`Return-Path (${returnPathDomain}) trusted but From (${fromDomain}) is not - likely spoof`);
-        score += 35;
-      }
-      else if (isTrustedDomain) {
-        // Spoof of a known org - but trusted domain, so lower penalty
-        risks.push(`From domain (${fromDomain}) trusted but Return-Path (${returnPathDomain}) differs - possible brand spoof`);
-        score += 20; // Reduced from 25 to 20 for trusted domains
-      } 
-      else {
-        // Generic mismatch
-        risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - high spoofing risk`);
-        score += 35;
+      const fromOrgDomain = getOrgDomain(fromDomain);
+      const returnPathOrgDomain = getOrgDomain(returnPathDomain);
+      if (fromOrgDomain !== returnPathOrgDomain) {
+        const isLegitESP = this.isLegitimateEmailService(returnPathDomain);
+        const returnPathTrusted = await this.isTrustedDomain(returnPathDomain);
+        
+        if (isLegitESP) {
+          risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - sent via trusted mail service`);
+          score += 3; // almost no risk
+        }
+        else if (returnPathTrusted && !isTrustedDomain) {
+          // Return-Path is trusted but From isn't -> spoof attempt
+          risks.push(`Return-Path (${returnPathDomain}) trusted but From (${fromDomain}) is not - likely spoof`);
+          score += 35;
+        }
+        else if (isTrustedDomain) {
+          // Spoof of a known org - but trusted domain, so lower penalty
+          risks.push(`From domain (${fromDomain}) trusted but Return-Path (${returnPathDomain}) differs - possible brand spoof`);
+          score += 20; // Reduced from 25 to 20 for trusted domains
+        } 
+        else {
+          // Generic mismatch
+          risks.push(`From (${fromDomain}) != Return-Path (${returnPathDomain}) - high spoofing risk`);
+          score += 35;
+        }
       }
     }
 }
