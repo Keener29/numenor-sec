@@ -76,7 +76,7 @@ export class LinkAnalyzerService {
     let totalScore = 0;
     
     // Extract unique domains to avoid redundant domain analysis
-    const domainAnalysisCache = new Map<string, { domainAnalysis: DomainAnalysisResult; trustedDomain: boolean }>();
+    const domainAnalysisCache = new Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>();
     const uniqueDomains = new Set<string>();
     
     // First pass: extract unique domains from all links
@@ -92,13 +92,17 @@ export class LinkAnalyzerService {
     // Pre-analyze each unique domain once
     for (const domain of uniqueDomains) {
       const trustedDomain = await isTrustedDomain(domain, businessId);
-      const domainAnalysis = await analyzeDomain(domain, businessId);
+      let domainAnalysis: DomainAnalysisResult | undefined;
+
+      if (!trustedDomain) {
+        domainAnalysis = await analyzeDomain(domain, businessId);
+      }
       domainAnalysisCache.set(domain, { domainAnalysis, trustedDomain });
     }
     
     // Second pass: analyze each link using cached domain analysis
     for (const link of links) {
-      const result = await this.analyzeSingleLink(link, businessId, domainAnalysisCache);
+      const result = await this.analyzeSingleLink(link, domainAnalysisCache, businessId,);
       
       if (result.isSuspicious) {
         suspiciousLinks.push(link);
@@ -120,12 +124,11 @@ export class LinkAnalyzerService {
    */
   private async analyzeSingleLink(
     link: string, 
+    domainCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>,
     businessId?: number,
-    domainCache?: Map<string, { domainAnalysis: DomainAnalysisResult; trustedDomain: boolean }>
   ): Promise<LinkAnalysisResult> {
     const risks: string[] = [];
     let score = 0;
-    let domainAnalysis: DomainAnalysisResult | undefined;
     let hostname: string | undefined;
     
     try {
@@ -144,17 +147,13 @@ export class LinkAnalyzerService {
       }
       
       // Get domain analysis from cache if available, otherwise fetch it
-      let trustedDomain: boolean;
-      
-      if (domainCache && domainCache.has(hostname)) {
-        const cached = domainCache.get(hostname)!;
-        trustedDomain = cached.trustedDomain;
-        domainAnalysis = cached.domainAnalysis;
-      } else {
-        // Fallback: analyze domain if not in cache (shouldn't happen in normal flow)
-        trustedDomain = await isTrustedDomain(hostname, businessId);
-        domainAnalysis = await analyzeDomain(hostname, businessId);
+      const cached = domainCache.get(hostname);
+      if (!cached){
+        throw new Error(`Domain analysis not found for ${hostname}`);
       }
+      const trustedDomain = cached.trustedDomain;
+      const domainAnalysis = cached.domainAnalysis;
+      
       
       // Check for URL shorteners
       // Popular URL shorteners should be detected but receive minimal penalty
@@ -198,7 +197,7 @@ export class LinkAnalyzerService {
       }
 
       // Use cached domain analysis
-      if (domainAnalysis.isSuspicious) {
+      if (domainAnalysis && domainAnalysis.isSuspicious) {
         for (const type of domainAnalysis.types) {
           switch (type) {
             case 'typosquatting':
@@ -229,7 +228,7 @@ export class LinkAnalyzerService {
       score += urlPatternRisks.score;
       
     } catch (error) {
-      risks.push(`Malformed URL: ${link}`);
+      risks.push(`Malformed URL: ${link} with error: ${error}`);
       score += 3;
     }
     
