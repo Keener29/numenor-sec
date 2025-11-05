@@ -310,7 +310,7 @@ function cleanDomainName(input: string): string | null {
 function isKnownTrustedDomain(domain: string): boolean {
   const trustedDomains = [
     // Internal systems (always safe)
-    'localhost', '127.0.0.1',
+    'localhost', '127.0.0.1', 'numenorsecurity.com',
     
     // Major email providers
     'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
@@ -330,7 +330,10 @@ function isKnownTrustedDomain(domain: string): boolean {
     'gov', 'mil', 'edu',
     
     // Major cloud providers
-    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com'
+    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com',
+
+    // Extra
+    'boxd.it'
   ];
 
   return trustedDomains.some(trusted => 
