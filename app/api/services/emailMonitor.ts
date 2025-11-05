@@ -258,7 +258,6 @@ class EmailMonitor {
       }
 
       // Filter emails by timestamp client-side (Gmail API only filters by date, not time)
-      // Only include emails received after the timestampToUse
       // Also exclude emails from the sent folder
       const filteredEmails = gmailMessages.filter(emailMessage => {
         const emailTimestamp = emailMessage.timestamp.getTime();
@@ -267,17 +266,11 @@ class EmailMonitor {
         // Skip emails from sent folder
         const labels = emailMessage.labels || [];
         if (labels.includes('SENT')) {
-          monitoringLogger.debug('Skipping email from sent folder', {
-            operation: 'fetch-new-emails',
-            emailAddress: email.emailAddress,
-            metadata: {
-              messageId: emailMessage.id,
-              subject: emailMessage.subject
-            }
-          });
           return false;
         }
-        
+        if (emailMessage.sender === (email.emailAddress)) {
+          return false;
+        }
         return emailTimestamp > cutoffTimestamp;
       });
 
