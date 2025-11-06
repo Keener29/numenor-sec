@@ -24,7 +24,7 @@
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
 import { analyzeDomain, extractDomain as extractDomainUtil, isTemporaryEmailDomain } from './domainAnalyzer.js';
-import { analyzeSenderDomainAge } from './domainAgeAnalyzer.js';
+import { getDomain } from 'tldts';
 
 export interface HeaderAnalysis {
   missingHeaders: string[];
@@ -56,59 +56,52 @@ export class HeaderAnalyzerService {
 
   // Legitimate email service providers that businesses commonly use
   private legitimateEmailServices: string[] = [
-    'amazonses.com',
-    'sendgrid.net',
-    'mailgun.org',
-    'mailgun.net',
-    'postmarkapp.com',
-    'mandrillapp.com',
-    'sparkpostmail.com',
-    'mailchimp.com',
-    'constantcontact.com',
-    'aweber.com',
-    'getresponse.com',
-    'mailerlite.com',
-    'convertkit.com',
-    'activecampaign.com',
-    'hubspot.com',
-    'salesforce.com',
-    'zendesk.com',
-    'freshdesk.com',
-    'intercom.io',
-    'helpscout.com',
-    'shopifyemail.com',
+    // Transactional ESPs
+    'amazonses.com', 'sendgrid.net', 'mailgun.org', 'mailgun.net', 'postmarkapp.com',
+    'mandrillapp.com', 'sparkpostmail.com',
+  
+    // Marketing Platforms
+    'mailchimp.com', 'constantcontact.com', 'aweber.com', 'getresponse.com',
+    'mailerlite.com', 'convertkit.com', 'activecampaign.com',
+  
+    // CRM / Helpdesk
+    'hubspot.com', 'salesforce.com', 'zendesk.com', 'freshdesk.com', 'intercom.io', 'helpscout.com',
+  
+    // Ecommerce / Automation
+    'shopifyemail.com', 'shopify.com', 'stripe.com', 'squareup.com', 'klaviyo.com', 'sendinblue.com', 'brevo.com',
+  
+    // Major Email Providers
+    'gmail.com', 'googlemail.com', 'outlook.com', 'office365.com', 'microsoft.com', 'protection.outlook.com',
   ];
+  
 
   /**
    * Check if a domain is a legitimate email service provider
    */
   private isLegitimateEmailService(domain: string): boolean {
     if (!domain) return false;
-    
-    // Limit input length to prevent DoS attacks
+  
+    // Prevent DoS or overflow
     if (domain.length > 255) return false;
-    
+  
     const domainLower = domain.toLowerCase().trim();
-    
-    // Basic domain format validation
-    if (!/^[a-zA-Z0-9.-]+$/.test(domainLower)) return false;
-    
-    // Check exact matches
-    if (this.legitimateEmailServices.includes(domainLower)) {
-      return true;
-    }
-    
-    // Check for legitimate subdomains of email services
-    // Prevent spoofing like evil-amazonses.com or fake.mailchimp.com.evil.com
-    return this.legitimateEmailServices.some(service => {
-      if (domainLower.endsWith('.' + service)) {
-        const subdomain = domainLower.slice(0, -(service.length + 1));
-        // Ensure subdomain doesn't contain dots (prevents nested subdomain attacks)
-        // Allow legitimate subdomains like us-east-2.amazonses.com
-        return !subdomain.includes('.');
-      }
+  
+    // Validate domain format
+    if (!/^(?!-)(?!.*--)[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/.test(domainLower)) {
       return false;
-    });
+    }
+  
+    try {
+      // Extract registered/base domain (e.g. sub.mailchimp.com → mailchimp.com)
+      const root = getDomain(domainLower);
+  
+      if (!root) return false;
+  
+      // Check if the base domain is in the whitelist
+      return this.legitimateEmailServices.includes(root);
+    } catch {
+      return false;
+    }
   }
 
   /**
