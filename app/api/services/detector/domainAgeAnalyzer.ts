@@ -320,7 +320,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
     'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'grammarly.com',
     'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
-    'tiktok.com', 'spotify.com',
+    'tiktok.com', 'spotify.com', 'shopify.com',
     
     // Major financial institutions
     'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',

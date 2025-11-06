@@ -75,7 +75,8 @@ export class HeaderAnalyzerService {
     'zendesk.com',
     'freshdesk.com',
     'intercom.io',
-    'helpscout.com'
+    'helpscout.com',
+    'shopifyemail.com',
   ];
 
   /**
