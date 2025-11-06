@@ -177,7 +177,7 @@ describe('LinkAnalyzerService', () => {
 
       const result = await linkAnalyzerService.analyzeLinks(links);
 
-      expect(result.risks.some(risk => risk.includes('Suspicious query parameters'))).toBe(true);
+      expect(result.risks.some(risk => risk.includes('Credential-like params on untrusted domain'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
     });
 

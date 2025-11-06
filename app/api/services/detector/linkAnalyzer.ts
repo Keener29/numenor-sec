@@ -277,15 +277,15 @@ export class LinkAnalyzerService {
     );
 
     if (hasSuspiciousParams) {
-      risks.push(`Suspicious query parameters: ${url.search}`);
-
       // Mild base suspicion
       score += 3;
 
       // If domain is not recognized as legit, increase penalty
       if (!trustedDomain) {
         score += 12;
-        risks.push(`Credential-like params on untrusted domain`);
+        risks.push(`Credential-like params on untrusted domain: ${url.search}`);
+      } else {
+        risks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
       }
     }
     
