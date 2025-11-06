@@ -334,7 +334,7 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
           </div>
           
           <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <strong>⚠️ Important:</strong> Do not click any links or download attachments from the suspicious email. If you have already interacted with the email, contact your IT security team immediately.
+            <strong>⚠️ Important:</strong> Do not click any links or download attachments from the suspicious email. If you have already interacted with the email, contact your IT security team or Numenor Security immediately.
           </div>
         </div>
         
@@ -371,7 +371,7 @@ ${threatAssessment.riskFactors.map((risk: string) => `- ${risk}`).join('\n')}
 RECOMMENDED ACTIONS:
 ${threatAssessment.recommendations.map((rec: string) => `- ${rec}`).join('\n')}
 
-IMPORTANT: Do not click any links or download attachments from the suspicious email. If you have already interacted with the email, contact your IT security team immediately.
+IMPORTANT: Do not click any links or download attachments from the suspicious email. If you have already interacted with the email, contact your IT security team or Numenor Security immediately.
 
 View your dashboard: ${frontendUrl}/dashboard
 
