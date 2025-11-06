@@ -64,14 +64,10 @@ export default function PhishingDetectionDashboard() {
 
       const [statsResponse, statusResponse] = await Promise.all([
         fetch('http://localhost:3001/api/phishing/statistics', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
+          credentials: 'include'
         }),
         fetch('http://localhost:3001/api/phishing/monitoring/status', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
+          credentials: 'include'
         })
       ]);
 
@@ -120,9 +116,7 @@ export default function PhishingDetectionDashboard() {
     try {
       const response = await fetch('http://localhost:3001/api/phishing/monitoring/start', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -137,9 +131,7 @@ export default function PhishingDetectionDashboard() {
     try {
       const response = await fetch('http://localhost:3001/api/phishing/monitoring/stop', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        credentials: 'include'
       });
 
       if (response.ok) {

@@ -20,25 +20,25 @@ export interface AuthResult {
  */
 export async function verifyServerAuth(request: Request): Promise<AuthResult> {
   try {
-    // Get the token from cookies
+    // Get the token from cookies (SSR) if available
     const cookieHeader = request.headers.get('cookie');
-    const token = cookieHeader
+    let token = cookieHeader
       ?.split('; ')
       .find(row => row.startsWith('authToken='))
       ?.split('=')[1];
 
-    if (!token) {
-      return { user: null, isAuthenticated: false };
-    }
-
-    // Verify the token by making a request to the API
+    // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
     const apiUrl = process.env.API_URL || 'http://localhost:3001';
-    const response = await fetch(`${apiUrl}/api/auth/me`, {
+    const response = await fetch(`${apiUrl}/api/auth/me`, cookieHeader ? {
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
-        'Cookie': `authToken=${token}`, // Also send cookie for server-side requests
-      },
+        'Cookie': cookieHeader
+      }
+    } : {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json'
+      }
     });
 
     if (!response.ok) {

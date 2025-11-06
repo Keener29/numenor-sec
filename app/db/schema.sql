@@ -127,6 +127,16 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     PRIMARY KEY (business_id, email_address, message_id)
 );
 
+-- Password reset tokens (single-use)
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance (after foreign keys)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner_id ON businesses(owner_id);
@@ -140,6 +150,10 @@ CREATE INDEX IF NOT EXISTS idx_oauth_tokens_business_id ON oauth_tokens(business
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_email_address ON oauth_tokens(email_address);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_provider ON oauth_tokens(provider);
 CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expiry_date ON oauth_tokens(expiry_date);
+
+-- Indexes for reset tokens
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token_hash ON password_reset_tokens(token_hash);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

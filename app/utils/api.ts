@@ -2,47 +2,13 @@
 
 const API_BASE_URL = 'http://localhost:3001/api';
 
-// Helper function to get auth token from localStorage and cookies
-const getAuthToken = (): string | null => {
-  // Try localStorage first (for client-side API calls)
-  const localToken = localStorage.getItem('authToken');
-  if (localToken) return localToken;
-  
-  // Try cookies (for server-side access)
-  const cookieToken = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('authToken='))
-    ?.split('=')[1];
-  
-  return cookieToken || null;
-};
-
-// Helper function to set auth token in both localStorage and cookies
-export const setAuthToken = (token: string): void => {
-  // Set in localStorage for client-side API calls
-  localStorage.setItem('authToken', token);
-  
-  // Set in cookies for server-side access (httpOnly: false so client can read it)
-  document.cookie = `authToken=${token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-};
-
-// Helper function to remove auth token from both localStorage and cookies
-export const removeAuthToken = (): void => {
-  // Remove from localStorage
-  localStorage.removeItem('authToken');
-  
-  // Remove from cookies
-  document.cookie = 'authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-};
 
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
-  const token = getAuthToken();
-  
   const config: RequestInit = {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
@@ -79,26 +45,24 @@ export const authAPI = {
       method: 'POST',
       body: JSON.stringify(userData),
     });
-    
-    if (response.token) {
-      setAuthToken(response.token);
-    }
-    
     return response;
   },
 
   // Login user
-  login: async (credentials: { email: string; password: string }) => {
+  login: async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
     const response = await apiRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
-    
-    if (response.token) {
-      setAuthToken(response.token);
-    }
-    
     return response;
+  },
+
+  // Forgot password
+  forgotPassword: async (data: { email: string }) => {
+    return apiRequest('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   // Get current user
@@ -122,8 +86,16 @@ export const authAPI = {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
     } finally {
-      removeAuthToken();
+      // Server clears HttpOnly cookie; no client-side token to remove
     }
+  },
+
+  // Reset password
+  resetPassword: async (data: { token: string; newPassword: string }) => {
+    return apiRequest('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };
 
