@@ -73,9 +73,9 @@ export default function Success() {
           )}
           <div className="mt-6 space-y-3">
             <div className="text-sm text-gray-600">
-              <p>✅ Your email is now being monitored for phishing threats</p>
-              <p>✅ You'll receive alerts for suspicious emails</p>
-              <p>✅ Your account is protected by advanced security analysis</p>
+              <p>Your email is now being monitored for phishing threats</p>
+              <p>You'll receive alerts for suspicious emails</p>
+              <p>Your account is protected by advanced security analysis</p>
             </div>
             <div className="mt-6">
               <a

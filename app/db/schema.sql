@@ -110,6 +110,23 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
         UNIQUE (business_id, email_address, provider)
 );
 
+CREATE TABLE IF NOT EXISTS email_offsets (
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    last_history_id TEXT,
+    last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id, email_address, provider)
+);
+
+CREATE TABLE IF NOT EXISTS processed_emails (
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    message_id TEXT NOT NULL,
+    processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id, email_address, message_id)
+);
+
 -- Create indexes for better performance (after foreign keys)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner_id ON businesses(owner_id);
