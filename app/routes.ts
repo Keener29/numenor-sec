@@ -8,4 +8,6 @@ export default [
   route("success", "routes/success.tsx"),
   route("terms", "routes/terms.tsx"),
   route("privacy", "routes/privacy.tsx"),
+  route("reset-password", "routes/reset-password.tsx"),
+  route("forgot-password", "routes/forgot-password.tsx"),
 ] satisfies RouteConfig;
