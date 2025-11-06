@@ -30,7 +30,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://numenorsecurity.com']
-    : ['http://localhost:5173', 'http://localhost:3000'], // React Router dev server
+    : ['http://localhost:3000'], // React Router dev server
   credentials: true
 }));
 

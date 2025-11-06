@@ -35,9 +35,9 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
 
       const response = await fetch('http://localhost:3001/api/phishing/recommendations', {
         method: 'GET',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         }
       });
 

@@ -36,9 +36,7 @@ export function useOAuthStatuses(emails: Email[]): UseOAuthStatusesReturn {
       const statusPromises = emails.map(async (email) => {
         try {
           const response = await fetch(`http://localhost:3001/api/status/${encodeURIComponent(email.emailAddress)}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-            }
+            credentials: 'include'
           });
           
           if (response.ok) {
