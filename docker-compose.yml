@@ -65,6 +65,7 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
+      PROCESSED_EMAIL_RETENTION_HOURS: ${PROCESSED_EMAIL_RETENTION_HOURS}
       
       # Gmail OAuth Configuration (from .env file)
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
