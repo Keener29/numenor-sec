@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 import { query } from '../../db/connection.js';
 
 export interface User {
@@ -20,20 +20,25 @@ export const comparePassword = async (password: string, hash: string): Promise<b
   return await bcrypt.compare(password, hash);
 };
 
-export const generateToken = (user: User): string => {
+export const generateToken = (user: User, expiresIn: SignOptions['expiresIn'] = '1d' as const): string => {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     throw new Error('JWT_SECRET not configured');
   }
-
+  const payload = {
+    id: user.id,
+    sub: String(user.id),
+    email: user.email,
+    business_id: user.business_id
+  };
+  const options: SignOptions = {
+    algorithm: 'HS256',
+    expiresIn: expiresIn,
+  };
   return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      business_id: user.business_id
-    },
+    payload,
     jwtSecret,
-    { expiresIn: '1d' }
+    options
   );
 };
 
