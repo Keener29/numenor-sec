@@ -326,31 +326,8 @@ class EmailMonitor {
         }
       }
 
-      // Initial sync or bounded resync fallback: use timestamp-based fetch
-      const gmailMessages = await gmailOAuthService.fetchEmails(
-        email.businessId,
-        email.emailAddress,
-        50,
-        '',
-        timestampToUse
-      );
-
-      const filteredEmails = gmailMessages.filter(emailMessage => {
-        const emailTimestamp = emailMessage.timestamp.getTime();
-        const cutoffTimestamp = timestampToUse.getTime();
-        const labels = emailMessage.labels || [];
-        if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
-        if (emailMessage.sender === (email.emailAddress)) return false;
-        return emailTimestamp > cutoffTimestamp;
-      });
-
-      monitoringLogger.debug(`Fallback fetch: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`, {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress
-      });
-
-      const currentHistoryId = await gmailOAuthService.getCurrentHistoryId(email.businessId, email.emailAddress);
-      return { emails: filteredEmails, nextHistoryId: currentHistoryId };
+      // Initial sync or bounded resync fallback
+      return await this.fetchFallbackEmails(email, timestampToUse);
 
     } catch (error) {
       monitoringLogger.error('Error fetching emails from Gmail', {
@@ -490,6 +467,46 @@ class EmailMonitor {
       }, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
+  }
+
+  /**
+   * Fallback fetch using timestamp-based Gmail query
+   * Used for initial syncs and when history anchor is too old
+   */
+  private async fetchFallbackEmails(
+    email: MonitoredEmail,
+    timestampToUse: Date
+  ): Promise<{ emails: EmailMessage[]; nextHistoryId: string }> {
+    const gmailMessages = await gmailOAuthService.fetchEmails(
+      email.businessId,
+      email.emailAddress,
+      50,
+      '',
+      timestampToUse
+    );
+
+    const filteredEmails = gmailMessages.filter(emailMessage => {
+      const emailTimestamp = emailMessage.timestamp.getTime();
+      const cutoffTimestamp = timestampToUse.getTime();
+      const labels = emailMessage.labels || [];
+      if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
+      if (emailMessage.sender === (email.emailAddress)) return false;
+      return emailTimestamp > cutoffTimestamp;
+    });
+
+    monitoringLogger.debug(
+      `Fallback fetch: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`,
+      {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress
+      }
+    );
+
+    const currentHistoryId = await gmailOAuthService.getCurrentHistoryId(
+      email.businessId,
+      email.emailAddress
+    );
+    return { emails: filteredEmails, nextHistoryId: currentHistoryId };
   }
 
   private async getLastHistoryId(businessId: number, emailAddress: string): Promise<string | null> {
