@@ -36,7 +36,7 @@ export interface HomoglyphResult {
 export const KNOWN_BRAND_DOMAINS = [
   // Tech Companies
   'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com', 'twitter.com',
-  'linkedin.com', 'instagram.com', 'youtube.com', 'netflix.com', 'spotify.com',
+  'linkedin.com', 'instagram.com', 'youtube.com', 'youtu.be', 'netflix.com', 'spotify.com',
   
   // Financial Services
   'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com', 'chase.com',
