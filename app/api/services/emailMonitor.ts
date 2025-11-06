@@ -303,7 +303,7 @@ class EmailMonitor {
             const emailTimestamp = emailMessage.timestamp.getTime();
             const cutoffTimestamp = timestampToUse.getTime();
             const labels = emailMessage.labels || [];
-            if (labels.includes('SENT') || labels.includes('DRAFT')) return false;
+            if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
             if (emailMessage.sender === email.emailAddress) return false;
             return emailTimestamp > cutoffTimestamp;
           });
@@ -339,7 +339,7 @@ class EmailMonitor {
         const emailTimestamp = emailMessage.timestamp.getTime();
         const cutoffTimestamp = timestampToUse.getTime();
         const labels = emailMessage.labels || [];
-        if (labels.includes('SENT') || labels.includes('DRAFT')) return false;
+        if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
         if (emailMessage.sender === (email.emailAddress)) return false;
         return emailTimestamp > cutoffTimestamp;
       });

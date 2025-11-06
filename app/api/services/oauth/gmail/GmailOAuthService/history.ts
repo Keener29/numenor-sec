@@ -78,7 +78,7 @@ export async function listHistorySince(
             if (!msg || !msg.id) continue;
             const labelIds: string[] = msg.labelIds || [];
             // Only consider messages that landed in INBOX, and exclude sent/drafts to avoid self-sends
-            if (labelIds.includes('INBOX') && !labelIds.includes('SENT') && !labelIds.includes('DRAFT')) {
+            if (labelIds.includes('INBOX') && !labelIds.includes('SENT') && !labelIds.includes('TRASH') && !labelIds.includes('DRAFT')) {
               collectedIds.add(msg.id);
             }
           }
