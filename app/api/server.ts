@@ -43,15 +43,6 @@ app.use(cookieParser());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  logger.info('HTTP Request', {
-    operation: 'http-request',
-    metadata: {
-      method: req.method,
-      path: req.path,
-      userAgent: req.get('User-Agent'),
-      ip: req.ip
-    }
-  });
   next();
 });
 

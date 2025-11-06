@@ -44,18 +44,8 @@ export const getPool = (): Pool => {
 
 export const query = async (text: string, params?: unknown[]): Promise<{ rows: unknown[]; rowCount: number | null }> => {
   const pool = getPool();
-  const start = Date.now();
   try {
     const res = await pool.query(text, params);
-    const duration = Date.now() - start;
-    logger.debug('Database query executed', {
-      operation: 'database-query',
-      metadata: {
-        query: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-        duration,
-        rowCount: res.rowCount
-      }
-    });
     return res;
   } catch (error) {
     logger.error('Database query error', {
