@@ -2,6 +2,8 @@
  * Email utility functions for phishing detection
  */
 
+import { getDomain, parse } from "tldts";
+
 /**
  * Check if an email is from our own service (should be excluded from analysis)
  * @param senderEmail - The sender's email address
@@ -9,61 +11,56 @@
  */
 export function isFromOwnService(senderEmail: string): boolean {
   if (!senderEmail) return false;
-  
-  // Limit input length to prevent DoS attacks
-  if (senderEmail.length > 1000) return false;
-  
-  // Extract email address from header format
-  // Handle formats like: "Display Name <email@domain.com>" or just "email@domain.com"
-  let emailAddress = senderEmail.trim();
-  
-  // If it contains < and >, extract the email address between them
-  // Use a safer regex that limits backtracking
-  if (emailAddress.includes('<') && emailAddress.includes('>')) {
-    const match = emailAddress.match(/<([^<>]{1,254})>/);
-    if (match && match[1]) {
-      emailAddress = match[1].trim();
-    }
-  }
-  
-  // Validate email format - allow IP addresses, localhost, and their subdomains
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z0-9.-]*localhost|[a-zA-Z0-9.-]*127\.0\.0\.1|[a-zA-Z0-9.-]*0\.0\.0\.0|[a-zA-Z0-9.-]*::1)$/;
-  if (!emailRegex.test(emailAddress)) return false;
-  
-  // Extract domain from email address
-  const parts = emailAddress.split('@');
-  if (parts.length !== 2 || !parts[0] || !parts[1]) return false;
-  
-  const domain = parts[1]?.toLowerCase().trim();
+
+  // Prevent DoS or malformed input
+  if (senderEmail.length > 512) return false;
+
+  // Extract email address from header format: "Name <email@domain.com>"
+  const emailMatch = senderEmail.match(/<?([\w.%+-]+@[^\s<>]{1,254})>?/);
+  if (!emailMatch) return false;
+
+  const emailAddress = emailMatch[1].trim().toLowerCase();
+  const [_, domain = ""] = emailAddress.split("@");
   if (!domain) return false;
-  
-  // List of domains that should be excluded from analysis
+
+  // Known legitimate local/service domains
   const ownServiceDomains = [
-    'localhost',
-    '127.0.0.1',
-    '0.0.0.0',
-    '::1',
-    'numenorsecurity.com'
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+    "numenorsecurity.com",
   ];
-  
-  // Check if domain matches any of our own service domains
-  // Use exact match or proper subdomain validation
-  return ownServiceDomains.some(ownDomain => {
-    if (domain === ownDomain) return true;
-    
-    // Only allow legitimate subdomains (e.g., mail.numenorsecurity.com)
-    // Prevent spoofing like evil-numenorsecurity.com
-    if (domain.endsWith('.' + ownDomain)) {
-      const subdomain = domain.slice(0, -(ownDomain.length + 1));
-      // For IP addresses, allow any subdomain (e.g., internal.127.0.0.1)
-      // For domain names, ensure subdomain doesn't contain dots (prevents nested subdomain attacks)
-      if (ownDomain.includes('.')) {
-        return !subdomain.includes('.');
-      } else {
-        return true; // Allow any subdomain for localhost, IP addresses
-      }
-    }
-    
-    return false;
+
+  // Quick allow for localhost and IPs (and their subdomains)
+  if (
+    domain === "localhost" ||
+    domain.endsWith(".localhost") ||
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(domain) ||
+    domain.endsWith(".127.0.0.1") ||
+    domain.endsWith(".0.0.0.0")
+  ) {
+    return true;
+  }
+
+  // For each own domain, verify cleanly
+  return ownServiceDomains.some((ownDomain) => {
+    const domainLower = domain.trim().toLowerCase();
+    const ownLower = ownDomain.trim().toLowerCase();
+
+    // Exact match → ✅
+    if (domainLower === ownLower) return true;
+
+    // Compare registered/base domains using tldts
+    const domainRoot = getDomain(domainLower) || domainLower;
+    const ownRoot = getDomain(ownLower) || ownLower;
+    if (domainRoot !== ownRoot) return false;
+
+    // Parse subdomain to limit nesting
+    const { subdomain } = parse(domainLower);
+    const depth = subdomain ? subdomain.split(".").length : 0;
+
+    // Allow typical depth (mail/service prefixes), block deep spoofing
+    return depth <= 2;
   });
 }
