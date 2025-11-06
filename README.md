@@ -130,7 +130,7 @@ That's it! The application will be running with:
 
 5. **Open your browser:**
 
-   - **Frontend**: Navigate to [http://localhost:5173](http://localhost:5173)
+   - **Frontend**: Navigate to [http://localhost:3000](http://localhost:3000)
    - **Backend API**: [http://localhost:3001](http://localhost:3001)
    - **API Documentation**: [http://localhost:3001/api](http://localhost:3001/api)
    - **Health Check**: [http://localhost:3001/health](http://localhost:3001/health)
@@ -550,6 +550,9 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 7. **attachment analyzer is weak, can be improved**
 8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
 9. **Don't check forwarded emails**
+10. **Inject warning in medium + risk emails**
+11. **Sign in and sign up with google**
+12. **Free pdf download for phishing basics**
 
 ### Future Enhancements
 - Implement machine learning for threat detection
