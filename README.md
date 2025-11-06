@@ -245,6 +245,18 @@ That's it! The application will be running with:
 - `DELETE /:id` - Remove email from monitoring
 - `GET /stats` - Get email monitoring statistics
 
+#### Email Monitoring Architecture (Gmail)
+
+This project uses Gmail history-based delta polling to efficiently detect new messages without missing events:
+
+- **History delta polling**: Each mailbox maintains a persisted `last_history_id` anchor and queries Gmail `history.list` for changes since that anchor. New INBOX message IDs are fetched and analyzed.
+- **Jittered schedule**: Global monitoring loop runs on a randomized interval between 60–120 seconds to reduce API spikes and contention.
+- **Fallback and re-anchoring**: If Gmail reports the history anchor is too old, the system performs a bounded timestamp-based resync and then resets the anchor to the current `historyId`.
+- **Deduplication**: Processed message IDs are stored for short-term exactly-once semantics, preventing reprocessing during retries or re-anchoring.
+- **Persistence**: Offsets are stored per mailbox in `email_offsets`; processed message IDs are stored in `processed_emails`.
+
+This approach significantly reduces API usage compared to fixed-interval full scans while maintaining strong reliability for SMB inboxes.
+
 ### OAuth Integration (`/api/oauth`)
 - `GET /gmail/auth-url` - Generate Gmail OAuth authorization URL
 - `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
@@ -312,6 +324,16 @@ The PostgreSQL database includes:
   - **Purpose**: Tracks the health and performance of email monitoring operations
   - **Contains**: Scan timestamps, success/failure status, processing times, error messages
   - **Example**: "Scan completed for info@mybusiness.com at 2025-01-02 10:30:00", "Connection timeout error"
+
+- **Email Offsets**: History anchors per mailbox (Gmail)
+  - **What it is**: Stores `last_history_id` for each connected Gmail mailbox
+  - **Purpose**: Enables efficient delta polling without re-reading the entire mailbox
+  - **Contains**: `business_id`, `email_address`, `provider`, `last_history_id`, timestamps
+
+- **Processed Emails**: Deduplication ledger
+  - **What it is**: Tracks message IDs that have already been analyzed
+  - **Purpose**: Ensures exactly-once processing during retries and anchor resets
+  - **Contains**: `business_id`, `email_address`, `message_id`, processed timestamp
 
 All tables include proper indexes, foreign key relationships, and automatic timestamp updates.
 
@@ -526,8 +548,8 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
 6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 7. **attachment analyzer is weak, can be improved**
-8. **Polling every 30 seconds, is there something better?**
-
+8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
+9. **Don't check forwarded emails**
 
 ### Future Enhancements
 - Implement machine learning for threat detection
