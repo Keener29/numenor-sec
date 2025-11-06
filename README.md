@@ -553,6 +553,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 10. **Inject warning in medium + risk emails**
 11. **Sign in and sign up with google**
 12. **Free pdf download for phishing basics**
+13. **Better subdomain checks**
 
 ### Future Enhancements
 - Implement machine learning for threat detection
