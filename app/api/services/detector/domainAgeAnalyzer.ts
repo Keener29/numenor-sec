@@ -458,7 +458,7 @@ export async function analyzeSenderDomainAge(domain: string, businessId?: number
 
     // Perform WHOIS lookup
     const whoisData = await performWhoisLookup(cleanDomain);
-    if (!whoisData) {
+    if (!whoisData || whoisData.status === '401') {
       const result: DomainAgeResult = {
         isSuspicious: false,
         ageInDays: null,
