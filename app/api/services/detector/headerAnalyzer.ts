@@ -343,7 +343,7 @@ export class HeaderAnalyzerService {
         score += 3; // Very low penalty for legitimate services
       } else {
         risks.push('User-Agent header missing - unusual for legitimate emails');
-        score += 10; // Reduced from 15 to 10 - User-Agent is often missing in legitimate emails
+        score += 5; // Reduced from 15 to 5 - User-Agent is often missing in legitimate emails
       }
     }
 
