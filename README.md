@@ -554,6 +554,8 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 11. **Sign in and sign up with google**
 12. **Free pdf download for phishing basics**
 13. **Better subdomain checks**
+14. **Don’t penalize secondary links — only main CTA links (e.g., the one containing the button or the only reset link).
+Check the anchor text or position in HTML; if it’s a link embedded in the main message body or footer, ignore it.**
 
 ### Future Enhancements
 - Implement machine learning for threat detection
