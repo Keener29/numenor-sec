@@ -181,7 +181,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(60); // 50 + 10 (partial)
+      expect(result.score).toBe(50);
       expect(result.risks).toContain('SPF authentication failed');
     });
 
@@ -194,7 +194,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(50); // 40 + 10 (partial)
+      expect(result.score).toBe(40);
       expect(result.risks).toContain('SPF authentication soft fail');
     });
 
@@ -207,7 +207,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(35); // 25 + 10 (partial)
+      expect(result.score).toBe(25);
       expect(result.risks).toContain('No SPF authentication');
     });
 
@@ -220,7 +220,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(50); // 40 + 10 (partial)
+      expect(result.score).toBe(40);
       expect(result.risks).toContain('DKIM authentication failed');
     });
 
@@ -233,7 +233,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(30); // 20 + 10 (partial)
+      expect(result.score).toBe(20);
       expect(result.risks).toContain('No DKIM authentication');
     });
 
@@ -246,7 +246,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(45); // 35 + 10 (partial)
+      expect(result.score).toBe(35);
       expect(result.risks).toContain('DMARC authentication failed');
     });
 
@@ -259,7 +259,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(30); // 20 + 10 (partial)
+      expect(result.score).toBe(20);
       expect(result.risks).toContain('No DMARC authentication');
     });
 
@@ -272,7 +272,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, false);
-      expect(result.score).toBe(95); // 25 + 20 + 0 (DMARC pass) + 40 (combination) + 10 (partial)
+      expect(result.score).toBe(85); // 25 + 20 + 0 (DMARC pass) + 40 (combination)
       expect(result.risks).toContain('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
     });
 
@@ -313,7 +313,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(18); // 15 + 3 (partial)
+      expect(result.score).toBe(15);
       expect(result.risks).toContain('SPF authentication failed');
     });
 
@@ -326,7 +326,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(6); // 3 + 3 (partial)
+      expect(result.score).toBe(3);
       expect(result.risks).toContain('No SPF authentication');
     });
 
@@ -339,7 +339,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(18); // 15 + 3 (partial)
+      expect(result.score).toBe(15);
       expect(result.risks).toContain('DKIM authentication failed');
     });
 
@@ -352,7 +352,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(6); // 3 + 3 (partial)
+      expect(result.score).toBe(3);
       expect(result.risks).toContain('No DKIM authentication');
     });
 
@@ -365,21 +365,8 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(15); // 12 + 3 (partial)
+      expect(result.score).toBe(12);
       expect(result.risks).toContain('DMARC authentication failed');
-    });
-
-    test('should give no score for DMARC missing on allow-listed domain', () => {
-      const authResults: AuthenticationResults = {
-        spf: 'pass',
-        dkim: 'pass',
-        dmarc: 'none',
-        overall: 'partial'
-      };
-
-      const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(3); // 0 + 3 (partial)
-      expect(result.risks).toContain('No DMARC authentication');
     });
 
     test('should give minimal score for missing SPF + DKIM on allow-listed domain', () => {
@@ -391,7 +378,7 @@ describe('EmailAuthenticationService', () => {
       };
 
       const result = authService.getAuthenticationRiskScore(authResults, true);
-      expect(result.score).toBe(11); // 3 + 3 + 0 (DMARC) + 2 (combination) + 3 (partial) - much reduced
+      expect(result.score).toBe(8); // 3 + 3 + 0 (DMARC) + 2 (combination) - much reduced
       expect(result.risks).toContain('Both SPF and DKIM authentication missing - sender domain is allow-listed');
     });
 

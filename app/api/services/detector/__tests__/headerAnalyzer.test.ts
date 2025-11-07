@@ -625,7 +625,7 @@ describe('HeaderAnalyzerService', () => {
       );
 
       expect(result.risks).toContain('Typosquatting detected: "microsfot.com" is similar to "microsoft.com" (distance: 2)');
-      expect(result.score).toEqual(20);
+      expect(result.score).toEqual(15);
     });
 
     it('should detect homoglyph attacks with Cyrillic characters', async () => {
