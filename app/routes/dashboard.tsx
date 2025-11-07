@@ -120,9 +120,23 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const handleMarkSafe = async (alertId: number) => {
     try {
       await alertsAPI.updateAlert(alertId, { status: "safe" });
-      // Reload alerts to get updated data
-      const alertsResponse = await alertsAPI.getAlerts({ limit: 10 });
+      // Reload alerts and stats to get updated data
+      const [alertsResponse, alertStats] = await Promise.all([
+        alertsAPI.getAlerts({ limit: 10 }),
+        alertsAPI.getAlertStats()
+      ]);
       setAlerts(alertsResponse.alerts || []);
+      setStats((prev: any) => ({
+        ...prev,
+        ...(alertStats?.stats || {})
+      }));
+      // Update chart with latest daily alerts
+      const dailyAlerts = alertStats?.stats?.dailyAlerts || [];
+      setChartData(processChartData(dailyAlerts));
+      // Notify other dashboard components to refresh (e.g., PhishingDetectionDashboard)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
+      }
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
     }

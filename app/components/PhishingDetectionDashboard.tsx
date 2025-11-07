@@ -55,6 +55,18 @@ export default function PhishingDetectionDashboard() {
 
   useEffect(() => {
     loadDashboardData();
+    // Listen for external updates (e.g., when an alert is marked safe)
+    const onStatsUpdated = () => {
+      loadDashboardData();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('phishing:statsUpdated', onStatsUpdated);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('phishing:statsUpdated', onStatsUpdated);
+      }
+    };
   }, []);
 
   const loadDashboardData = async () => {
