@@ -549,14 +549,10 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 7. **attachment analyzer is weak, can be improved**
 8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
-9. **Don't check forwarded emails**
+9. **DONE: Don't check forwarded emails**
 10. **Inject warning in medium + risk emails**
 11. **Sign in and sign up with google**
-12. **Free pdf download for phishing basics**
-13. **Better subdomain checks**
-14. **Don’t penalize secondary links — only main CTA links (e.g., the one containing the button or the only reset link).
-Check the anchor text or position in HTML; if it’s a link embedded in the main message body or footer, ignore it.**
-
+12. **DONE: Free pdf download for phishing basics**
 ### Future Enhancements
 - Implement machine learning for threat detection
 

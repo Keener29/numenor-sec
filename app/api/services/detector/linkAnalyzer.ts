@@ -71,10 +71,13 @@ export class LinkAnalyzerService {
   /**
    * Analyze all links in an email
    */
-  async analyzeLinks(links: string[], businessId?: number): Promise<LinkAnalysis> {
+  async analyzeLinks(links: string[], businessId?: number, emailBody?: string): Promise<LinkAnalysis> {
     const risks: string[] = [];
     const suspiciousLinks: string[] = [];
     let totalScore = 0;
+    
+    // Determine which links are primary CTAs to evaluate
+    const ctaLinks = this.getCtaLinkSet(links, emailBody);
     
     // Extract unique domains to avoid redundant domain analysis
     const domainAnalysisCache = new Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>();
@@ -82,6 +85,8 @@ export class LinkAnalyzerService {
     
     // First pass: extract unique domains from all links
     for (const link of links) {
+      // Skip non-CTA (secondary) links entirely
+      if (!ctaLinks.has(this.normalize(link))) continue;
       try {
         const url = new URL(link);
         uniqueDomains.add(url.hostname);
@@ -103,6 +108,10 @@ export class LinkAnalyzerService {
     
     // Second pass: analyze each link using cached domain analysis
     for (const link of links) {
+      // Only score main CTA links; ignore secondary/footer/inline links
+      if (!ctaLinks.has(this.normalize(link))) {
+        continue;
+      }
       const result = await this.analyzeSingleLink(link, domainAnalysisCache, businessId,);
       
       if (result.isSuspicious) {
@@ -118,6 +127,179 @@ export class LinkAnalyzerService {
       suspiciousLinks,
       totalLinks: links.length
     };
+  }
+  
+  private isInFooterRegion(anchorIndex: number, html: string, lowerHtml: string): boolean {
+    const upto = html.slice(0, anchorIndex);
+    const lowerUpto = lowerHtml.slice(0, anchorIndex);
+    const lastOpenFooter = lowerUpto.lastIndexOf('<footer');
+    const lastCloseFooter = lowerUpto.lastIndexOf('</footer>');
+    if (lastOpenFooter !== -1 && lastOpenFooter > lastCloseFooter) {
+      return true;
+    }
+    const containerRegex = /<([a-z0-9]+)\b[^>]*?(?:id|class)\s*=\s*(?:"[^"]*\bfooter\b[^"]*"|'[^']*\bfooter\b[^']*')/ig;
+    let match: RegExpExecArray | null;
+    let lastTagName: string | null = null;
+    let lastTagIndex = -1;
+    while ((match = containerRegex.exec(upto)) !== null) {
+      lastTagName = (match[1] || '').toLowerCase();
+      lastTagIndex = match.index;
+    }
+    if (lastTagName && lastTagIndex >= 0) {
+      const between = html.slice(lastTagIndex, anchorIndex);
+      const closeRe = new RegExp(`</\\s*${lastTagName}\\s*>`, 'i');
+      if (!closeRe.test(between)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  /**
+   * Extract anchors from (X)HTML body for CTA classification
+   */
+  private extractAnchors(html: string): Array<{ href: string; text: string; index: number; attrs: Record<string, string> }> {
+    const anchors: Array<{ href: string; text: string; index: number; attrs: Record<string, string> }> = [];
+    if (!html) return anchors;
+    // Quick check to avoid heavy regex if no anchors
+    if (!/<a\b/i.test(html)) return anchors;
+    
+    const anchorRegex = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = anchorRegex.exec(html)) !== null) {
+      const full = match[0];
+      const attrsRaw = match[1] || '';
+      const inner = match[2] || '';
+      const index = match.index ?? 0;
+      
+      // Extract href
+      const hrefMatch = /\bhref\s*=\s*("(.*?)"|'(.*?)'|([^\s"'<>]+))/i.exec(attrsRaw);
+      const href = hrefMatch ? (hrefMatch[2] || hrefMatch[3] || hrefMatch[4] || '').trim() : '';
+      if (!href || !/^https?:\/\//i.test(href)) continue;
+      
+      // Normalize inner text (strip tags, collapse whitespace)
+      const text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      
+      // Extract class/style/role for button-like detection
+      const attrs: Record<string, string> = {};
+      const classMatch = /\bclass\s*=\s*"(.*?)"|\bclass\s*=\s*'(.*?)'/i.exec(attrsRaw);
+      if (classMatch) attrs.class = (classMatch[1] || classMatch[2] || '').toLowerCase();
+      const styleMatch = /\bstyle\s*=\s*"(.*?)"|\bstyle\s*=\s*'(.*?)'/i.exec(attrsRaw);
+      if (styleMatch) attrs.style = (styleMatch[1] || styleMatch[2] || '').toLowerCase();
+      const roleMatch = /\brole\s*=\s*"(.*?)"|\brole\s*=\s*'(.*?)'/i.exec(attrsRaw);
+      if (roleMatch) attrs.role = (roleMatch[1] || roleMatch[2] || '').toLowerCase();
+      const ariaMatch = /\baria-.*?=\s*"(.*?)"|\baria-.*?=\s*'(.*?)'/i.exec(attrsRaw);
+      if (ariaMatch) attrs.aria = (ariaMatch[1] || ariaMatch[2] || '').toLowerCase();
+      
+      anchors.push({ href, text, index, attrs });
+    }
+    return anchors;
+  }
+  private normalize = (url: string): string => {
+    try {
+      const u = new URL(url);
+      // Strip tracking params often used in legit CTAs
+      u.searchParams.delete('utm_source');
+      u.searchParams.delete('utm_medium');
+      u.searchParams.delete('ref');
+      u.searchParams.delete('trk');
+      u.searchParams.delete('tracking');
+      u.searchParams.delete('mc_cid');
+      u.searchParams.delete('mc_eid');
+      return u.toString();
+    } catch {
+      return url;
+    }
+  };
+  
+  /**
+   * Decide which links to score as main CTAs.
+   * Heuristics: button-like classes/styles, CTA keywords in text, login/reset-like URL, and non-footer placement.
+   * Also select the only login/reset-like link if unique.
+   */
+  private getCtaLinkSet(links: string[], emailBody?: string): Set<string> {
+    // Fallback: if we can't parse, choose links that look like action/login/reset; otherwise none.
+    const fallbackLoginLike = (urlString: string): boolean => {
+      try {
+        const url = new URL(urlString);
+        const path = `${url.pathname}${url.search}`.toLowerCase();
+        return /(login|signin|account|verify|confirm|update|security|password|reset)/i.test(path);
+      } catch {
+        return false;
+      }
+    };
+    
+    if (!emailBody) {
+      const onlyLoginLike = links.filter(fallbackLoginLike);
+      if (onlyLoginLike.length === 1) return new Set(onlyLoginLike.map(l => this.normalize(l)));
+      // If multiple, prefer none rather than over-penalizing
+      return new Set<string>();
+    }
+    
+    const anchors = this.extractAnchors(emailBody);
+    if (anchors.length === 0) {
+      const onlyLoginLike = links.filter(fallbackLoginLike);
+      if (onlyLoginLike.length === 1) return new Set(onlyLoginLike.map(l => this.normalize(l)));
+      return new Set<string>();
+    }
+    // Add: single link auto-CTA
+    if (anchors.length === 1 && anchors[0].index < emailBody.length * 0.7) {
+      return new Set([this.normalize(anchors[0].href)]);
+    }
+    
+    const totalLen = emailBody.length || 1;
+    const lowerHtml = emailBody.toLowerCase();
+    const footerThreshold = Math.floor(totalLen * 0.7);
+    
+    const secondaryText = /\b(unsubscribe|privacy|terms|view in browser|view online|help|support|contact|preferences|settings|facebook|twitter|instagram|linkedin|play store|app store|apple|google play|powered by|©)\b/i;
+    const ctaText = /\b(reset|verify|confirm|activate|update|unlock|approve|review|pay|open|continue|sign in|log in|login|view account|complete setup|action required)\b/i;
+    
+    const scoreAnchor = (a: { href: string; text: string; index: number; attrs: Record<string, string> }): number => {
+      let score = 0;
+      const text = (a.text || '').toLowerCase();
+      const classes = (a.attrs.class || '');
+      const style = (a.attrs.style || '');
+      const role = (a.attrs.role || '');
+      
+      // Button-like indicators
+      if (/\b(btn|button|primary|cta)\b/.test(classes)) score += 2;
+      if (/background-color|border-radius|padding/.test(style)) score += 1;
+      if (role === 'button') score += 2;
+      
+      // CTA text keywords
+      if (ctaText.test(text)) score += 2;
+      
+      // URL looks like action
+      if (fallbackLoginLike(this.normalize(a.href))) score += 1;
+      
+      // Footer/secondary demotion
+      if (a.index >= footerThreshold) score -= 2;
+      if (this.isInFooterRegion(a.index, emailBody, lowerHtml)) score -= 4;
+      if (secondaryText.test(text)) score -= 3;
+      
+      return score;
+    };
+    
+    // Pre-normalize input links for reliable matching
+    const normalizedLinksSet = new Set(links.map(l => this.normalize(l)));
+    
+    // Score anchors and pick likely CTAs
+    const scored = anchors
+      .filter(a => normalizedLinksSet.has(this.normalize(a.href))) // limit to provided links list
+      .map(a => ({ href: this.normalize(a.href), score: scoreAnchor(a) }));
+    
+    const ctaCandidates = scored.filter(s => s.score >= 2).map(s => s.href);
+    
+    // If none scored as CTA, but there's exactly one login/reset-like link, choose it.
+    if (ctaCandidates.length === 0) {
+      const loginLike = anchors.filter(a => fallbackLoginLike(a.href)).map(a => this.normalize(a.href));
+      const uniqueLoginLike = Array.from(new Set(loginLike));
+      if (uniqueLoginLike.length === 1) {
+        return new Set<string>(uniqueLoginLike);
+      }
+    }
+    
+    return new Set<string>(ctaCandidates);
   }
   
   /**

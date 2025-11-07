@@ -79,6 +79,15 @@ export default function Home() {
                   <div className="text-6xl mb-4">🛡️</div>
                     <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
                     <p className="mt-2">Monitor and protect your business communications</p>
+                    <div className="mt-3 sm:mt-0 sm:ml-3">
+                    <a
+                      href="/How%20to%20Spot%20a%20Phishing%20Email_%20The%20Basics.pdf"
+                      download
+                      className="inline-flex items-center justify-center px-8 py-4 border border-gray-300 text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 md:py-6 md:text-2xl md:px-20 mt-6"
+                    >
+                      Download Free Phishing Guide
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

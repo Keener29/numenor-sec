@@ -154,7 +154,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
+              <Link to="/">
                 <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <button
