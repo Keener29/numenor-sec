@@ -247,7 +247,6 @@ export class EmailAuthenticationService {
       }
     } else if (authResults.overall === 'partial') {
       risks.push('Partial email authentication');
-      score += isAllowListed ? 3 : 10; // Reduced for allow-listed
     } else if (authResults.overall === 'none') {
       if (isAllowListed) {
         risks.push('No email authentication - sender domain is allow-listed');

@@ -12,6 +12,7 @@
 
 import { oauthLogger } from '../logger.js';
 import { query } from '../../../db/connection.js';
+import { parse } from "tldts";
 
 export interface DomainAgeResult {
   isSuspicious: boolean;
@@ -290,16 +291,10 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
  */
 function cleanDomainName(input: string): string | null {
   try {
-    let domain = input.replace(/^https?:\/\//, '');
-    domain = domain.replace(/^www\./, '');
-    domain = domain.split('/')[0].split('?')[0].split('#')[0];
-    domain = domain.split(':')[0];
-    if (!domain || !domain.includes('.') || domain.length < 3) {
-      return null;
-    }
-    
-    return domain.toLowerCase();
-  } catch (error) {
+    const parsed = parse(input);
+    if (!parsed.domain) return null; // No valid domain found
+    return parsed.domain.toLowerCase();
+  } catch {
     return null;
   }
 }
@@ -463,7 +458,7 @@ export async function analyzeSenderDomainAge(domain: string, businessId?: number
 
     // Perform WHOIS lookup
     const whoisData = await performWhoisLookup(cleanDomain);
-    if (!whoisData) {
+    if (!whoisData || whoisData.status === '401') {
       const result: DomainAgeResult = {
         isSuspicious: false,
         ageInDays: null,

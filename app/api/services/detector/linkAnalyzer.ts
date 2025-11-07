@@ -18,6 +18,7 @@ import {
   type DomainAnalysisResult 
 } from './domainAnalyzer.js';
 import { isTrustedDomain } from './domainAgeAnalyzer.js';
+import { parse } from 'tldts';
 
 export interface LinkAnalysis {
   risks: string[];
@@ -288,15 +289,56 @@ export class LinkAnalyzerService {
         risks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
       }
     }
+
+    if (trustedDomain) {
+      return { risks, score };
+    }
     
     // Check for excessive subdomains (potential subdomain takeover)
-    const subdomainCount = url.hostname.split('.').length - 2;
+    const info = parse(url.hostname);
+    const subdomain = info.subdomain || '';
+    // Count labels in subdomain
+    const subLabels = subdomain ? subdomain.split('.').filter(Boolean) : [];
+    const subdomainCount = subLabels.length;
 
-    if (subdomainCount > 3) {
-      if (!trustedDomain) {
-        risks.push(`Excessive subdomains: ${url.hostname}`);
-        score += 8; // modest suspicion
-      } 
+    if (subdomainCount > 5) {
+      risks.push(`Very excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
+      score += 25;
+    } else if (subdomainCount > 3) {
+      risks.push(`Excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
+      score += 10;
+    }
+    // Structural checks
+    const labels = url.hostname.split('.').filter(Boolean);
+    for (const label of labels) {
+      if (label.length > 63) {
+        risks.push(`Label too long (${label.length}): ${label}`);
+        score += 30;
+      }
+      if (/^xn--/.test(label)) {
+        risks.push(`Punycode label detected: ${label}`);
+        score += 15;
+      }
+      if (/^-|-$/.test(label)) {
+        risks.push(`Suspicious leading/trailing hyphen in label: ${label}`);
+        score += 10;
+      }
+      if (/^[0-9]+$/.test(label)) {
+        // numeric-only label
+        score += 2;
+      }
+    }
+    // Total length
+    if (url.hostname.length > 253) {
+      risks.push(`Hostname too long: ${url.hostname.length} chars`);
+      score += 50;
+    }
+
+    // Repetition / gibberish heuristic
+    const repeats = labels.some(l => /(.*-)\1/.test(l) || /(.)\1{6,}/.test(l));
+    if (repeats) {
+      risks.push('Repeated/gibberish label detected');
+      score += 15;
     }
     
     // Check for suspicious TLDs
