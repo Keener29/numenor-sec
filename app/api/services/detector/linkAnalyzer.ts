@@ -179,17 +179,13 @@ export class LinkAnalyzerService {
         if (isKnownSafeHttp && this.isImageLink(link)) {
           // fine, legit email vendors do this
         }
-        else if (this.isImageLink(link)) {
+        else if (this.isImageLink(link) && !trustedDomain) {
           risks.push(`HTTP image asset: ${hostname}`);
           score += 2; // tiny penalty — not ideal, but common
         }
         else if (this.isClickAction(link) && !trustedDomain) {
           risks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
           score += 30; // serious — login/reset over HTTP is bad
-        }
-        else if (this.isClickAction(link)) {
-          risks.push(`Insecure HTTP link to action on trusted domain: ${link}`);
-          score += 10; // moderate penalty
         }
         else if (!trustedDomain) {
           risks.push(`Insecure HTTP link on untrusted domain: ${link}`);
