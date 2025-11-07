@@ -9,6 +9,17 @@ import { linkAnalyzerService, type LinkAnalysis } from '../linkAnalyzer.js';
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch;
 
+// Helper to build an email HTML body with CTA anchors for given links
+const makeEmailBody = (links: string[]): string => {
+  return `
+    <div>
+      <p>Please take action:</p>
+      ${links.map(l => `<a href="${l}" class="btn primary" role="button">Reset your password</a>`).join('\n')}
+      <footer><a href="https://example.com/unsubscribe">Unsubscribe</a></footer>
+    </div>
+  `;
+};
+
 // Helper function to mock WHOIS API responses
 const mockWhoisApiResponse = (domain: string, ageInDays: number = 365) => {
   const mockResponse = {
@@ -37,7 +48,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(3);
       expect(result.suspiciousLinks.length).toBeGreaterThan(0);
@@ -46,7 +57,7 @@ describe('LinkAnalyzerService', () => {
     });
 
     it('should return empty results for empty link array', async () => {
-      const result = await linkAnalyzerService.analyzeLinks([]);
+      const result = await linkAnalyzerService.analyzeLinks([], undefined, makeEmailBody([]));
 
       expect(result.totalLinks).toBe(0);
       expect(result.suspiciousLinks).toHaveLength(0);
@@ -61,7 +72,7 @@ describe('LinkAnalyzerService', () => {
         'https://goo.gl/xyz789'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('URL shortener detected'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -75,7 +86,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('IP address in URL'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -89,7 +100,7 @@ describe('LinkAnalyzerService', () => {
         'http://another-insecure.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Insecure HTTP link'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -97,12 +108,12 @@ describe('LinkAnalyzerService', () => {
 
     it('should detect malformed URLs', async () => {
       const links = [
-        'not-a-valid-url',
+        'not-a-valid-url', // ignored by anchor extraction (no scheme)
         'http://',
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Malformed URL'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -115,7 +126,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Typosquatting detected'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -128,7 +139,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of homoglyph
       expect(result.risks.some(risk => 
@@ -145,7 +156,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of suspicious pattern
       expect(result.risks.some(risk => 
@@ -162,7 +173,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com/about'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Suspicious URL path'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -175,7 +186,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com?page=home'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Credential-like params on untrusted domain'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -187,7 +198,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Excessive subdomains'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -200,7 +211,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.risks.some(risk => risk.includes('Suspicious TLD'))).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -213,7 +224,7 @@ describe('LinkAnalyzerService', () => {
         'https://example.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.suspiciousLinks).toHaveLength(0);
       expect(result.risks).toHaveLength(0);
@@ -227,7 +238,7 @@ describe('LinkAnalyzerService', () => {
         'https://micros0ft.com/verify?password=reset' // Typosquatting + suspicious path + suspicious params
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.score).toBeGreaterThan(50); // High combined score
       expect(result.suspiciousLinks.length).toBe(3);
@@ -396,7 +407,7 @@ describe('LinkAnalyzerService', () => {
         'https://site.with.dots.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(3);
       // Should not crash and should handle gracefully
@@ -406,7 +417,7 @@ describe('LinkAnalyzerService', () => {
       const longPath = '/'.repeat(1000);
       const links = [`https://legitimate-site.com${longPath}`];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(1);
       // Should not crash
@@ -419,7 +430,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(3);
       // Should handle internationalized domain names
@@ -432,7 +443,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(3);
       expect(result.risks.some(risk => risk.includes('Insecure HTTP link'))).toBe(true);
@@ -445,7 +456,7 @@ describe('LinkAnalyzerService', () => {
         'https://legitimate-site.com'
       ];
 
-      const result = await linkAnalyzerService.analyzeLinks(links);
+      const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       expect(result.totalLinks).toBe(3);
       // Should handle URL fragments correctly
