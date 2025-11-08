@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
+import { loginWithGoogle } from "../utils/googleAuth";
+import GoogleLoginButton from "../components/GoogleLoginButton";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -65,6 +67,19 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async (credentialResponse: any) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -100,6 +115,9 @@ export default function Login() {
               {error}
             </div>
           )}
+          <div className="space-y-4">
+            <GoogleLoginButton onSuccess={handleGoogleLogin} />
+          </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">

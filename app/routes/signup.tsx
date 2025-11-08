@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/signup";
 import { authAPI } from "../utils/api";
+import GoogleLoginButton from "~/components/GoogleLoginButton";
+import { loginWithGoogle } from "~/utils/googleAuth";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -23,6 +25,19 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordLengthError, setPasswordLengthError] = useState("");
+
+  const handleGoogleSignup = async (credentialResponse: any) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-up failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +168,9 @@ export default function Signup() {
               {error}
             </div>
           )}
+          <div className="space-y-4">
+            <GoogleLoginButton onSuccess={handleGoogleSignup} />
+          </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
