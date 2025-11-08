@@ -31,6 +31,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        <script
+          // Expose public, non-secret config to the browser
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: `window.GOOGLE_CLIENT_ID = ${JSON.stringify(
+              process.env.GOOGLE_CLIENT_ID || ''
+            )};`,
+          }}
+        />        
       </head>
       <body suppressHydrationWarning={true}>
         {children}

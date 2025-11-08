@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface GoogleLoginButtonProps {
   onSuccess?: (response: any) => void;
@@ -18,6 +18,9 @@ declare global {
         };
       };
     };
+    ENV?: {
+      GOOGLE_CLIENT_ID: string;
+    };
   }
 }
 
@@ -30,47 +33,40 @@ export default function GoogleLoginButton({
   const buttonRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const scriptId = "google-identity-services";
-    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
-    const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-
-    // Initialize the Google button once the SDK has loaded
-    const initialize = () => {
-      if (!window.google?.accounts?.id || !clientId) return;
-      // Configure Google Identity Services
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response: any) => {
-          onSuccess?.(response);
-        },
-        ux_mode: "popup", // Display the Google login button in a popup
-        auto_select: false,
-      });
-      window.google.accounts.id.renderButton(buttonRef.current, {
-        theme,
-        size,
-        text,
-        shape: "rectangular",
-        logo_alignment: "left",
-      });
-    };
-
-    if (existingScript) {
-      initialize();
+    const clientId = (window as any).GOOGLE_CLIENT_ID;
+    console.log("Google Client ID (window):", clientId);
+    if (!clientId) {
+      console.error("Google Client ID not available on window. Ensure it's injected in root.tsx.");
       return;
     }
-    // Dynamically load the Google Identity Services script
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = initialize;
-    document.head.appendChild(script);
 
-    return () => {
-      // no-op cleanup; GIS manages its own state
-    };
+    // Initialize Google Identity Services
+    if (!window.google?.accounts?.id) {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        window.google?.accounts?.id?.initialize({
+          client_id: clientId,
+          callback: onSuccess,
+        });
+        window.google?.accounts?.id?.renderButton(buttonRef.current, {
+          theme: "outline",
+          size: "large",
+        });
+      };
+      document.head.appendChild(script);
+    } else {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: onSuccess,
+      });
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: "outline",
+        size: "large",
+      });
+    }
   }, [onSuccess, text, theme, size]);
 
   return (
