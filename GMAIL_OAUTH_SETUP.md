@@ -46,7 +46,7 @@ Add the following environment variables to your `.env` file:
 
 ```env
 # Gmail OAuth Configuration
-GOOGLE_CLIENT_ID=your_google_client_id_here
+VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
 

@@ -492,7 +492,7 @@ JWT_SECRET=your-super-secret-jwt-key-here
 SESSION_SECRET=your-super-secret-session-key-here
 
 # Gmail OAuth Configuration (Required for email monitoring)
-GOOGLE_CLIENT_ID=your_google_client_id_here
+VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
 GOOGLE_CLIENT_SECRET=your_google_client_secret_here
 GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
 
