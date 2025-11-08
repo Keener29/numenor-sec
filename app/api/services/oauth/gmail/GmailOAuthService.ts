@@ -37,14 +37,14 @@ export class GmailOAuthService extends OAuthProvider {
    * Initialize OAuth 2.0 client
    */
   private initializeOAuthClient(): void {
-    const clientId = process.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
 
     if (!clientId || !clientSecret) {
       throw ErrorFactory.oauthService(
         ErrorCodes.OAUTH_CONFIGURATION_ERROR,
-        'OAuth configuration missing. Please set VITE_GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
+        'OAuth configuration missing. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.'
       );
     }
 

@@ -111,7 +111,7 @@ router.post('/google', async (req, res, next) => {
       return res.status(400).json({ error: 'Missing Google credential' });
     }
 
-    const clientId = process.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
       return res.status(500).json({ error: 'Google client not configured' });
     }
