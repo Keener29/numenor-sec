@@ -117,7 +117,7 @@ export default function Login() {
           <div className="space-y-4">
             <GoogleLogin 
             onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
-            onError={()=>setError("Google sign-in failed")} 
+            onError={() => {setError("Google sign-in failed");}} 
             auto_select={true}
             shape="pill"
             text="signin_with"
