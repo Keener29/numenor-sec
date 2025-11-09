@@ -551,7 +551,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
 9. **DONE: Don't check forwarded emails**
 10. **Inject warning in medium + risk emails**
-11. **Sign in and sign up with google**
+11. **DONE: Sign in and sign up with google**
 12. **DONE: Free pdf download for phishing basics**
 13. **Critical/High bug**
 14. **favicon**
