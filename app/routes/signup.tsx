@@ -177,6 +177,7 @@ export default function Signup() {
                 theme="outline"
                 shape="pill"
                 auto_select={true}
+                useOneTap={true}
               />
             </div>
           </div>

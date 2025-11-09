@@ -122,6 +122,7 @@ export default function Login() {
                 auto_select={true}
                 shape="pill"
                 text="signin_with"
+                useOneTap={true}
               />
             </div>
           </div>
