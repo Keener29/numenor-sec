@@ -168,15 +168,25 @@ export default function Signup() {
               {error}
             </div>
           )}
-          <div className="space-y-4">
-            <GoogleLogin 
-              onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
-              onError={()=>setError("Google sign-up failed")} 
-              text="signup_with"
-              theme="outline"
-              shape="pill"
-              auto_select={true}
-            />
+          <div className="mb-6">
+            <div className="w-full flex justify-center">
+              <GoogleLogin 
+                onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
+                onError={()=>setError("Google sign-up failed")} 
+                text="signup_with"
+                theme="outline"
+                shape="pill"
+                auto_select={true}
+              />
+            </div>
+          </div>
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            </div>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
