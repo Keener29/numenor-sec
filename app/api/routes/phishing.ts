@@ -1,23 +1,15 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
-import { phishingDetector, type EmailAnalysis } from '../services/phishingDetector.js';
+import { phishingDetector } from '../services/detector/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
 import { securityLogger } from '../services/logger.js';
 import { z } from 'zod';
 
+
 const router = Router();
 
-// Schema for email analysis request
-const emailAnalysisSchema = z.object({
-  subject: z.string().min(1, 'Subject is required'),
-  body: z.string().min(1, 'Email body is required'),
-  sender: z.string().email('Valid sender email is required'),
-  recipient: z.string().email('Valid recipient email is required'),
-  attachments: z.array(z.string()).optional(),
-  links: z.array(z.string()).optional()
-});
 
 // Schema for manual scan request
 const manualScanSchema = z.object({
@@ -25,62 +17,6 @@ const manualScanSchema = z.object({
   businessId: z.number().int().positive('Valid business ID is required').optional()
 });
 
-/**
- * @route POST /api/phishing/analyze
- * @desc Analyze email content for phishing threats
- * @access Private (Business users only)
- */
-router.post('/analyze', authenticateToken, requireBusiness, validateBody(emailAnalysisSchema), async (req: AuthRequest, res, next) => {
-  try {
-    const businessId = req.user!.business_id!;
-    const emailData: EmailAnalysis = req.body;
-
-    securityLogger.info('Analyzing email for phishing threats', {
-      operation: 'analyze-email',
-      businessId,
-      metadata: {
-        sender: emailData.sender,
-        recipient: emailData.recipient,
-        subject: emailData.subject
-      }
-    });
-
-    // Analyze email for phishing threats
-    const threatAssessment = await phishingDetector.analyzeEmail(emailData);
-
-    // Store assessment if threat level is medium or higher
-    if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
-      // Find the monitored email ID for this recipient
-      const emailResult = await query(
-        'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2',
-        [emailData.recipient, businessId]
-      );
-
-      if (emailResult.rows.length > 0) {
-        const emailId = (emailResult.rows[0] as { id: number }).id;
-        
-        // Only store actual threats (medium, high, critical) - ignore low and safe
-        if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
-          await phishingDetector.storeThreatAssessment(
-            businessId,
-            emailId,
-            threatAssessment,
-            emailData
-          );
-        }
-      }
-    }
-
-    res.json({
-      success: true,
-      threatAssessment,
-      message: `Email analyzed successfully. Threat level: ${threatAssessment.threatLevel}`
-    });
-
-  } catch (error) {
-    next(error);
-  }
-});
 
 /**
  * @route POST /api/phishing/scan

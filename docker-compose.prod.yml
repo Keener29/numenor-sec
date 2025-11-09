@@ -69,6 +69,12 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
+
+      # Email Monitoring Configuration
+      PROCESSED_EMAIL_RETENTION_HOURS: ${PROCESSED_EMAIL_RETENTION_HOURS}
+      # WHOIS API Configuration (from .env file)
+      WHOIS_JSON_API_KEY: ${WHOIS_JSON_API_KEY}
+      WHOIS_XML_API_KEY: ${WHOIS_XML_API_KEY}
     ports:
       - "3000:3000"
     volumes:

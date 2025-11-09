@@ -1,8 +1,9 @@
 import { query } from '../../db/connection.js';
-import { phishingDetector, type EmailAnalysis } from './phishingDetector.js';
+import { phishingDetector, type EmailAnalysis } from './detector/phishingDetector.js';
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
+import { isFromOwnService } from '../utils/emailUtils.js';
 
 interface MonitoredEmail {
   id: number;
@@ -22,13 +23,17 @@ interface EmailMessage {
   attachments?: string[];
   links?: string[];
   headers?: Record<string, string>;
+  labels?: string[];
 }
 
 class EmailMonitor {
   private monitoringInterval: NodeJS.Timeout | null = null;
   private isMonitoring = false;
-  private readonly SCAN_INTERVAL = 30000; // 30 seconds
+  private readonly MIN_POLL_MS = 60000; // 60s
+  private readonly MAX_POLL_MS = 120000; // 120s
   private readonly BATCH_SIZE = 10;
+  private readonly PURGE_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 hours
+  private purgeInterval: NodeJS.Timeout | null = null;
 
   /**
    * Start monitoring all connected email addresses
@@ -49,16 +54,37 @@ class EmailMonitor {
     // Initial scan
     await this.performEmailScan();
 
-    // Set up interval for continuous monitoring
-    this.monitoringInterval = setInterval(async () => {
+    // Jittered timeout loop instead of fixed interval
+    const scheduleNext = () => {
+      const delay = this.randomBetween(this.MIN_POLL_MS, this.MAX_POLL_MS);
+      this.monitoringInterval = setTimeout(async () => {
+        try {
+          await this.performEmailScan();
+        } catch (error) {
+          monitoringLogger.error('Error during email monitoring', {
+            operation: 'monitoring-timeout'
+          }, error instanceof Error ? error : new Error(String(error)));
+        } finally {
+          if (this.isMonitoring) scheduleNext();
+        }
+      }, delay) as unknown as NodeJS.Timeout;
+    };
+
+    scheduleNext();
+
+    // Schedule periodic purge of processed_emails (twice a day)
+    try {
+      await this.purgeProcessedEmails(); // run once at startup
+    } catch (e) {
+      monitoringLogger.error('Initial purge of processed_emails failed', { operation: 'purge-initial' }, e as Error);
+    }
+    this.purgeInterval = setInterval(async () => {
       try {
-        await this.performEmailScan();
+        await this.purgeProcessedEmails();
       } catch (error) {
-        monitoringLogger.error('Error during email monitoring', {
-          operation: 'monitoring-interval'
-        }, error instanceof Error ? error : new Error(String(error)));
+        monitoringLogger.error('Error during processed_emails purge', { operation: 'purge-interval' }, error as Error);
       }
-    }, this.SCAN_INTERVAL);
+    }, this.PURGE_INTERVAL_MS);
 
     monitoringLogger.info('Email monitoring service started successfully', {
       operation: 'start-monitoring'
@@ -70,8 +96,12 @@ class EmailMonitor {
    */
   stopMonitoring(): void {
     if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
+      clearTimeout(this.monitoringInterval as unknown as NodeJS.Timeout);
       this.monitoringInterval = null;
+    }
+    if (this.purgeInterval) {
+      clearInterval(this.purgeInterval);
+      this.purgeInterval = null;
     }
     this.isMonitoring = false;
     monitoringLogger.info('Email monitoring service stopped', {
@@ -156,8 +186,7 @@ class EmailMonitor {
         emailAddress: email.emailAddress
       });
 
-      // Simulate email fetching (in a real implementation, this would connect to IMAP/POP3)
-      const newEmails = await this.fetchNewEmails(email);
+      const { emails: newEmails, nextHistoryId } = await this.fetchNewEmails(email);
 
       if (newEmails.length === 0) {
         monitoringLogger.debug('No new emails found', {
@@ -175,13 +204,19 @@ class EmailMonitor {
         }
       });
 
-      // Process each new email
+      // Process each new email with deduplication
       for (const emailMessage of newEmails) {
+        const seen = await this.isMessageProcessed(email.businessId, email.emailAddress, emailMessage.id);
+        if (seen) continue;
         await this.processEmailMessage(email, emailMessage);
+        await this.markMessageProcessed(email.businessId, email.emailAddress, emailMessage.id);
       }
 
-      // Update last checked timestamp
+      // Update last checked timestamp and persist next history anchor
       await this.updateLastChecked(email.id);
+      if (nextHistoryId) {
+        await this.setLastHistoryId(email.businessId, email.emailAddress, nextHistoryId);
+      }
 
     } catch (error) {
       monitoringLogger.error('Error scanning email address', {
@@ -195,7 +230,7 @@ class EmailMonitor {
   /**
    * Fetch new emails for a monitored address using Gmail API
    */
-  private async fetchNewEmails(email: MonitoredEmail): Promise<EmailMessage[]> {
+  private async fetchNewEmails(email: MonitoredEmail): Promise<{ emails: EmailMessage[]; nextHistoryId?: string }> {
     try {
       // Check if OAuth tokens exist for this email and get connection timestamp
       const tokenResult = await query(
@@ -208,65 +243,91 @@ class EmailMonitor {
           operation: 'fetch-new-emails',
           emailAddress: email.emailAddress
         });
-        return [];
+        return { emails: [] };
       }
 
       // Get the OAuth connection timestamp to only fetch emails after connection
       const connectionTimestamp = (tokenResult.rows[0] as { created_at: Date }).created_at;
 
-      monitoringLogger.debug('Fetching emails after OAuth connection time', {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress,
-        metadata: {
-          connectionTimestamp: connectionTimestamp.toISOString()
-        }
-      });
-
-      // Fetch emails from Gmail API (only emails after connection time)
-      const gmailMessages = await gmailOAuthService.fetchEmails(
-        email.businessId,
-        email.emailAddress,
-        10, // max 10 emails per scan
-        'is:unread', // only unread emails
-        connectionTimestamp // only emails after OAuth connection
-      );
-
-      if (gmailMessages.length === 0) {
-        monitoringLogger.debug('No new emails found', {
-          operation: 'fetch-new-emails',
-          emailAddress: email.emailAddress
-        });
-        return [];
-      }
-
-      monitoringLogger.info('Found new Gmail messages', {
-        operation: 'fetch-new-emails',
-        emailAddress: email.emailAddress,
-        metadata: {
-          messageCount: gmailMessages.length
-        }
-      });
-
-      // gmailMessages are already parsed EmailMessage objects from fetchEmails()
-      const emails: EmailMessage[] = gmailMessages;
+      // Use the most recent timestamp: either last check or OAuth connection
+      // This creates a time window to avoid reprocessing the same emails
+      let timestampToUse = connectionTimestamp;
       
-      // Mark emails as read in Gmail
-      for (const emailMessage of emails) {
-        try {
-          await gmailOAuthService.markAsRead(email.businessId, email.emailAddress, emailMessage.id);
-        } catch (markError) {
-          monitoringLogger.error('Error marking email as read', {
-            operation: 'mark-email-read',
-            emailAddress: email.emailAddress,
-            metadata: {
-              messageId: emailMessage.id
-            }
-          }, markError as Error);
-          // Continue processing other emails even if marking fails
+      if (email.lastChecked) {
+        // Use the more recent timestamp to avoid reprocessing emails from previous scans
+        timestampToUse = email.lastChecked > connectionTimestamp ? email.lastChecked : connectionTimestamp;
+        
+        monitoringLogger.debug('Fetching emails after last check time', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            lastChecked: email.lastChecked.toISOString(),
+            connectionTimestamp: connectionTimestamp.toISOString(),
+            timestampToUse: timestampToUse.toISOString()
+          }
+        });
+      } else {
+        monitoringLogger.debug('Fetching emails after OAuth connection time (first scan)', {
+          operation: 'fetch-new-emails',
+          emailAddress: email.emailAddress,
+          metadata: {
+            connectionTimestamp: connectionTimestamp.toISOString()
+          }
+        });
+      }
+
+      // Fetch emails from Gmail API (only emails after the timestamp window)
+      // Note: Gmail's after: filter only works with dates, not times, so we need to filter by timestamp client-side
+      // Try history-based delta first using stored offset
+      const existingOffset = await this.getLastHistoryId(email.businessId, email.emailAddress);
+      try {
+        if (existingOffset) {
+          const { messageIds, latestHistoryId } = await gmailOAuthService.listHistorySince(
+            email.businessId,
+            email.emailAddress,
+            existingOffset
+          );
+
+          if (messageIds.length === 0) {
+            return { emails: [], nextHistoryId: latestHistoryId };
+          }
+
+          const messages = await gmailOAuthService.getMessagesByIds(
+            email.businessId,
+            email.emailAddress,
+            messageIds
+          );
+
+          // Apply client-side safety filters
+          const filtered = messages.filter(emailMessage => {
+            const emailTimestamp = emailMessage.timestamp.getTime();
+            const cutoffTimestamp = timestampToUse.getTime();
+            const labels = emailMessage.labels || [];
+            if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
+            if (emailMessage.sender === email.emailAddress) return false;
+            return emailTimestamp > cutoffTimestamp;
+          });
+
+          monitoringLogger.debug(`History delta: ${messageIds.length} ids, ${filtered.length} after filters`, {
+            operation: 'fetch-new-emails',
+            emailAddress: email.emailAddress
+          });
+
+          return { emails: filtered, nextHistoryId: latestHistoryId };
+        }
+      } catch (historyError) {
+        if ((historyError as any)?.causeCode === 'HISTORY_TOO_OLD') {
+          monitoringLogger.warn('History anchor too old, performing bounded resync', {
+            operation: 'fetch-new-emails',
+            emailAddress: email.emailAddress
+          });
+        } else {
+          throw historyError;
         }
       }
 
-      return emails;
+      // Initial sync or bounded resync fallback
+      return await this.fetchFallbackEmails(email, timestampToUse);
 
     } catch (error) {
       monitoringLogger.error('Error fetching emails from Gmail', {
@@ -274,12 +335,12 @@ class EmailMonitor {
         emailAddress: email.emailAddress
       }, error instanceof Error ? error : new Error(String(error)));
       
-      // If OAuth fails, return empty array (no fallback to simulated emails)
+      // If OAuth fails, return empty results
       monitoringLogger.warn('OAuth failed, returning empty results', {
         operation: 'fetch-new-emails',
         emailAddress: email.emailAddress
       });
-      return [];
+      return { emails: [] };
     }
   }
 
@@ -301,6 +362,19 @@ class EmailMonitor {
         }
       });
 
+      // Skip analysis for emails from our own service (localhost, 127.0.0.1, etc.)
+      if (isFromOwnService(emailMessage.sender)) {
+        monitoringLogger.debug('Skipping analysis for email from own service', {
+          operation: 'process-email-message',
+          emailAddress: monitoredEmail.emailAddress,
+          sender: emailMessage.sender,
+          metadata: {
+            subject: emailMessage.subject
+          }
+        });
+        return;
+      }
+
       // Prepare email data for analysis
       const emailData: EmailAnalysis = {
         subject: emailMessage.subject,
@@ -308,15 +382,17 @@ class EmailMonitor {
         sender: emailMessage.sender,
         recipient: emailMessage.recipient,
         attachments: emailMessage.attachments,
-        links: emailMessage.links
+        links: emailMessage.links,
+        headers: emailMessage.headers
       };
 
       // Analyze email for phishing threats
-      const threatAssessment = await phishingDetector.analyzeEmail(emailData);
+      const threatAssessment = await phishingDetector.analyzeEmail(emailData, monitoredEmail.businessId);
 
       monitoringLogger.info('Threat assessment completed', {
         operation: 'process-email-message',
         emailAddress: monitoredEmail.emailAddress,
+        sender: emailMessage.sender,
         metadata: {
           threatLevel: threatAssessment.threatLevel,
           confidence: threatAssessment.confidence,
@@ -325,7 +401,7 @@ class EmailMonitor {
       });
 
       // Store threat assessment if threat level is medium or higher
-      if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+      if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
         await phishingDetector.storeThreatAssessment(
           monitoredEmail.businessId,
           monitoredEmail.id,
@@ -333,10 +409,30 @@ class EmailMonitor {
           emailData
         );
 
-        // Send alert notification for high/critical threats
-        if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
-          await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
+        // Mark email as read in Gmail - only for detected phishing threats
+        try {
+          await gmailOAuthService.markAsRead(monitoredEmail.businessId, monitoredEmail.emailAddress, emailMessage.id);
+          monitoringLogger.debug('Email marked as read after phishing detection', {
+            operation: 'mark-phishing-email-read',
+            emailAddress: monitoredEmail.emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              threatLevel: threatAssessment.threatLevel
+            }
+          });
+        } catch (markError) {
+          monitoringLogger.error('Error marking phishing email as read', {
+            operation: 'mark-phishing-email-read',
+            emailAddress: monitoredEmail.emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              threatLevel: threatAssessment.threatLevel
+            }
+          }, markError as Error);
+          // Continue processing even if marking fails
         }
+
+        await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
 
         // Log security event
         await this.logSecurityEvent(
@@ -351,6 +447,17 @@ class EmailMonitor {
             patterns: threatAssessment.detectedPatterns
           }
         );
+      } else {
+        // For safe/low threat emails, log that they were not marked as read
+        monitoringLogger.debug('Email not marked as read - no phishing threat detected', {
+          operation: 'process-email-message',
+          emailAddress: monitoredEmail.emailAddress,
+          metadata: {
+            messageId: emailMessage.id,
+            threatLevel: threatAssessment.threatLevel,
+            subject: emailMessage.subject
+          }
+        });
       }
 
     } catch (error) {
@@ -360,6 +467,110 @@ class EmailMonitor {
       }, error instanceof Error ? error : new Error(String(error)));
       throw error;
     }
+  }
+
+  /**
+   * Fallback fetch using timestamp-based Gmail query
+   * Used for initial syncs and when history anchor is too old
+   */
+  private async fetchFallbackEmails(
+    email: MonitoredEmail,
+    timestampToUse: Date
+  ): Promise<{ emails: EmailMessage[]; nextHistoryId: string }> {
+    const gmailMessages = await gmailOAuthService.fetchEmails(
+      email.businessId,
+      email.emailAddress,
+      50,
+      '',
+      timestampToUse
+    );
+
+    const filteredEmails = gmailMessages.filter(emailMessage => {
+      const emailTimestamp = emailMessage.timestamp.getTime();
+      const cutoffTimestamp = timestampToUse.getTime();
+      const labels = emailMessage.labels || [];
+      if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
+      if (emailMessage.sender === (email.emailAddress)) return false;
+      return emailTimestamp > cutoffTimestamp;
+    });
+
+    monitoringLogger.debug(
+      `Fallback fetch: ${gmailMessages.length} fetched, ${filteredEmails.length} after ${timestampToUse.toISOString()}`,
+      {
+        operation: 'fetch-new-emails',
+        emailAddress: email.emailAddress
+      }
+    );
+
+    const currentHistoryId = await gmailOAuthService.getCurrentHistoryId(
+      email.businessId,
+      email.emailAddress
+    );
+    return { emails: filteredEmails, nextHistoryId: currentHistoryId };
+  }
+
+  private async getLastHistoryId(businessId: number, emailAddress: string): Promise<string | null> {
+    const res = await query(
+      'SELECT last_history_id FROM email_offsets WHERE business_id = $1 AND email_address = $2 AND provider = $3',
+      [businessId, emailAddress, 'gmail']
+    );
+    if (res.rows.length === 0) return null;
+    const row = res.rows[0] as { last_history_id: string | null };
+    return row.last_history_id || null;
+  }
+
+  private async setLastHistoryId(businessId: number, emailAddress: string, historyId: string): Promise<void> {
+    await query(
+      `INSERT INTO email_offsets (business_id, email_address, provider, last_history_id, last_synced_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (business_id, email_address, provider)
+       DO UPDATE SET last_history_id = EXCLUDED.last_history_id, last_synced_at = CURRENT_TIMESTAMP`,
+      [businessId, emailAddress, 'gmail', historyId]
+    );
+  }
+
+  private async isMessageProcessed(businessId: number, emailAddress: string, messageId: string): Promise<boolean> {
+    const res = await query(
+      'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND message_id = $3',
+      [businessId, emailAddress, messageId]
+    );
+    return res.rows.length > 0;
+  }
+
+  private async markMessageProcessed(businessId: number, emailAddress: string, messageId: string): Promise<void> {
+    await query(
+      `INSERT INTO processed_emails (business_id, email_address, message_id)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (business_id, email_address, message_id) DO NOTHING`,
+      [businessId, emailAddress, messageId]
+    );
+  }
+
+  private randomBetween(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  private getProcessedRetentionHours(): number {
+    const raw = process.env.PROCESSED_EMAIL_RETENTION_HOURS;
+    const parsed = raw ? parseInt(raw, 10) : NaN;
+    if (Number.isFinite(parsed) && parsed >= 24 && parsed <= 48) {
+      return parsed;
+    }
+    return 48; // default to 2 days
+  }
+
+  private async purgeProcessedEmails(): Promise<void> {
+    const hours = this.getProcessedRetentionHours();
+    const intervalLiteral = `${hours} hours`;
+    await query(
+      `DELETE FROM processed_emails
+       WHERE processed_at < NOW() - ($1)::interval`,
+      [intervalLiteral]
+    );
+    monitoringLogger.debug('Purged old processed_emails rows', {
+      operation: 'purge-processed-emails',
+      metadata: { retentionHours: hours }
+    });
   }
 
   /**
@@ -523,7 +734,7 @@ class EmailMonitor {
   getMonitoringStatus(): { isMonitoring: boolean; interval: number } {
     return {
       isMonitoring: this.isMonitoring,
-      interval: this.SCAN_INTERVAL
+      interval: this.MAX_POLL_MS
     };
   }
 

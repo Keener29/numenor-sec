@@ -9,6 +9,7 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
+import { googleLogout } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -66,6 +67,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get user data from server-side loader
   const user = loaderData?.user;
@@ -120,9 +122,23 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const handleMarkSafe = async (alertId: number) => {
     try {
       await alertsAPI.updateAlert(alertId, { status: "safe" });
-      // Reload alerts to get updated data
-      const alertsResponse = await alertsAPI.getAlerts({ limit: 10 });
+      // Reload alerts and stats to get updated data
+      const [alertsResponse, alertStats] = await Promise.all([
+        alertsAPI.getAlerts({ limit: 10 }),
+        alertsAPI.getAlertStats()
+      ]);
       setAlerts(alertsResponse.alerts || []);
+      setStats((prev: any) => ({
+        ...prev,
+        ...(alertStats?.stats || {})
+      }));
+      // Update chart with latest daily alerts
+      const dailyAlerts = alertStats?.stats?.dailyAlerts || [];
+      setChartData(processChartData(dailyAlerts));
+      // Notify other dashboard components to refresh (e.g., PhishingDetectionDashboard)
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
+      }
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
     }
@@ -136,6 +152,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   const handleLogout = async () => {
     try {
+      googleLogout();
       await authAPI.logout();
       // Use full page reload to trigger server-side authentication check
       window.location.href = "/login";
@@ -154,7 +171,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
+              <Link to="/">
                 <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
+              </Link>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -196,7 +215,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <ConnectedEmailsDropdown 
             emails={emails} 
             onEmailsUpdate={handleEmailsUpdate}
-            businessName={stats.businessName || "Your Business"}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
             oauthStatuses={oauthStatuses}
           />
 
@@ -263,7 +283,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Phishing Detection Dashboard */}
         <div className="mt-8">
-          <PhishingDetectionDashboard />
+          <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
         </div>
       </div>
     </div>

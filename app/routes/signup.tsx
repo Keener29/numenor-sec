@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/signup";
 import { authAPI } from "../utils/api";
+import { loginWithGoogle } from "~/utils/googleAuth";
+import { GoogleLogin } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -23,6 +25,19 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordLengthError, setPasswordLengthError] = useState("");
+
+  const handleGoogleSignup = async (credentialResponse: any) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-up failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +168,27 @@ export default function Signup() {
               {error}
             </div>
           )}
+          <div className="mb-6">
+            <div className="w-full flex justify-center">
+              <GoogleLogin 
+                onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
+                onError={()=>setError("Google sign-up failed")} 
+                text="signup_with"
+                theme="outline"
+                shape="pill"
+                auto_select={true}
+                useOneTap={true}
+              />
+            </div>
+          </div>
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            </div>
+          </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">

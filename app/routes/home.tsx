@@ -79,6 +79,15 @@ export default function Home() {
                   <div className="text-6xl mb-4">🛡️</div>
                     <h2 className="text-2xl font-bold">Email Security Dashboard</h2>
                     <p className="mt-2">Monitor and protect your business communications</p>
+                    <div className="mt-3 sm:mt-0 sm:ml-3">
+                    <a
+                       href="/phishing-guide.pdf"
+                      download
+                      className="inline-flex items-center justify-center px-8 py-4 border border-gray-300 text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 md:py-6 md:text-2xl md:px-20 mt-6"
+                    >
+                      Download Free Phishing Guide
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -158,7 +167,7 @@ export default function Home() {
         <div className="max-w-2xl mx-auto text-center py-16 px-4 sm:py-20 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
             <span className="block">Ready to protect your business?</span>
-            <span className="block">Start your free trial today.</span>
+            <span className="block">Start for free today.</span>
           </h2>
           <p className="mt-4 text-lg leading-6 text-blue-200">
             Built and backed by cybersecurity best practices.

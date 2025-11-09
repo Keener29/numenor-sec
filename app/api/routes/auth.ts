@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
-import { registerSchema, loginSchema, changePasswordSchema } from '../schemas/user.js';
-import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword } from '../utils/auth.js';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema } from '../schemas/user.js';
+import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
+import crypto from 'crypto';
+import { emailService } from '../services/emailService.js';
+import { OAuth2Client } from 'google-auth-library';
 
 const router = Router();
 
@@ -60,21 +63,22 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
 // Login user
 router.post('/login', validateBody(loginSchema), async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body as { email: string; password: string; rememberMe?: boolean };
 
     const user = await verifyUserPassword(email, password);
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = generateToken(user);
+    const tokenExpiry = rememberMe ? '30d' : '1d';
+    const token = generateToken(user, tokenExpiry);
 
     // Set HTTP-only cookie for server-side authentication
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000 // 1 day
+      maxAge: (rememberMe ? 30 : 1) * 24 * 60 * 60 * 1000
     });
 
     res.json({
@@ -89,6 +93,219 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
       },
       token
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Google Identity Services login/signup
+ * @route POST /api/auth/google
+ * Body: { credential: string }
+ * Verifies Google ID token, creates user+business if needed, sets auth cookie and returns user.
+ */
+router.post('/google', async (req, res, next) => {
+  try {
+    const { credential } = req.body as { credential?: string };
+    if (!credential) {
+      return res.status(400).json({ error: 'Missing Google credential' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ error: 'Google client not configured' });
+    }
+
+    const client = new OAuth2Client(clientId);
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: clientId
+    });
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res.status(401).json({ error: 'Invalid Google credential' });
+    }
+
+    const email = payload.email;
+    const firstName = (payload.given_name || '').trim() || 'User';
+    const lastName = (payload.family_name || '').trim() || '';
+    const defaultBusiness = (payload.name || email.split('@')[0] || 'My Business').trim();
+
+    // Ensure user exists; create if not
+    let user = await getUserByEmail(email);
+    let businessId: number | undefined = user?.business_id;
+
+    if (!user) {
+      // Ensure unique business name
+      let businessNameCandidate = defaultBusiness;
+      let suffix = 1;
+      // Check for existing business name
+      // Note: keep this simple; collisions are unlikely
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
+        if (existing.rows.length === 0) break;
+        suffix += 1;
+        businessNameCandidate = `${defaultBusiness} ${suffix}`;
+      }
+
+      // Create user with a random password (unused for Google login)
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      user = await createUser(email, randomPassword, firstName, lastName, businessNameCandidate);
+
+      // Create a business owned by this new user
+      const businessResult = await query(
+        `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
+        [businessNameCandidate, user.id]
+      );
+      businessId = (businessResult.rows[0] as { id: number }).id;
+    } else {
+      // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+      if (!businessId) {
+        const ownerBusiness = await query('SELECT id FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+        if (ownerBusiness.rows.length > 0) {
+          businessId = (ownerBusiness.rows[0] as { id: number }).id;
+        } else {
+          // User exists but has no business - create one for them
+          // This handles edge case where user was created without a business
+          let businessNameCandidate = user.business_name || defaultBusiness;
+          let suffix = 1;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
+            if (existing.rows.length === 0) break;
+            suffix += 1;
+            businessNameCandidate = `${user.business_name || defaultBusiness} ${suffix}`;
+          }
+          
+          const businessResult = await query(
+            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
+            [businessNameCandidate, user.id]
+          );
+          businessId = (businessResult.rows[0] as { id: number }).id;
+        }
+      }
+    }
+
+    // Generate token and set cookie
+    const token = generateToken({ ...user!, business_id: businessId });
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    return res.json({
+      message: 'Google login successful',
+      user: {
+        id: user!.id,
+        email: user!.email,
+        firstName: user!.first_name,
+        lastName: user!.last_name,
+        businessName: user!.business_name,
+        businessId: businessId
+      },
+      token
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Forgot password (initiate reset)
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body as { email?: string };
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Do not reveal whether user exists
+    const lookup = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const userIdRow = (lookup.rows[0] as { id: number } | undefined);
+    const user = userIdRow ? await getUserById(userIdRow.id) : null;
+
+    if (user) {
+      // Generate opaque single-use token (stored as hash) valid for 1 hour
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+        [user.id, tokenHash, expiresAt]
+      );
+
+      const appUrl = process.env.APP_URL || 'http://localhost:3000';
+      const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
+
+      // Send reset email (do not reveal success to the client)
+      await emailService.sendPasswordReset(email, resetLink);
+    }
+
+    // Always return success
+    return res.json({ message: 'If that account exists, a reset link has been sent.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Reset password
+router.post('/reset-password', validateBody(resetPasswordSchema), async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body as { token: string; newPassword: string };
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Lookup token
+    const tokenRes = await query(
+      `SELECT prt.user_id, prt.expires_at, prt.used_at
+       FROM password_reset_tokens prt
+       WHERE prt.token_hash = $1
+       ORDER BY prt.created_at DESC
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const tokenRow = tokenRes.rows[0] as { user_id: number; expires_at: Date; used_at: Date | null };
+    if (tokenRow.used_at) {
+      return res.status(400).json({ error: 'This reset link has already been used' });
+    }
+    if (new Date(tokenRow.expires_at).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Reset link has expired' });
+    }
+
+    const userId = tokenRow.user_id;
+
+    // Ensure new password is not the same as the current password
+    const currentHashResult = await query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+    if (currentHashResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const currentHash = (currentHashResult.rows[0] as { password_hash: string }).password_hash;
+    const isSameAsOld = await comparePassword(newPassword, currentHash);
+    if (isSameAsOld) {
+      return res.status(400).json({ error: 'New password must be different from your previous password' });
+    }
+
+    const hashedNewPassword = await hashPassword(newPassword);
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedNewPassword, userId]);
+
+    // Mark token as used (single-use)
+    await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1 AND used_at IS NULL', [tokenHash]);
+
+    // Optionally log event
+    await query(
+      `INSERT INTO security_events (business_id, event_type, description)
+       VALUES ($1, 'password_reset', 'User reset password')`,
+      [null]
+    ).catch(() => {}); // non-fatal
+
+    return res.json({ message: 'Password has been reset successfully' });
   } catch (error) {
     next(error);
   }

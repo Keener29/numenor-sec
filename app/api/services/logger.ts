@@ -144,6 +144,7 @@ class Logger {
     if (context.userId) parts.push(`user:${context.userId}`);
     if (context.businessId) parts.push(`business:${context.businessId}`);
     if (context.emailAddress) parts.push(`email:${context.emailAddress}`);
+    if (context.sender) parts.push(`sender:${context.sender}`);
     
     return parts.join(' ');
   }

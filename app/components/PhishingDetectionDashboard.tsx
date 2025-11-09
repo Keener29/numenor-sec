@@ -46,7 +46,7 @@ interface MonitoringStatus {
   interval: number;
 }
 
-export default function PhishingDetectionDashboard() {
+export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsModalOpen: (isModalOpen: boolean) => void }) {
   const [statistics, setStatistics] = useState<ThreatStatistics | null>(null);
   const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,6 +55,18 @@ export default function PhishingDetectionDashboard() {
 
   useEffect(() => {
     loadDashboardData();
+    // Listen for external updates (e.g., when an alert is marked safe)
+    const onStatsUpdated = () => {
+      loadDashboardData();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('phishing:statsUpdated', onStatsUpdated);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('phishing:statsUpdated', onStatsUpdated);
+      }
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -64,14 +76,10 @@ export default function PhishingDetectionDashboard() {
 
       const [statsResponse, statusResponse] = await Promise.all([
         fetch('http://localhost:3001/api/phishing/statistics', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
+          credentials: 'include'
         }),
         fetch('http://localhost:3001/api/phishing/monitoring/status', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-          }
+          credentials: 'include'
         })
       ]);
 
@@ -120,9 +128,7 @@ export default function PhishingDetectionDashboard() {
     try {
       const response = await fetch('http://localhost:3001/api/phishing/monitoring/start', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -137,9 +143,7 @@ export default function PhishingDetectionDashboard() {
     try {
       const response = await fetch('http://localhost:3001/api/phishing/monitoring/stop', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-        }
+        credentials: 'include'
       });
 
       if (response.ok) {
@@ -405,6 +409,7 @@ export default function PhishingDetectionDashboard() {
                     <button
                       onClick={() => {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setIsModalOpen(true);
                       }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 cursor-pointer"
                     >

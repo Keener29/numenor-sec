@@ -54,6 +54,28 @@ GOOGLE_REDIRECT_URI=http://localhost:3001/api/oauth/gmail/callback
 FRONTEND_URL=http://localhost:3000
 ```
 
+### 2.1 Email + Password Reset Configuration
+Add these if you plan to send password reset emails from the platform:
+
+```env
+# SMTP (Email) Configuration
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=your_smtp_user
+SMTP_PASS=your_smtp_pass
+# Optional but recommended
+SMTP_FROM=no-reply@yourdomain.com
+
+# App/Brand Metadata
+APP_URL=http://localhost:3000
+APP_NAME=Numenor Security
+SUPPORT_EMAIL=support@yourdomain.com
+```
+
+Notes:
+- APP_URL is used to build reset links (e.g., APP_URL/reset-password?token=...).
+- If SMTP_* is not configured, password reset emails cannot be sent.
+
 ## Step 3: OAuth Scopes
 
 The application requests the following Gmail API scopes:
@@ -128,6 +150,27 @@ CREATE TABLE oauth_tokens (
 );
 ```
 
+### 6.1 Password Reset Tokens (Single‑Use)
+For secure password resets, the platform stores single‑use, time‑limited tokens:
+
+```sql
+CREATE TABLE password_reset_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_token_hash ON password_reset_tokens(token_hash);
+```
+
+Flow:
+- POST /api/auth/forgot-password: generates a random token, stores its SHA‑256 hash with 1h expiry, and emails the reset link to the user.
+- POST /api/auth/reset-password: validates the token (exists, not expired, not used), enforces new password ≠ current, updates the password, and marks the token used (single‑use).
+
 ## Step 7: Security Considerations
 
 ### 7.1 Token Security
@@ -143,6 +186,13 @@ CREATE TABLE oauth_tokens (
 - Access tokens expire after 1 hour
 - System automatically refreshes tokens using refresh token
 - Refresh tokens are long-lived and don't expire unless revoked
+
+### 7.4 Password Reset Security
+- Single‑use reset tokens stored as SHA‑256 hashes (raw token never persisted).
+- Tokens expire after 1 hour and are invalidated on first successful use.
+- Forgot password endpoint returns a generic response to prevent user enumeration.
+- Reset email sent via SMTP (TLS) with clear security guidance and no sensitive data.
+- New password must be ≥ 8 chars and cannot match the current password.
 
 ## Step 8: Error Handling
 

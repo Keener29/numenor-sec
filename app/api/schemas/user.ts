@@ -24,7 +24,13 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters')
 });
 
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters')
+});
+
 export type RegisterData = z.infer<typeof registerSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 export type UpdateUserData = z.infer<typeof updateUserSchema>;
 export type ChangePasswordData = z.infer<typeof changePasswordSchema>;
+export type ResetPasswordData = z.infer<typeof resetPasswordSchema>;

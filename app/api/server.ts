@@ -30,7 +30,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://numenorsecurity.com']
-    : ['http://localhost:5173', 'http://localhost:3000'], // React Router dev server
+    : ['http://localhost:3000'], // React Router dev server
   credentials: true
 }));
 
@@ -43,15 +43,6 @@ app.use(cookieParser());
 
 // Request logging middleware
 app.use((req, res, next) => {
-  logger.info('HTTP Request', {
-    operation: 'http-request',
-    metadata: {
-      method: req.method,
-      path: req.path,
-      userAgent: req.get('User-Agent'),
-      ip: req.ip
-    }
-  });
   next();
 });
 
@@ -106,7 +97,6 @@ app.get('/api', (req, res) => {
         'GET /api/alerts/stats': 'Get alert statistics'
       },
       phishing: {
-        'POST /api/phishing/analyze': 'Analyze email content for phishing threats',
         'POST /api/phishing/scan': 'Manually trigger email scan',
         'GET /api/phishing/statistics': 'Get phishing threat statistics',
         'GET /api/phishing/patterns': 'Get detected phishing patterns',

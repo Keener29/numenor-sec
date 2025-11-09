@@ -20,7 +20,8 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **User Management**: Registration, login, profile management
 - **Business Management**: Business information and statistics
 - **Email Monitoring**: Add, remove, and manage monitored email addresses with smart UI controls
-- **Phishing Alerts**: Create, update, and track phishing threats
+- **Intelligent Phishing Detection**: Advanced text analysis with subject/body distinction and false positive reduction
+- **Phishing Alerts**: Create, update, and track phishing threats with improved accuracy
 - **Security Logging**: Comprehensive audit trail of all activities
 - **Data Validation**: Input validation with Zod schemas
 - **Error Handling**: Centralized error handling and logging
@@ -129,7 +130,7 @@ That's it! The application will be running with:
 
 5. **Open your browser:**
 
-   - **Frontend**: Navigate to [http://localhost:5173](http://localhost:5173)
+   - **Frontend**: Navigate to [http://localhost:3000](http://localhost:3000)
    - **Backend API**: [http://localhost:3001](http://localhost:3001)
    - **API Documentation**: [http://localhost:3001/api](http://localhost:3001/api)
    - **Health Check**: [http://localhost:3001/health](http://localhost:3001/health)
@@ -244,6 +245,18 @@ That's it! The application will be running with:
 - `DELETE /:id` - Remove email from monitoring
 - `GET /stats` - Get email monitoring statistics
 
+#### Email Monitoring Architecture (Gmail)
+
+This project uses Gmail history-based delta polling to efficiently detect new messages without missing events:
+
+- **History delta polling**: Each mailbox maintains a persisted `last_history_id` anchor and queries Gmail `history.list` for changes since that anchor. New INBOX message IDs are fetched and analyzed.
+- **Jittered schedule**: Global monitoring loop runs on a randomized interval between 60–120 seconds to reduce API spikes and contention.
+- **Fallback and re-anchoring**: If Gmail reports the history anchor is too old, the system performs a bounded timestamp-based resync and then resets the anchor to the current `historyId`.
+- **Deduplication**: Processed message IDs are stored for short-term exactly-once semantics, preventing reprocessing during retries or re-anchoring.
+- **Persistence**: Offsets are stored per mailbox in `email_offsets`; processed message IDs are stored in `processed_emails`.
+
+This approach significantly reduces API usage compared to fixed-interval full scans while maintaining strong reliability for SMB inboxes.
+
 ### OAuth Integration (`/api/oauth`)
 - `GET /gmail/auth-url` - Generate Gmail OAuth authorization URL
 - `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
@@ -311,6 +324,16 @@ The PostgreSQL database includes:
   - **Purpose**: Tracks the health and performance of email monitoring operations
   - **Contains**: Scan timestamps, success/failure status, processing times, error messages
   - **Example**: "Scan completed for info@mybusiness.com at 2025-01-02 10:30:00", "Connection timeout error"
+
+- **Email Offsets**: History anchors per mailbox (Gmail)
+  - **What it is**: Stores `last_history_id` for each connected Gmail mailbox
+  - **Purpose**: Enables efficient delta polling without re-reading the entire mailbox
+  - **Contains**: `business_id`, `email_address`, `provider`, `last_history_id`, timestamps
+
+- **Processed Emails**: Deduplication ledger
+  - **What it is**: Tracks message IDs that have already been analyzed
+  - **Purpose**: Ensures exactly-once processing during retries and anchor resets
+  - **Contains**: `business_id`, `email_address`, `message_id`, processed timestamp
 
 All tables include proper indexes, foreign key relationships, and automatic timestamp updates.
 
@@ -514,6 +537,26 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 3. Make your changes
 4. Run tests and ensure everything works
 5. Submit a pull request
+
+## 📋 TODO List
+
+### High Priority
+1. **Register any needed emails** - Set up proper email addresses for production use
+2. **Double check terms and conditions** - Review and update legal documentation
+3. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
+4. **Server multi-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
+5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
+6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
+7. **attachment analyzer is weak, can be improved**
+8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
+9. **DONE: Don't check forwarded emails**
+10. **Inject warning in medium + risk emails**
+11. **Sign in and sign up with google**
+12. **DONE: Free pdf download for phishing basics**
+13. **Critical/High bug**
+14. **favicon**
+### Future Enhancements
+- Implement machine learning for threat detection
 
 ## License
 

@@ -66,7 +66,8 @@ export abstract class OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults?: number,
-    query?: string
+    query?: string,
+    connectionTimestamp?: Date
   ): Promise<EmailMessage[]>;
 
   /**

@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
-
+import { loginWithGoogle } from "../utils/googleAuth";
+import { GoogleLogin } from "@react-oauth/google";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Login - Numenor Security" },
@@ -23,8 +24,19 @@ export default function Login() {
     email: "",
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    // Prefill email if previously remembered
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedRemember = localStorage.getItem('rememberMe') === 'true';
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+    }
+    setRememberMe(savedRemember);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +44,16 @@ export default function Login() {
     setError("");
 
     try {
-      const response = await authAPI.login(formData);
+      // Persist email choice if rememberMe
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', formData.email);
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        localStorage.removeItem('rememberedEmail');
+        localStorage.setItem('rememberMe', 'false');
+      }
+
+      const response = await authAPI.login({ ...formData, rememberMe });
       console.log("Login successful:", response);
       
       // Use React Router navigation to trigger server-side authentication check
@@ -40,6 +61,19 @@ export default function Login() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
       console.error("Login error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async (credentialResponse: any) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
     } finally {
       setIsLoading(false);
     }
@@ -80,6 +114,26 @@ export default function Login() {
               {error}
             </div>
           )}
+          <div className="mb-6">
+            <div className="w-full flex justify-center">
+              <GoogleLogin 
+                onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
+                onError={() => {setError("Google sign-in failed");}} 
+                auto_select={true}
+                shape="pill"
+                text="signin_with"
+                useOneTap={true}
+              />
+            </div>
+          </div>
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            </div>
+          </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -125,7 +179,9 @@ export default function Login() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="form-checkbox"
+                className="form-checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
@@ -133,9 +189,9 @@ export default function Login() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
+              <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
                   Forgot your password?
-                </a>
+              </Link>
               </div>
             </div>
 
