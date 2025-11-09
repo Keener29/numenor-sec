@@ -165,6 +165,24 @@ router.post('/google', async (req, res, next) => {
         const ownerBusiness = await query('SELECT id FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
         if (ownerBusiness.rows.length > 0) {
           businessId = (ownerBusiness.rows[0] as { id: number }).id;
+        } else {
+          // User exists but has no business - create one for them
+          // This handles edge case where user was created without a business
+          let businessNameCandidate = user.business_name || defaultBusiness;
+          let suffix = 1;
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
+            if (existing.rows.length === 0) break;
+            suffix += 1;
+            businessNameCandidate = `${user.business_name || defaultBusiness} ${suffix}`;
+          }
+          
+          const businessResult = await query(
+            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
+            [businessNameCandidate, user.id]
+          );
+          businessId = (businessResult.rows[0] as { id: number }).id;
         }
       }
     }
