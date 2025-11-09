@@ -101,11 +101,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     container_name: numenor-frontend
     environment:
       NODE_ENV: development
       API_URL: http://api:3000  # Use Docker service name for internal communication
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "3000:3000"
     volumes:

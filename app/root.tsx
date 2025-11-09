@@ -24,14 +24,10 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  console.log(JSON.stringify(
-    process.env.GOOGLE_CLIENT_ID || (window as any).GOOGLE_CLIENT_ID || ''
-  ))
-  try{
-    console.log("Window GOOGLE_CLIENT_ID: " + (window as any).GOOGLE_CLIENT_ID || '')
-  console.log("Process GOOGLE_CLIENT_ID: " + process.env.GOOGLE_CLIENT_ID || '')
-  }catch(error){
-
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  
+  if (!googleClientId) {
+    console.error("VITE_GOOGLE_CLIENT_ID is not configured");
   }
   
   return (
@@ -40,20 +36,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
-        <Links />
-        <script
-          // Expose public, non-secret config to the browser
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{
-            __html: `window.GOOGLE_CLIENT_ID = ${JSON.stringify(
-              process.env.GOOGLE_CLIENT_ID || ''
-            )};`,
-          }}
-        />        
+        <Links />       
       </head>
       <body suppressHydrationWarning={true}>
-        <GoogleOAuthProvider clientId={"207555755509-of47if7ehu6344n301uioimg8cdu0sk8.apps.googleusercontent.com"}
-        >
+        <GoogleOAuthProvider clientId={googleClientId}>
           {children}
         </GoogleOAuthProvider>
         <ScrollRestoration />

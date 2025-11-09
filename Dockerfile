@@ -5,6 +5,10 @@
 # ================================
 FROM node:20-alpine AS builder
 
+# Accept build arguments for Vite environment variables
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 # Set working directory
 WORKDIR /app
 
@@ -14,7 +18,7 @@ COPY package*.json ./
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci
 
-# Copy source code
+# Copy source code (including .env if it exists)
 COPY . .
 
 # Generate types and build the application
