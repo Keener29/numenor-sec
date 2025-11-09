@@ -46,7 +46,7 @@ interface MonitoringStatus {
   interval: number;
 }
 
-export default function PhishingDetectionDashboard() {
+export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsModalOpen: (isModalOpen: boolean) => void }) {
   const [statistics, setStatistics] = useState<ThreatStatistics | null>(null);
   const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -409,6 +409,7 @@ export default function PhishingDetectionDashboard() {
                     <button
                       onClick={() => {
                         window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setIsModalOpen(true);
                       }}
                       className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 cursor-pointer"
                     >

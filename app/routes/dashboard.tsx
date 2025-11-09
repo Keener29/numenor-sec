@@ -9,6 +9,7 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
+import { googleLogout } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -66,6 +67,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [chartData, setChartData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Get user data from server-side loader
   const user = loaderData?.user;
@@ -150,6 +152,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   const handleLogout = async () => {
     try {
+      googleLogout();
       await authAPI.logout();
       // Use full page reload to trigger server-side authentication check
       window.location.href = "/login";
@@ -212,7 +215,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <ConnectedEmailsDropdown 
             emails={emails} 
             onEmailsUpdate={handleEmailsUpdate}
-            businessName={stats.businessName || "Your Business"}
+            isModalOpen={isModalOpen}
+            setIsModalOpen={setIsModalOpen}
             oauthStatuses={oauthStatuses}
           />
 
@@ -279,7 +283,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Phishing Detection Dashboard */}
         <div className="mt-8">
-          <PhishingDetectionDashboard />
+          <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
         </div>
       </div>
     </div>

@@ -14,14 +14,14 @@ interface OAuthStatus {
 }
 
 interface ConnectedEmailsDropdownProps {
+  isModalOpen: boolean;
+  setIsModalOpen: (isModalOpen: boolean) => void;
   emails: Email[];
   onEmailsUpdate: () => void;
-  businessName: string;
   oauthStatuses: Record<string, OAuthStatus>;
 }
 
-export default function ConnectedEmailsDropdown({ emails, onEmailsUpdate, businessName, oauthStatuses }: ConnectedEmailsDropdownProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [error, setError] = useState("");

@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
-
+import { loginWithGoogle } from "../utils/googleAuth";
+import { GoogleLogin } from "@react-oauth/google";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Login - Numenor Security" },
@@ -65,6 +66,19 @@ export default function Login() {
     }
   };
 
+  const handleGoogleLogin = async (credentialResponse: any) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -100,6 +114,26 @@ export default function Login() {
               {error}
             </div>
           )}
+          <div className="mb-6">
+            <div className="w-full flex justify-center">
+              <GoogleLogin 
+                onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
+                onError={() => {setError("Google sign-in failed");}} 
+                auto_select={true}
+                shape="pill"
+                text="signin_with"
+                useOneTap={true}
+              />
+            </div>
+          </div>
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            </div>
+          </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">

@@ -97,6 +97,14 @@ export const authAPI = {
       body: JSON.stringify(data),
     });
   },
+  
+  // Google Login with GIS credential
+  googleLogin: async (data: { credential: string }) => {
+    return apiRequest('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Emails API functions
