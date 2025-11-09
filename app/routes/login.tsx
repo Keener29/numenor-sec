@@ -4,8 +4,7 @@ import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
 import { loginWithGoogle } from "../utils/googleAuth";
-import GoogleLoginButton from "../components/GoogleLoginButton";
-
+import { GoogleLogin } from "@react-oauth/google";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Login - Numenor Security" },
@@ -116,7 +115,13 @@ export default function Login() {
             </div>
           )}
           <div className="space-y-4">
-            <GoogleLoginButton onSuccess={handleGoogleLogin} />
+            <GoogleLogin 
+            onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
+            onError={()=>setError("Google sign-in failed")} 
+            auto_select={true}
+            shape="pill"
+            text="signin_with"
+          />
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>

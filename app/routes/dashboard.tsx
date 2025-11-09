@@ -9,6 +9,7 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
+import { googleLogout } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
   // return metadata for the dashboard
@@ -150,6 +151,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   const handleLogout = async () => {
     try {
+      googleLogout();
       await authAPI.logout();
       // Use full page reload to trigger server-side authentication check
       window.location.href = "/login";

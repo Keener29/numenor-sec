@@ -6,7 +6,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
-
+import {GoogleOAuthProvider} from "@react-oauth/google";
 import type { Route } from "./+types/root";
 import "./app.css";
 
@@ -24,6 +24,16 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  console.log(JSON.stringify(
+    process.env.GOOGLE_CLIENT_ID || (window as any).GOOGLE_CLIENT_ID || ''
+  ))
+  try{
+    console.log("Window GOOGLE_CLIENT_ID: " + (window as any).GOOGLE_CLIENT_ID || '')
+  console.log("Process GOOGLE_CLIENT_ID: " + process.env.GOOGLE_CLIENT_ID || '')
+  }catch(error){
+
+  }
+  
   return (
     <html lang="en">
       <head>
@@ -42,7 +52,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />        
       </head>
       <body suppressHydrationWarning={true}>
-        {children}
+        <GoogleOAuthProvider clientId={"207555755509-of47if7ehu6344n301uioimg8cdu0sk8.apps.googleusercontent.com"}
+        >
+          {children}
+        </GoogleOAuthProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

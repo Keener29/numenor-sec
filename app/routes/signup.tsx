@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/signup";
 import { authAPI } from "../utils/api";
-import GoogleLoginButton from "~/components/GoogleLoginButton";
 import { loginWithGoogle } from "~/utils/googleAuth";
+import { GoogleLogin } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -169,7 +169,14 @@ export default function Signup() {
             </div>
           )}
           <div className="space-y-4">
-            <GoogleLoginButton onSuccess={handleGoogleSignup} />
+            <GoogleLogin 
+              onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
+              onError={()=>setError("Google sign-up failed")} 
+              text="signup_with"
+              theme="outline"
+              shape="pill"
+              auto_select={true}
+            />
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
