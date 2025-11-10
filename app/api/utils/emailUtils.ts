@@ -133,7 +133,7 @@ export function injectPhishingBanner(
       <div style="font-weight: bold; margin-bottom: 8px; font-size: 15px;">
         ⚠️ ${riskLabel.toUpperCase()} RISK
       <div style="margin-bottom: 8px;">
-        ${sanitizedReason}. Action: Do not click links or download attachments. Verify the sender before responding.
+        Reasons:${sanitizedReason}. Do not click links or download attachments. Verify the sender before responding.
       </div>
       <div style="font-size: 11px; color: ${style.textColor}; opacity: 0.8; margin-top: 8px;">
         Numenor Security — Automated warning
