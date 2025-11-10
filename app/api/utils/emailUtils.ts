@@ -126,14 +126,12 @@ export function injectPhishingBanner(
 
   const style = riskStyles[risk];
   const riskLabel = risk.charAt(0).toUpperCase() + risk.slice(1);
-  const scoreText = score !== null && score !== undefined ? `Score: ${score}/100` : '';
 
   // Generate banner HTML
   const bannerHtml = `
     <div role="alert" style="background-color: ${style.background}; border-left: 4px solid ${style.borderColor}; color: ${style.textColor}; padding: 12px 16px; margin: 0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.5; max-width: 100%; box-sizing: border-box;">
       <div style="font-weight: bold; margin-bottom: 8px; font-size: 15px;">
-        ⚠️ ${riskLabel.toUpperCase()} RISK${scoreText ? ` — ${scoreText}` : ''}
-      </div>
+        ⚠️ ${riskLabel.toUpperCase()} RISK
       <div style="margin-bottom: 8px;">
         ${sanitizedReason}. Action: Do not click links or download attachments. Verify the sender before responding.
       </div>
