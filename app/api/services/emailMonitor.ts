@@ -404,7 +404,10 @@ class EmailMonitor {
       if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
         // Generate reason string from threat assessment
         const reasonParts: string[] = [];
-        if (threatAssessment.detectedPatterns.length > 0) {
+        if (threatAssessment.authenticationResults && threatAssessment.authenticationResults.overall !== 'pass') {
+          reasonParts.push(`Authentication overall results: ${threatAssessment.authenticationResults.overall}`);
+        }
+        else if (threatAssessment.detectedPatterns.length > 0) {
           reasonParts.push(threatAssessment.detectedPatterns.slice(0, 2).join(', ').replace(/_/g, ' '));
         }
         if (threatAssessment.riskFactors.length > 0 && reasonParts.length === 0) {
