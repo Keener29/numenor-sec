@@ -123,4 +123,128 @@ export async function testConnection(
   }
 }
 
+/**
+ * Extract HTML and plain text separately from a Gmail message
+ */
+export function extractHtmlAndPlainText(message: GmailMessage): { html: string; plainText: string } {
+  let html = '';
+  let plainText = '';
+  
+  const extractFromParts = (parts: any[]): void => {
+    for (const part of parts) {
+      if (part.mimeType === 'text/html' && part.body?.data) {
+        html += Buffer.from(part.body.data, 'base64').toString('utf-8');
+      } else if (part.mimeType === 'text/plain' && part.body?.data) {
+        plainText += Buffer.from(part.body.data, 'base64').toString('utf-8');
+      } else if (part.parts) {
+        extractFromParts(part.parts);
+      }
+    }
+  };
+  
+  if (message.payload.body?.data) {
+    // Single-part message
+    const body = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
+    if (message.payload.mimeType === 'text/html') {
+      html = body;
+      // Create plain text version by stripping HTML tags
+      plainText = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+    } else {
+      plainText = body;
+      html = body.replace(/\n/g, '<br>');
+    }
+  } else if (message.payload.parts) {
+    extractFromParts(message.payload.parts);
+  }
+  
+  // Fallback: if no HTML found but plain text exists, use plain text for both
+  if (!html && plainText) {
+    html = plainText.replace(/\n/g, '<br>');
+  }
+  // Fallback: if no plain text found but HTML exists, strip HTML tags
+  if (!plainText && html) {
+    plainText = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+  }
+  
+  return { html: html || '', plainText: plainText || '' };
+}
+
+/**
+ * Create a draft email with modified HTML and plain text content
+ */
+export async function createDraftWithContent(
+  setCredentials: SetCredentialsFn,
+  gmail: GmailClient,
+  businessId: number,
+  emailAddress: string,
+  originalMessage: GmailMessage,
+  modifiedHtml: string,
+  modifiedPlainText: string,
+  subject: string,
+  from: string,
+  to: string
+): Promise<string> {
+  const context: LogContext = {
+    operation: 'create-draft-with-content',
+    businessId,
+    emailAddress,
+    metadata: { originalMessageId: originalMessage.id, subject }
+  };
+  
+  try {
+    await setCredentials(businessId, emailAddress);
+    
+    // Create multipart MIME message with both HTML and plain text
+    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    
+    const messageParts = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/plain; charset=UTF-8`,
+      `Content-Transfer-Encoding: 7bit`,
+      ``,
+      modifiedPlainText,
+      ``,
+      `--${boundary}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      `Content-Transfer-Encoding: 7bit`,
+      ``,
+      modifiedHtml,
+      ``,
+      `--${boundary}--`
+    ];
+    
+    const rawMessage = messageParts.join('\r\n');
+    const encodedMessage = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    
+    const response = await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: {
+        message: {
+          raw: encodedMessage,
+          threadId: originalMessage.threadId // Link to original thread
+        }
+      }
+    });
+    
+    oauthLogger.info('Draft created successfully with phishing banner', {
+      ...context,
+      metadata: {
+        ...context.metadata,
+        draftId: response.data.id
+      }
+    });
+    
+    return response.data.id;
+  } catch (error) {
+    oauthLogger.error('Failed to create draft with modified content', context, error as Error);
+    throw ErrorFactory.oauthService(ErrorCodes.GMAIL_API_ERROR, 'Failed to create draft email');
+  }
+}
+
 
