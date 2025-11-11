@@ -5,14 +5,13 @@
 -- CREATE DATABASE numenor_security;
 
 -- Users table for business owners and administrators
+-- Note: business relationship is via businesses.owner_id (single source of truth)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    business_name VARCHAR(255) NOT NULL,
-    business_id INTEGER,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -123,8 +122,9 @@ CREATE TABLE IF NOT EXISTS processed_emails (
 
 CREATE TABLE IF NOT EXISTS account_deletions (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
-    business_id INTEGER,
+    user_email VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    business_name VARCHAR(255),
     reason TEXT,
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -170,14 +170,6 @@ $$ LANGUAGE plpgsql;
 -- Use DO blocks to check if constraints exist before adding them (idempotent)
 DO $$
 BEGIN
-    -- users.business_id -> businesses.id
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_business_id'
-    ) THEN
-        ALTER TABLE users ADD CONSTRAINT fk_users_business_id 
-            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-    END IF;
-
     -- businesses.owner_id -> users.id
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_businesses_owner_id'
@@ -250,22 +242,6 @@ BEGIN
             FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
     END IF;
 
-    -- account_deletions.user_id -> users.id
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_account_deletions_user_id'
-    ) THEN
-        ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_user_id 
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
-    END IF;
-
-    -- account_deletions.business_id -> businesses.id
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_account_deletions_business_id'
-    ) THEN
-        ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_business_id 
-            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
-    END IF;
-
     -- oauth_tokens.business_id -> businesses.id
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_oauth_tokens_business_id'
@@ -278,8 +254,11 @@ END $$;
 -- Create indexes for new foreign keys
 CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
 CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(business_id);
-CREATE INDEX IF NOT EXISTS idx_account_deletions_user_id ON account_deletions(user_id);
-CREATE INDEX IF NOT EXISTS idx_account_deletions_business_id ON account_deletions(business_id);
+
+-- Indexes for account_deletions (for analytics queries)
+CREATE INDEX IF NOT EXISTS idx_account_deletions_user_email ON account_deletions(user_email);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_deleted_at ON account_deletions(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_business_name ON account_deletions(business_name);
 
 -- Apply updated_at triggers (idempotent - drop and recreate if exists)
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
+import { validateBody } from '../middleware/validation.js';
+import { deleteAccountSchema } from '../schemas/user.js';
 import { query } from '../../db/connection.js';
 import { logger } from '../services/logger.js';
 
@@ -23,7 +25,7 @@ const router = Router();
  * - 404 Not Found: Account not found
  * - 500 Internal Server Error: Database error
  */
-router.delete('/:accountId', authenticateToken, async (req: AuthRequest, res, next) => {
+router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema), async (req: AuthRequest, res, next) => {
   try {
     const accountId = parseInt(req.params.accountId, 10);
     const currentUserId = req.user!.id;
@@ -39,8 +41,14 @@ router.delete('/:accountId', authenticateToken, async (req: AuthRequest, res, ne
       return res.status(403).json({ error: 'You can only delete your own account' });
     }
 
-    // Verify account exists
-    const userResult = await query('SELECT id, business_id FROM users WHERE id = $1', [accountId]);
+    // Verify account exists and get business_id via JOIN
+    const userResult = await query(
+      `SELECT u.id, b.id as business_id 
+       FROM users u
+       LEFT JOIN businesses b ON b.owner_id = u.id
+       WHERE u.id = $1`,
+      [accountId]
+    );
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: 'Account not found' });
     }
@@ -48,13 +56,32 @@ router.delete('/:accountId', authenticateToken, async (req: AuthRequest, res, ne
     const user = userResult.rows[0] as { id: number; business_id: number | null };
     const businessId = user.business_id;
 
-    // Store deletion reason privately for analytics (if provided)
-    // Note: This should be stored in a separate analytics table, not in public logs
-    if (reason && reason.trim()) {
+    // Get user and business details to preserve for analytics
+    const userDetailsResult = await query(
+      `SELECT u.email, u.first_name, u.last_name, b.name as business_name
+       FROM users u
+       LEFT JOIN businesses b ON b.owner_id = u.id
+       WHERE u.id = $1`,
+      [accountId]
+    );
+    
+    const userDetails = userDetailsResult.rows[0] as {
+      email: string;
+      first_name: string;
+      last_name: string;
+      business_name: string | null;
+    } | undefined;
+
+    if (reason && reason.trim() && userDetails) {
       await query(
-        `INSERT INTO account_deletions (user_id, business_id, reason, deleted_at)
-         VALUES ($1, $2, $3, NOW())`,
-        [accountId, businessId, reason.trim()]
+        `INSERT INTO account_deletions (user_email, user_name, business_name, reason, deleted_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [
+          userDetails.email,
+          `${userDetails.first_name} ${userDetails.last_name}`.trim(),
+          userDetails.business_name || null,
+          reason.trim()
+        ]
       ).catch(() => {
         // Table might not exist - non-fatal, continue with deletion
         logger.warn('Could not store deletion reason (table may not exist)', {
