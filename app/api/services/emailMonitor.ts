@@ -4,6 +4,7 @@ import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
 import { isFromOwnService } from '../utils/emailUtils.js';
+import type { ThreatAssessment } from '../types/email.js';
 
 interface MonitoredEmail {
   id: number;
@@ -400,53 +401,57 @@ class EmailMonitor {
         }
       });
 
-      // Store threat assessment if threat level is medium or higher
-      if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
-        await phishingDetector.storeThreatAssessment(
-          monitoredEmail.businessId,
-          monitoredEmail.id,
-          threatAssessment,
-          emailData
-        );
+      if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+        await this.injectPhishingBannerIntoEmail(monitoredEmail, emailMessage, threatAssessment);
 
-        // Mark email as read in Gmail - only for detected phishing threats
-        try {
-          await gmailOAuthService.markAsRead(monitoredEmail.businessId, monitoredEmail.emailAddress, emailMessage.id);
-          monitoringLogger.debug('Email marked as read after phishing detection', {
-            operation: 'mark-phishing-email-read',
-            emailAddress: monitoredEmail.emailAddress,
-            metadata: {
-              messageId: emailMessage.id,
-              threatLevel: threatAssessment.threatLevel
-            }
-          });
-        } catch (markError) {
-          monitoringLogger.error('Error marking phishing email as read', {
-            operation: 'mark-phishing-email-read',
-            emailAddress: monitoredEmail.emailAddress,
-            metadata: {
-              messageId: emailMessage.id,
-              threatLevel: threatAssessment.threatLevel
-            }
-          }, markError as Error);
-          // Continue processing even if marking fails
-        }
+        // Store threat assessment for high/critical threats
+        if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
+          await phishingDetector.storeThreatAssessment(
+            monitoredEmail.businessId,
+            monitoredEmail.id,
+            threatAssessment,
+            emailData
+          );
 
-        await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
-
-        // Log security event
-        await this.logSecurityEvent(
-          monitoredEmail.businessId,
-          'phishing_detected',
-          `Phishing attempt detected: ${threatAssessment.threatLevel} threat level`,
-          {
-            emailId: monitoredEmail.id,
-            emailAddress: monitoredEmail.emailAddress,
-            threatLevel: threatAssessment.threatLevel,
-            confidence: threatAssessment.confidence,
-            patterns: threatAssessment.detectedPatterns
+          // Mark email as read in Gmail - only for detected phishing threats
+          try {
+            await gmailOAuthService.markAsRead(monitoredEmail.businessId, monitoredEmail.emailAddress, emailMessage.id);
+            monitoringLogger.debug('Email marked as read after phishing detection', {
+              operation: 'mark-phishing-email-read',
+              emailAddress: monitoredEmail.emailAddress,
+              metadata: {
+                messageId: emailMessage.id,
+                threatLevel: threatAssessment.threatLevel
+              }
+            });
+          } catch (markError) {
+            monitoringLogger.error('Error marking phishing email as read', {
+              operation: 'mark-phishing-email-read',
+              emailAddress: monitoredEmail.emailAddress,
+              metadata: {
+                messageId: emailMessage.id,
+                threatLevel: threatAssessment.threatLevel
+              }
+            }, markError as Error);
+            // Continue processing even if marking fails
           }
-        );
+
+          await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
+
+          // Log security event
+          await this.logSecurityEvent(
+            monitoredEmail.businessId,
+            'phishing_detected',
+            `Phishing attempt detected: ${threatAssessment.threatLevel} threat level`,
+            {
+              emailId: monitoredEmail.id,
+              emailAddress: monitoredEmail.emailAddress,
+              threatLevel: threatAssessment.threatLevel,
+              confidence: threatAssessment.confidence,
+              patterns: threatAssessment.detectedPatterns
+            }
+          );
+        }
       } else {
         // For safe/low threat emails, log that they were not marked as read
         monitoringLogger.debug('Email not marked as read - no phishing threat detected', {
@@ -466,6 +471,99 @@ class EmailMonitor {
         emailAddress: monitoredEmail.emailAddress
       }, error instanceof Error ? error : new Error(String(error)));
       throw error;
+    }
+  }
+
+  /**
+   * Create draft email with phishing banner
+   */
+  private async injectPhishingBannerIntoEmail(
+    monitoredEmail: MonitoredEmail,
+    emailMessage: EmailMessage,
+    threatAssessment: ThreatAssessment
+  ): Promise<void> {
+    // Generate reason string from threat assessment
+    const reasonParts: string[] = [];
+    if (threatAssessment.authenticationResults && threatAssessment.authenticationResults.overall !== 'pass') {
+      reasonParts.push(`Authentication overall results: ${threatAssessment.authenticationResults.overall}`);
+    }
+    else if (threatAssessment.detectedPatterns.length > 0) {
+      reasonParts.push(threatAssessment.detectedPatterns.slice(0, 2).join(', ').replace(/_/g, ' '));
+    }
+    if (threatAssessment.riskFactors.length > 0 && reasonParts.length === 0) {
+      reasonParts.push(threatAssessment.riskFactors[0]);
+    }
+    const reason = reasonParts.length > 0 
+      ? reasonParts.join('; ') 
+      : `${threatAssessment.threatLevel} threat level detected`;
+
+    try {
+      // Get full Gmail message for threadId (needed to link draft to original thread)
+      const fullGmailMessage = await gmailOAuthService.getFullMessage(
+        monitoredEmail.businessId,
+        monitoredEmail.emailAddress,
+        emailMessage.id
+      );
+      
+      // Generate banner HTML
+      const riskLabel = threatAssessment.threatLevel.charAt(0).toUpperCase() + threatAssessment.threatLevel.slice(1);
+      const riskStyles = {
+        medium: { background: '#fff4cc', borderColor: '#f7c948', textColor: '#664d03' },
+        high: { background: '#fff1e0', borderColor: '#ff9f43', textColor: '#6b3b00' },
+        critical: { background: '#ffecec', borderColor: '#ff3b30', textColor: '#6b0b0b' }
+      };
+      const style = riskStyles[threatAssessment.threatLevel as 'medium' | 'high' | 'critical'];
+      const sanitizedReason = reason.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      
+      const bannerHtml = `
+        <div role="alert" style="background-color: ${style.background}; border-left: 4px solid ${style.borderColor}; color: ${style.textColor}; padding: 12px 16px; margin: 0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.5; max-width: 100%; box-sizing: border-box;">
+          <div style="font-weight: bold; margin-bottom: 8px; font-size: 15px;">
+            ⚠️ ${riskLabel.toUpperCase()} RISK
+          </div>
+          <div style="margin-bottom: 8px;">
+            Reasons: ${sanitizedReason}. Do not click links or download attachments. Verify the sender before responding.
+          </div>
+          <div style="font-size: 11px; color: ${style.textColor}; opacity: 0.8; margin-top: 8px;">
+            Numenor Security — Automated warning
+          </div>
+        </div>
+      `;
+      
+      // Generate plain-text warning
+      const plainWarning = `WARNING [${riskLabel.toUpperCase()} RISK] — ${reason}${threatAssessment.confidence !== null && threatAssessment.confidence !== undefined ? `. Score: ${threatAssessment.confidence}` : ''}\n\n`;
+
+      // Create draft email with banner
+      const draftId = await gmailOAuthService.createDraftWithContent(
+        monitoredEmail.businessId,
+        monitoredEmail.emailAddress,
+        fullGmailMessage,
+        bannerHtml,
+        plainWarning,
+        `Fwd: ${emailMessage.subject}`,
+        monitoredEmail.emailAddress,
+        emailMessage.sender
+      );
+      
+      monitoringLogger.info('Draft created with phishing banner', {
+        operation: 'inject-phishing-banner',
+        emailAddress: monitoredEmail.emailAddress,
+        metadata: {
+          messageId: emailMessage.id,
+          draftId,
+          threatLevel: threatAssessment.threatLevel,
+          confidence: threatAssessment.confidence
+        }
+      });
+    } catch (error) {
+      monitoringLogger.error('Failed to create draft with phishing banner', {
+        operation: 'inject-phishing-banner',
+        emailAddress: monitoredEmail.emailAddress,
+        metadata: {
+          messageId: emailMessage.id,
+          threatLevel: threatAssessment.threatLevel
+        }
+      }, error as Error);
+      // Continue processing even if draft creation fails
     }
   }
 

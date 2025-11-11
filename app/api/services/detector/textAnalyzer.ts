@@ -149,7 +149,7 @@ export class TextAnalyzer {
   ];
 
   private readonly SUBJECT_WEIGHT = 1.5;
-  private readonly LOW_SEVERITY_CAP = 20; // Maximum contribution from low severity patterns
+  private readonly LOW_SEVERITY_CAP = 10; // Maximum contribution from low severity patterns
 
   /**
    * Analyze email text with subject and body distinction
