@@ -301,19 +301,6 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="mt-8">
           <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
         </div>
-
-        {/* Account Settings Section */}
-        {user && (
-          <div className="mt-8 px-4">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Account Settings</h2>
-              <p className="mt-1 text-sm text-gray-600">
-                Manage your account and business settings
-              </p>
-            </div>
-            <DeleteAccountCard accountId={user.id} />
-          </div>
-        )}
       </div>
 
       {/* Business Name Modal - shown when business name is null */}
