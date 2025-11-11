@@ -127,6 +127,14 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     PRIMARY KEY (business_id, email_address, message_id)
 );
 
+CREATE TABLE IF NOT EXISTS account_deletions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    business_id INTEGER,
+    reason TEXT,
+    deleted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Password reset tokens (single-use)
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
     id SERIAL PRIMARY KEY,
@@ -172,6 +180,16 @@ ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_email_id FOREIGN K
 ALTER TABLE security_events ADD CONSTRAINT fk_security_events_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
 ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
 ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_email_id FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+ALTER TABLE email_offsets ADD CONSTRAINT fk_email_offsets_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+ALTER TABLE processed_emails ADD CONSTRAINT fk_processed_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
+
+-- Create indexes for new foreign keys
+CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
+CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(business_id);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_user_id ON account_deletions(user_id);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_business_id ON account_deletions(business_id);
 
 -- Apply updated_at triggers
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
