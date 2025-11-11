@@ -22,7 +22,7 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
     }
 
     // Check if business name already exists
-    const existingBusiness = await query('SELECT id FROM businesses WHERE name = $1', [businessName]);
+    const existingBusiness = await query('SELECT id FROM businesses WHERE business_name = $1', [businessName]);
     if (existingBusiness.rows.length > 0) {
       return res.status(409).json({ error: 'A business with this name already exists' });
     }
@@ -32,17 +32,17 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
 
     // Create business for the user (owner_id links to user)
     const businessResult = await query(
-      `INSERT INTO businesses (name, owner_id) 
+      `INSERT INTO businesses (business_name, owner_id) 
        VALUES ($1, $2) 
-       RETURNING id, name`,
+       RETURNING id, business_name`,
       [businessName, user.id]
     );
 
-    const business = businessResult.rows[0] as { id: number; name: string };
+    const business = businessResult.rows[0] as { id: number; business_name: string };
     const businessId = business.id;
 
     // Generate JWT token (business info comes from JOIN, but include in token for convenience)
-    const token = generateToken({ ...user, business_name: business.name, business_id: businessId });
+    const token = generateToken({ ...user, business_name: business.business_name, business_id: businessId });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -130,7 +130,6 @@ router.post('/google', async (req, res, next) => {
     const email = payload.email;
     const firstName = (payload.given_name || '').trim() || 'User';
     const lastName = (payload.family_name || '').trim() || '';
-    const defaultBusiness = (payload.name || email.split('@')[0] || 'My Business').trim();
 
     // Ensure user exists; create if not
     let user = await getUserByEmail(email);
