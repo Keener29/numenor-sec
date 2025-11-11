@@ -44,7 +44,7 @@ export const generateToken = (user: User, expiresIn: SignOptions['expiresIn'] = 
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, b.name as business_name, b.id as business_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id
      FROM users u
      LEFT JOIN businesses b ON b.owner_id = u.id
      WHERE u.email = $1 AND u.is_active = true`,
@@ -60,7 +60,7 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 
 export const getUserById = async (id: number): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, b.name as business_name, b.id as business_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id
      FROM users u
      LEFT JOIN businesses b ON b.owner_id = u.id
      WHERE u.id = $1 AND u.is_active = true`,
@@ -95,7 +95,7 @@ export const createUser = async (
 
 export const verifyUserPassword = async (email: string, password: string): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, b.name as business_name, b.id as business_id
+    `SELECT u.id, u.email, u.password_hash, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id
      FROM users u
      LEFT JOIN businesses b ON b.owner_id = u.id
      WHERE u.email = $1 AND u.is_active = true`,

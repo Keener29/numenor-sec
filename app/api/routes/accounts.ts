@@ -58,7 +58,7 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
 
     // Get user and business details to preserve for analytics
     const userDetailsResult = await query(
-      `SELECT u.email, u.first_name, u.last_name, b.name as business_name
+      `SELECT u.email, u.first_name, u.last_name, b.business_name as business_name
        FROM users u
        LEFT JOIN businesses b ON b.owner_id = u.id
        WHERE u.id = $1`,
