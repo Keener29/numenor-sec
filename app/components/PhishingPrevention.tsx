@@ -25,36 +25,71 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadRecommendations();
+    loadData();
   }, [businessId]);
 
-  const loadRecommendations = async () => {
+  const loadData = async () => {
     try {
       setIsLoading(true);
       setError("");
 
-      const response = await fetch('http://localhost:3001/api/phishing/recommendations', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const [recommendationsResponse, statisticsResponse] = await Promise.all([
+        fetch('http://localhost:3001/api/phishing/recommendations', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:3001/api/phishing/statistics', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      ]);
 
-      if (!response.ok) {
+      if (!recommendationsResponse.ok) {
         throw new Error('Failed to load security recommendations');
       }
 
-      const data = await response.json();
-      setRecommendations(data.recommendations || []);
-      setThreatSummary(data.threatSummary || {
-        totalThreats: 0,
-        threatLevels: {},
-        topPatterns: []
+      if (!statisticsResponse.ok) {
+        throw new Error('Failed to load threat statistics');
+      }
+
+      const recommendationsData = await recommendationsResponse.json();
+      const statisticsData = await statisticsResponse.json();
+
+      setRecommendations(recommendationsData.recommendations || []);
+
+      const stats = statisticsData.statistics?.summary || {};
+      const recentAlerts = statisticsData.statistics?.recentAlerts || [];
+      
+      const patternCounts = recentAlerts.reduce((acc: Record<string, number>, alert: { alert_type?: string }) => {
+        const alertType = alert.alert_type || 'unknown';
+        acc[alertType] = (acc[alertType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const topPatterns = Object.entries(patternCounts)
+        .map(([pattern, count]) => ({ pattern, count: count as number }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      setThreatSummary({
+        totalThreats: stats.totalAlerts || 0,
+        threatLevels: {
+          critical: stats.criticalAlerts || 0,
+          high: stats.highAlerts || 0,
+          medium: stats.mediumAlerts || 0,
+          low: 0
+        },
+        topPatterns
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load recommendations");
-      console.error("Error loading recommendations:", err);
+      setError(err instanceof Error ? err.message : "Failed to load data");
+      console.error("Error loading data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +156,7 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             </p>
           </div>
           <button
-            onClick={loadRecommendations}
+            onClick={loadData}
             className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 cursor-pointer"
           >
             Refresh
