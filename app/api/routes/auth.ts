@@ -44,6 +44,14 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
     // Generate JWT token (business info comes from JOIN, but include in token for convenience)
     const token = generateToken({ ...user, business_name: business.business_name, business_id: businessId });
 
+    // Set HTTP-only cookie for server-side authentication (same as login)
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
+
     res.status(201).json({
       message: 'User registered successfully',
       user: {
