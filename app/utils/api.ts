@@ -105,6 +105,14 @@ export const authAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  // Delete account and business
+  deleteAccount: async (accountId: number, reason?: string) => {
+    return apiRequest(`/accounts/${accountId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    });
+  },
 };
 
 // Emails API functions
