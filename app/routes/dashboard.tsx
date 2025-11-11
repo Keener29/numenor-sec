@@ -9,6 +9,7 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
+import DeleteAccountCard from "../components/DeleteAccountCard";
 import { googleLogout } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
@@ -176,6 +177,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
               </Link>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                to="/account-settings"
+                className="text-gray-700 px-3 py-2 rounded-md text-base font-medium hover:text-gray-900"
+              >
+                Account Settings
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-gray-700 px-3 py-2 rounded-md text-base font-medium bg-white border-0 cursor-pointer"
@@ -285,6 +292,19 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="mt-8">
           <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
         </div>
+
+        {/* Account Settings Section */}
+        {user && (
+          <div className="mt-8 px-4">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">Account Settings</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Manage your account and business settings
+              </p>
+            </div>
+            <DeleteAccountCard accountId={user.id} />
+          </div>
+        )}
       </div>
     </div>
   );

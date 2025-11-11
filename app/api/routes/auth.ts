@@ -27,21 +27,22 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
       return res.status(409).json({ error: 'A business with this name already exists' });
     }
 
-    // Create user
-    const user = await createUser(email, password, firstName, lastName, businessName);
+    // Create user first
+    const user = await createUser(email, password, firstName, lastName);
 
-    // Create business for the user
+    // Create business for the user (owner_id links to user)
     const businessResult = await query(
       `INSERT INTO businesses (name, owner_id) 
        VALUES ($1, $2) 
-       RETURNING id`,
+       RETURNING id, name`,
       [businessName, user.id]
     );
 
-    const businessId = (businessResult.rows[0] as { id: number }).id;
+    const business = businessResult.rows[0] as { id: number; name: string };
+    const businessId = business.id;
 
-    // Generate JWT token
-    const token = generateToken({ ...user, business_id: businessId });
+    // Generate JWT token (business info comes from JOIN, but include in token for convenience)
+    const token = generateToken({ ...user, business_name: business.name, business_id: businessId });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -151,20 +152,24 @@ router.post('/google', async (req, res, next) => {
 
       // Create user with a random password (unused for Google login)
       const randomPassword = crypto.randomBytes(32).toString('hex');
-      user = await createUser(email, randomPassword, firstName, lastName, businessNameCandidate);
+      user = await createUser(email, randomPassword, firstName, lastName);
 
       // Create a business owned by this new user
       const businessResult = await query(
-        `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
+        `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id, name`,
         [businessNameCandidate, user.id]
       );
-      businessId = (businessResult.rows[0] as { id: number }).id;
+      const business = businessResult.rows[0] as { id: number; name: string };
+      businessId = business.id;
+      user = { ...user, business_id: businessId, business_name: business.name };
     } else {
       // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
       if (!businessId) {
-        const ownerBusiness = await query('SELECT id FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+        const ownerBusiness = await query('SELECT id, name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
         if (ownerBusiness.rows.length > 0) {
-          businessId = (ownerBusiness.rows[0] as { id: number }).id;
+          const business = ownerBusiness.rows[0] as { id: number; name: string };
+          businessId = business.id;
+          user = { ...user, business_id: businessId, business_name: business.name };
         } else {
           // User exists but has no business - create one for them
           // This handles edge case where user was created without a business
@@ -179,16 +184,23 @@ router.post('/google', async (req, res, next) => {
           }
           
           const businessResult = await query(
-            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
+            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id, name`,
             [businessNameCandidate, user.id]
           );
-          businessId = (businessResult.rows[0] as { id: number }).id;
+          const business = businessResult.rows[0] as { id: number; name: string };
+          businessId = business.id;
+          // Update user object with business info (normally comes from JOIN)
+          user = { ...user, business_id: businessId, business_name: business.name };
         }
       }
     }
 
-    // Generate token and set cookie
-    const token = generateToken({ ...user!, business_id: businessId });
+    // Generate token and set cookie (include business info if available)
+    const token = generateToken({ 
+      ...user!, 
+      business_id: businessId,
+      business_name: user!.business_name 
+    });
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
