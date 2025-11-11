@@ -231,6 +231,49 @@ export class GmailOAuthService extends OAuthProvider {
   }
 
   /**
+   * Get full Gmail message by ID (returns raw GmailMessage, not parsed EmailMessage)
+   */
+  async getFullMessage(businessId: number, emailAddress: string, messageId: string): Promise<GmailMessage> {
+    await this.setCredentials(businessId, emailAddress);
+    const response = await this.gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
+    return response.data;
+  }
+
+  /**
+   * Extract HTML and plain text from a Gmail message
+   */
+  extractHtmlAndPlainText(message: GmailMessage): { html: string; plainText: string } {
+    return Actions.extractHtmlAndPlainText(message);
+  }
+
+  /**
+   * Create a draft email with modified HTML and plain text content
+   */
+  async createDraftWithContent(
+    businessId: number,
+    emailAddress: string,
+    originalMessage: GmailMessage,
+    modifiedHtml: string,
+    modifiedPlainText: string,
+    subject: string,
+    from: string,
+    to: string
+  ): Promise<string> {
+    return Actions.createDraftWithContent(
+      this.setCredentials.bind(this),
+      this.gmail,
+      businessId,
+      emailAddress,
+      originalMessage,
+      modifiedHtml,
+      modifiedPlainText,
+      subject,
+      from,
+      to
+    );
+  }
+
+  /**
    * Generate secure nonce for OAuth state
    */
   private generateNonce(): string {
