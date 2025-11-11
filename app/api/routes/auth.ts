@@ -137,60 +137,38 @@ router.post('/google', async (req, res, next) => {
     let businessId: number | undefined = user?.business_id;
 
     if (!user) {
-      // Ensure unique business name
-      let businessNameCandidate = defaultBusiness;
-      let suffix = 1;
-      // Check for existing business name
-      // Note: keep this simple; collisions are unlikely
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
-        if (existing.rows.length === 0) break;
-        suffix += 1;
-        businessNameCandidate = `${defaultBusiness} ${suffix}`;
-      }
-
       // Create user with a random password (unused for Google login)
       const randomPassword = crypto.randomBytes(32).toString('hex');
       user = await createUser(email, randomPassword, firstName, lastName);
 
-      // Create a business owned by this new user
+      // Create a business owned by this new user with NULL name
+      // User will be prompted to enter business name on dashboard
       const businessResult = await query(
-        `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id, name`,
-        [businessNameCandidate, user.id]
+        `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+        [null, user.id]
       );
-      const business = businessResult.rows[0] as { id: number; name: string };
+      const business = businessResult.rows[0] as { id: number; business_name: string | null };
       businessId = business.id;
-      user = { ...user, business_id: businessId, business_name: business.name };
+      user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
     } else {
       // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
       if (!businessId) {
-        const ownerBusiness = await query('SELECT id, name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+        const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
         if (ownerBusiness.rows.length > 0) {
-          const business = ownerBusiness.rows[0] as { id: number; name: string };
+          const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
           businessId = business.id;
-          user = { ...user, business_id: businessId, business_name: business.name };
+          user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
         } else {
-          // User exists but has no business - create one for them
+          // User exists but has no business - create one for them with NULL name
           // This handles edge case where user was created without a business
-          let businessNameCandidate = user.business_name || defaultBusiness;
-          let suffix = 1;
-          // eslint-disable-next-line no-constant-condition
-          while (true) {
-            const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
-            if (existing.rows.length === 0) break;
-            suffix += 1;
-            businessNameCandidate = `${user.business_name || defaultBusiness} ${suffix}`;
-          }
-          
           const businessResult = await query(
-            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id, name`,
-            [businessNameCandidate, user.id]
+            `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+            [null, user.id]
           );
-          const business = businessResult.rows[0] as { id: number; name: string };
+          const business = businessResult.rows[0] as { id: number; business_name: string | null };
           businessId = business.id;
           // Update user object with business info (normally comes from JOIN)
-          user = { ...user, business_id: businessId, business_name: business.name };
+          user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
         }
       }
     }

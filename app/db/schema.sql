@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Businesss table for business information
 CREATE TABLE IF NOT EXISTS businesses (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    business_name VARCHAR(255) NULL,
     owner_id INTEGER,
     address TEXT,
     phone VARCHAR(20),
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS account_deletions (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
-    business_name VARCHAR(255),
+    business_name VARCHAR(255) NULL,
     reason TEXT,
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

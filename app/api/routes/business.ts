@@ -12,7 +12,7 @@ router.get('/', authenticateToken, requireBusiness, async (req: AuthRequest, res
     const businessId = req.user!.business_id!;
 
     const result = await query(
-      `SELECT id, name, address, phone, website, member_count, is_active, created_at, updated_at
+      `SELECT id, business_name, address, phone, website, member_count, is_active, created_at, updated_at
        FROM businesses 
        WHERE id = $1`,
       [businessId]
@@ -24,7 +24,7 @@ router.get('/', authenticateToken, requireBusiness, async (req: AuthRequest, res
 
     const business = result.rows[0] as {
       id: number;
-      name: string;
+      business_name: string | null;
       address: string;
       phone: string;
       website: string;
@@ -36,7 +36,7 @@ router.get('/', authenticateToken, requireBusiness, async (req: AuthRequest, res
     res.json({
       business: {
         id: business.id,
-        name: business.name,
+        name: business.business_name,
         address: business.address,
         phone: business.phone,
         website: business.website,
@@ -63,7 +63,7 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
     let paramCount = 1;
 
     if (updates.name !== undefined) {
-      updateFields.push(`name = $${paramCount++}`);
+      updateFields.push(`business_name = $${paramCount++}`);
       values.push(updates.name);
     }
     if (updates.address !== undefined) {
@@ -92,7 +92,7 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
       UPDATE businesses 
       SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramCount}
-      RETURNING id, name, address, phone, website, member_count, is_active, created_at, updated_at
+      RETURNING id, business_name, address, phone, website, member_count, is_active, created_at, updated_at
     `;
 
     const result = await query(queryText, values);
@@ -103,7 +103,7 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
 
     const business = result.rows[0] as {
       id: number;
-      name: string;
+      business_name: string | null;
       address: string;
       phone: string;
       website: string;
@@ -124,7 +124,7 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
       message: 'Business updated successfully',
       business: {
         id: business.id,
-        name: business.name,
+        name: business.business_name,
         address: business.address,
         phone: business.phone,
         website: business.website,
