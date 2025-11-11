@@ -16,6 +16,7 @@ import alertRoutes from './routes/alerts.js';
 import phishingRoutes from './routes/phishing.js';
 import oauthRoutes from './routes/oauth/index.js';
 import statusRoutes from './routes/status.js';
+import accountsRoutes from './routes/accounts.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -63,6 +64,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/phishing', phishingRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/status', statusRoutes);
+app.use('/api/accounts', accountsRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
