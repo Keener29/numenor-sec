@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     business_name VARCHAR(255) NOT NULL,
+    business_id INTEGER,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -22,9 +23,6 @@ CREATE TABLE IF NOT EXISTS businesses (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     owner_id INTEGER,
-    address TEXT,
-    phone VARCHAR(20),
-    website VARCHAR(255),
     member_count INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -98,13 +96,6 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Foreign key constraint
-    CONSTRAINT fk_oauth_tokens_business_id 
-        FOREIGN KEY (business_id) 
-        REFERENCES businesses(id) 
-        ON DELETE CASCADE,
-    
     -- Unique constraint to prevent duplicate tokens for same business/email/provider
     CONSTRAINT unique_oauth_tokens_business_email_provider 
         UNIQUE (business_id, email_address, provider)
@@ -173,6 +164,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add foreign key constraints after all tables are created
+ALTER TABLE users ADD CONSTRAINT fk_users_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+ALTER TABLE users ADD CONSTRAINT fk_users_business_name FOREIGN KEY (business_name) REFERENCES businesses(name) ON DELETE CASCADE;
 ALTER TABLE businesses ADD CONSTRAINT fk_businesses_owner_id FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE monitored_emails ADD CONSTRAINT fk_monitored_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
 ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
@@ -184,6 +177,7 @@ ALTER TABLE email_offsets ADD CONSTRAINT fk_email_offsets_business_id FOREIGN KE
 ALTER TABLE processed_emails ADD CONSTRAINT fk_processed_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
 ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
+ALTER TABLE oauth_tokens ADD CONSTRAINT fk_oauth_tokens_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
 
 -- Create indexes for new foreign keys
 CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
