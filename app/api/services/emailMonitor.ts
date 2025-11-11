@@ -682,7 +682,7 @@ class EmailMonitor {
     try {
       // Get business owner email
       const businessResult = await query(
-        `SELECT u.email, b.name 
+        `SELECT u.email, b.business_name 
          FROM users u 
          JOIN businesses b ON u.id = b.owner_id 
          WHERE b.id = $1`,

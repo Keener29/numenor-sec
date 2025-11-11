@@ -10,6 +10,7 @@ import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
 import DeleteAccountCard from "../components/DeleteAccountCard";
+import BusinessNameModal from "../components/BusinessNameModal";
 import { googleLogout } from "@react-oauth/google";
 
 export function meta({}: Route.MetaArgs) {
@@ -69,6 +70,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBusinessNameModalOpen, setIsBusinessNameModalOpen] = useState(false);
 
   // Get user data from server-side loader
   const user = loaderData?.user;
@@ -80,6 +82,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Check if business name is missing and show modal
+  useEffect(() => {
+    if (user && stats.businessName === null) {
+      setIsBusinessNameModalOpen(true);
+    }
+  }, [user, stats.businessName]);
 
   const loadDashboardData = async () => {
     try {
@@ -103,7 +112,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       setStats({
         ...emailStats.stats,
         ...alertStats.stats,
-        businessName: businessResponse.business?.name || "Your Business",
+        businessName: businessResponse.business?.name || null,
       });
 
       // Process daily alerts data for the chart
@@ -306,6 +315,16 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           </div>
         )}
       </div>
+
+      {/* Business Name Modal - shown when business name is null */}
+      <BusinessNameModal
+        isOpen={isBusinessNameModalOpen}
+        onClose={() => setIsBusinessNameModalOpen(false)}
+        onSuccess={() => {
+          // Reload dashboard data to get updated business name
+          loadDashboardData();
+        }}
+      />
     </div>
   );
 }

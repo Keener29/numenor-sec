@@ -28,7 +28,7 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
 
     // Get business name and owner email for the email
     const businessResult = await query(
-      `SELECT b.name, u.email as owner_email 
+      `SELECT b.business_name, u.email as owner_email 
        FROM businesses b 
        JOIN users u ON b.owner_id = u.id 
        WHERE b.id = $1`,
