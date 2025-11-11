@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS businesses (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     owner_id INTEGER,
+    address TEXT,
+    phone VARCHAR(20),
+    website VARCHAR(255),
     member_count INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -278,9 +281,18 @@ CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(
 CREATE INDEX IF NOT EXISTS idx_account_deletions_user_id ON account_deletions(user_id);
 CREATE INDEX IF NOT EXISTS idx_account_deletions_business_id ON account_deletions(business_id);
 
--- Apply updated_at triggers
+-- Apply updated_at triggers (idempotent - drop and recreate if exists)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_businesses_updated_at ON businesses;
 CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_monitored_emails_updated_at ON monitored_emails;
 CREATE TRIGGER update_monitored_emails_updated_at BEFORE UPDATE ON monitored_emails FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_phishing_alerts_updated_at ON phishing_alerts;
 CREATE TRIGGER update_phishing_alerts_updated_at BEFORE UPDATE ON phishing_alerts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_oauth_tokens_updated_at ON oauth_tokens;
 CREATE TRIGGER update_oauth_tokens_updated_at BEFORE UPDATE ON oauth_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
