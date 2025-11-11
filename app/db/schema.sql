@@ -164,20 +164,113 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add foreign key constraints after all tables are created
-ALTER TABLE users ADD CONSTRAINT fk_users_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE users ADD CONSTRAINT fk_users_business_name FOREIGN KEY (business_name) REFERENCES businesses(name) ON DELETE CASCADE;
-ALTER TABLE businesses ADD CONSTRAINT fk_businesses_owner_id FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE monitored_emails ADD CONSTRAINT fk_monitored_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_email_id FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
-ALTER TABLE security_events ADD CONSTRAINT fk_security_events_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_email_id FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
-ALTER TABLE email_offsets ADD CONSTRAINT fk_email_offsets_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE processed_emails ADD CONSTRAINT fk_processed_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_user_id FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
-ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
-ALTER TABLE oauth_tokens ADD CONSTRAINT fk_oauth_tokens_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+-- Use DO blocks to check if constraints exist before adding them (idempotent)
+DO $$
+BEGIN
+    -- users.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_business_id'
+    ) THEN
+        ALTER TABLE users ADD CONSTRAINT fk_users_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- businesses.owner_id -> users.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_businesses_owner_id'
+    ) THEN
+        ALTER TABLE businesses ADD CONSTRAINT fk_businesses_owner_id 
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
+
+    -- monitored_emails.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitored_emails_business_id'
+    ) THEN
+        ALTER TABLE monitored_emails ADD CONSTRAINT fk_monitored_emails_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- phishing_alerts.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_phishing_alerts_business_id'
+    ) THEN
+        ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- phishing_alerts.email_id -> monitored_emails.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_phishing_alerts_email_id'
+    ) THEN
+        ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_email_id 
+            FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+    END IF;
+
+    -- security_events.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_security_events_business_id'
+    ) THEN
+        ALTER TABLE security_events ADD CONSTRAINT fk_security_events_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_scans.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_scans_business_id'
+    ) THEN
+        ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_scans.email_id -> monitored_emails.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_scans_email_id'
+    ) THEN
+        ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_email_id 
+            FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_offsets.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_offsets_business_id'
+    ) THEN
+        ALTER TABLE email_offsets ADD CONSTRAINT fk_email_offsets_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- processed_emails.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_processed_emails_business_id'
+    ) THEN
+        ALTER TABLE processed_emails ADD CONSTRAINT fk_processed_emails_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- account_deletions.user_id -> users.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_account_deletions_user_id'
+    ) THEN
+        ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_user_id 
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+
+    -- account_deletions.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_account_deletions_business_id'
+    ) THEN
+        ALTER TABLE account_deletions ADD CONSTRAINT fk_account_deletions_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE SET NULL;
+    END IF;
+
+    -- oauth_tokens.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_oauth_tokens_business_id'
+    ) THEN
+        ALTER TABLE oauth_tokens ADD CONSTRAINT fk_oauth_tokens_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+END $$;
 
 -- Create indexes for new foreign keys
 CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
