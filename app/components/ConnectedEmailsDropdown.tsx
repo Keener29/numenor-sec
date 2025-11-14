@@ -21,6 +21,8 @@ interface ConnectedEmailsDropdownProps {
   oauthStatuses: Record<string, OAuthStatus>;
 }
 
+const MAX_EMAILS = 5;
+
 export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -55,6 +57,12 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Check email limit
+    if (emails.length >= MAX_EMAILS) {
+      setError(`Maximum of ${MAX_EMAILS} emails allowed. Please remove an email before adding a new one.`);
+      return;
+    }
     
     if (!newEmail.trim()) {
       setError("Email address is required");
@@ -263,7 +271,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                   <form onSubmit={handleAddEmail} className="space-y-3">
                     <div>
                       <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                        Add New Email
+                        Add New Email {emails.length >= MAX_EMAILS && <span className="text-gray-500 font-normal">(Limit reached: {MAX_EMAILS} emails)</span>}
                       </label>
                       <input
                         type="email"
@@ -271,9 +279,14 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
                         placeholder="Enter email address to monitor"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900"
-                        disabled={isAddingEmail}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        disabled={isAddingEmail || emails.length >= MAX_EMAILS}
                       />
+                      {emails.length < MAX_EMAILS && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          {emails.length} of {MAX_EMAILS} emails added
+                        </p>
+                      )}
                     </div>
                     
                     {error && (
@@ -282,10 +295,10 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                     
                     <button
                       type="submit"
-                      disabled={isAddingEmail || !newEmail.trim()}
+                      disabled={isAddingEmail || !newEmail.trim() || emails.length >= MAX_EMAILS}
                       className="w-full bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isAddingEmail ? "Adding..." : "Add Email"}
+                      {isAddingEmail ? "Adding..." : emails.length >= MAX_EMAILS ? "Limit Reached" : "Add Email"}
                     </button>
                   </form>
                 </div>
