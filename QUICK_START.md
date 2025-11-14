@@ -45,7 +45,7 @@ Your application now includes:
 
 1. **Visit the Frontend**: Go to [http://localhost:3000](http://localhost:3000)
 2. **Create an Account**: Click "Sign Up" and create a business account
-3. **Add Email Monitoring**: Use the dashboard to add email addresses
+3. **Add Email Monitoring**: Use the dashboard to add email addresses (single or bulk, max 5 per business)
 4. **Test Email Permissions**: The system will send permission request emails
 
 ## Development Commands

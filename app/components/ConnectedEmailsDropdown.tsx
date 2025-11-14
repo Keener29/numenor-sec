@@ -21,10 +21,15 @@ interface ConnectedEmailsDropdownProps {
   oauthStatuses: Record<string, OAuthStatus>;
 }
 
+const MAX_EMAILS = 5;
+
 export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
+  const [bulkEmails, setBulkEmails] = useState("");
+  const [isBulkMode, setIsBulkMode] = useState(false);
   const [error, setError] = useState("");
+  const [bulkProgress, setBulkProgress] = useState<{ total: number; current: number; success: number; failed: number; errors: string[] } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: 'resend' | 'delete' | null }>({});
 
   // Handle Escape key to close modal
@@ -52,9 +57,53 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     });
   };
 
+  // Parse emails from bulk input (supports comma-separated, line-separated, or both)
+  // Note: Basic client-side validation for UX only. Backend does comprehensive validation.
+  const parseBulkEmails = (input: string): string[] => {
+    const MAX_INPUT_SIZE = 10000; // Limit bulk input size to prevent DoS
+    
+    // Limit input size to prevent DoS attacks
+    if (input.length > MAX_INPUT_SIZE) {
+      return [];
+    }
+    
+    // Basic email format check (simple regex for UX feedback only)
+    // Backend does comprehensive RFC 5322 validation
+    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    const emails: string[] = [];
+    
+    // Split by both commas and newlines, then filter and validate
+    const parts = input
+      .split(/[,\n]/)
+      .map(part => part.trim())
+      .filter(part => part.length > 0 && part.length <= 320); // Basic length check
+    
+    for (const part of parts) {
+      const normalized = part.toLowerCase().trim();
+      // Basic format check - backend will do comprehensive validation
+      if (basicEmailRegex.test(normalized)) {
+        emails.push(normalized);
+      }
+    }
+    
+    return [...new Set(emails)]; // Remove duplicates
+  };
+
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (isBulkMode) {
+      await handleAddBulkEmails();
+      return;
+    }
+    
+    // Check email limit
+    if (emails.length >= MAX_EMAILS) {
+      setError(`Maximum of ${MAX_EMAILS} emails allowed. Please remove an email before adding a new one.`);
+      return;
+    }
     
     if (!newEmail.trim()) {
       setError("Email address is required");
@@ -84,6 +133,103 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       console.error("Add email error:", err);
     } finally {
       setIsAddingEmail(false);
+    }
+  };
+
+  const handleAddBulkEmails = async () => {
+    if (!bulkEmails.trim()) {
+      setError("Please enter at least one email address");
+      return;
+    }
+
+    const parsedEmails = parseBulkEmails(bulkEmails);
+    
+    if (parsedEmails.length === 0) {
+      setError("No valid email addresses found. Please check your input.");
+      return;
+    }
+
+    // Check if adding these emails would exceed the limit
+    const currentCount = parsedEmails.length;
+    const availableSlots = MAX_EMAILS - emails.length;
+    
+    if (availableSlots > 0 && currentCount > availableSlots) {
+      setError(`You can only add ${availableSlots} more ${availableSlots === 1 ? 'email' : 'emails'}. You have ${parsedEmails.length} ${parsedEmails.length === 1 ? 'email' : 'emails'} in your input.`);
+      return;
+    } else if (availableSlots <= 0) {
+      setError(`You have reached the maximum number of emails allowed. You can only add ${MAX_EMAILS} emails.`);
+      return;
+    }
+
+    try {
+      setIsAddingEmail(true);
+      setError("");
+      setBulkProgress({ total: parsedEmails.length, current: parsedEmails.length, success: 0, failed: 0, errors: [] });
+
+      // Use the bulk API endpoint
+      const result = await emailsAPI.addBulkEmails({ emailAddresses: parsedEmails });
+      
+      const successCount = result.summary?.added || 0;
+      const failedCount = result.summary?.permissionEmailsFailed || 0;
+      const duplicates = result.duplicates || [];
+      
+      setBulkProgress({ 
+        total: parsedEmails.length, 
+        current: parsedEmails.length, 
+        success: successCount, 
+        failed: failedCount, 
+        errors: result.permissionEmailResults?.filter((r: { success: boolean }) => !r.success).map((r: { email: string; error?: string }) => `${r.email}: ${r.error || 'Failed to send permission email'}`) || []
+      });
+
+      if (successCount > 0) {
+        onEmailsUpdate(); // Refresh the emails list
+      }
+
+      // Build success/error message
+      const messages: string[] = [];
+      if (successCount > 0) {
+        messages.push(`Successfully added ${successCount} ${successCount === 1 ? 'email' : 'emails'}.`);
+      }
+      if (duplicates.length > 0) {
+        messages.push(`Skipped ${duplicates.length} duplicate(s): ${duplicates.join(', ')}`);
+      }
+      if (failedCount > 0) {
+        messages.push(`Failed to send permission emails to ${failedCount} ${failedCount === 1 ? 'address' : 'addresses'}.`);
+      }
+      if (result.warnings && result.warnings.length > 0) {
+        messages.push(...result.warnings);
+      }
+
+      if (messages.length > 0) {
+        setError(messages.join('\n'));
+      }
+
+      if (successCount === parsedEmails.length && failedCount === 0) {
+        // All succeeded, close modal after a short delay
+        setTimeout(() => {
+          setBulkEmails("");
+          setIsModalOpen(false);
+        }, 2000);
+      }
+    } catch (err: any) {
+      const errorMessage = err?.message || "Failed to add emails";
+      const errorData = err?.errorData || {};
+      
+      // Build detailed error message
+      let fullError = errorMessage;
+      if (errorData.duplicates && errorData.duplicates.length > 0) {
+        fullError += `\nDuplicates: ${errorData.duplicates.join(', ')}`;
+      }
+      if (errorData.availableSlots !== undefined) {
+        fullError += `\nAvailable slots: ${errorData.availableSlots}`;
+      }
+      
+      setError(fullError);
+      setBulkProgress(null);
+      console.error("Bulk add email error:", err);
+    } finally {
+      setIsAddingEmail(false);
+      setTimeout(() => setBulkProgress(null), 5000); // Clear progress after 5 seconds
     }
   };
 
@@ -126,7 +272,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     return oauthStatus?.isConnected || false;
   });
   const totalEmails = emails.length;
-
+  const bulkEmailsCount = parseBulkEmails(bulkEmails).length;
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="p-5">
@@ -260,32 +406,110 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
 
                 {/* Add New Email Form */}
                 <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Add New Email {emails.length >= MAX_EMAILS && <span className="text-gray-500 font-normal">(Limit reached: {MAX_EMAILS} emails)</span>}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsBulkMode(!isBulkMode);
+                        setError("");
+                        setBulkProgress(null);
+                        // Clear the other input when switching modes
+                        if (isBulkMode) {
+                          setBulkEmails("");
+                        } else {
+                          setNewEmail("");
+                        }
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {isBulkMode ? "Switch to single email" : "Add multiple emails"}
+                    </button>
+                  </div>
+
                   <form onSubmit={handleAddEmail} className="space-y-3">
-                    <div>
-                      <label htmlFor="newEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                        Add New Email
-                      </label>
-                      <input
-                        type="email"
-                        id="newEmail"
-                        value={newEmail}
-                        onChange={(e) => setNewEmail(e.target.value)}
-                        placeholder="Enter email address to monitor"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900"
-                        disabled={isAddingEmail}
-                      />
-                    </div>
+                    {isBulkMode ? (
+                      <div>
+                        <textarea
+                          id="bulkEmails"
+                          value={bulkEmails}
+                          onChange={(e) => {
+                            // Limit input size to prevent DoS (10KB max)
+                            if (e.target.value.length <= 10000) {
+                              setBulkEmails(e.target.value);
+                            }
+                          }}
+                          placeholder={`Enter email addresses separated by commas or new lines
+Example:
+email1@example.com
+email2@example.com, email3@example.com`}
+                          rows={6}
+                          maxLength={10000}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 font-mono disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          disabled={isAddingEmail || emails.length >= MAX_EMAILS}
+                        />
+                        <p className="mt-1 text-xs text-gray-500">
+                          {emails.length} of {MAX_EMAILS} emails added. {bulkEmails.trim() && bulkEmailsCount > 0 && `Found ${bulkEmailsCount} valid ${bulkEmailsCount === 1 ? 'email' : 'emails'} in input.`}
+                        </p>
+                        {bulkProgress && (
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Progress: {bulkProgress.current} / {bulkProgress.total}</span>
+                              <span className="text-green-600">✓ {bulkProgress.success} success</span>
+                              {bulkProgress.failed > 0 && <span className="text-red-600">✗ {bulkProgress.failed} failed</span>}
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="email"
+                          id="newEmail"
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          placeholder="Enter email address to monitor"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          disabled={isAddingEmail || emails.length >= MAX_EMAILS}
+                        />
+                        {emails.length < MAX_EMAILS && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {emails.length} of {MAX_EMAILS} emails added
+                          </p>
+                        )}
+                      </div>
+                    )}
                     
                     {error && (
-                      <div className="text-red-600 text-sm">{error}</div>
+                      <div className="text-red-600 text-sm whitespace-pre-line">
+                        {error.split('\n').map((line, i) => (
+                          <div key={i}>{line}</div>
+                        ))}
+                      </div>
                     )}
                     
                     <button
                       type="submit"
-                      disabled={isAddingEmail || !newEmail.trim()}
+                      disabled={isAddingEmail || emails.length >= MAX_EMAILS || (isBulkMode ? !bulkEmails.trim() : !newEmail.trim())}
                       className="w-full bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isAddingEmail ? "Adding..." : "Add Email"}
+                      {isAddingEmail 
+                        ? (isBulkMode && bulkProgress 
+                            ? `Adding ${bulkProgress.current}/${bulkProgress.total}...` 
+                            : "Adding...") 
+                        : emails.length >= MAX_EMAILS 
+                          ? "Limit Reached" 
+                          : isBulkMode 
+                            ? `Add ${bulkEmails.trim() ? bulkEmailsCount : 0} ${bulkEmailsCount === 1 ? 'Email' : 'Emails'}` 
+                            : "Add Email"}
                     </button>
                   </form>
                 </div>

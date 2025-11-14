@@ -19,7 +19,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **Authentication System**: JWT-based auth with password hashing
 - **User Management**: Registration, login, profile management
 - **Business Management**: Business information and statistics
-- **Email Monitoring**: Add, remove, and manage monitored email addresses with smart UI controls
+- **Email Monitoring**: Add, remove, and manage monitored email addresses (single or bulk) with smart UI controls (max 5 emails per business)
 - **Intelligent Phishing Detection**: Advanced text analysis with subject/body distinction and false positive reduction
 - **Phishing Alerts**: Create, update, and track phishing threats with improved accuracy
 - **Security Logging**: Comprehensive audit trail of all activities
@@ -240,7 +240,8 @@ That's it! The application will be running with:
 
 ### Email Monitoring (`/api/emails`)
 - `GET /` - List monitored emails (with pagination)
-- `POST /` - Add email for monitoring
+- `POST /` - Add single email for monitoring
+- `POST /bulk` - Add multiple emails for monitoring (max 5 per business, max 5 per request)
 - `PUT /:id` - Update email connection status
 - `DELETE /:id` - Remove email from monitoring
 - `GET /stats` - Get email monitoring statistics
@@ -510,8 +511,11 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 
 - **Password Hashing**: bcrypt with salt rounds
 - **JWT Tokens**: Secure authentication with expiration
-- **Input Validation**: Zod schema validation
+- **Input Validation**: Zod schema validation with RFC 5322 email validation
 - **SQL Injection Protection**: Parameterized queries
+- **XSS Protection**: React auto-escaping and input sanitization
+- **DoS Protection**: Input size limits and rate limiting (10 req/s)
+- **CSRF Protection**: HTTP-only cookies with SameSite policy
 - **CORS Configuration**: Controlled cross-origin access
 - **Security Headers**: Helmet.js protection
 - **Audit Logging**: Comprehensive security event tracking

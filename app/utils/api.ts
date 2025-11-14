@@ -22,10 +22,15 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
     // Handle validation errors with detailed messages
     if (errorData.details && Array.isArray(errorData.details)) {
       const validationMessages = errorData.details.map((detail: any) => detail.message).join(', ');
-      throw new Error(validationMessages);
+      const error = new Error(validationMessages);
+      (error as any).errorData = errorData;
+      throw error;
     }
     
-    throw new Error(errorData.error || `HTTP ${response.status}`);
+    // Preserve error data for bulk operations and other structured errors
+    const error = new Error(errorData.error || `HTTP ${response.status}`);
+    (error as any).errorData = errorData;
+    throw error;
   }
   
   return response.json();
@@ -131,6 +136,14 @@ export const emailsAPI = {
   // Add new email to monitor
   addEmail: async (emailData: { emailAddress: string }) => {
     return apiRequest('/emails', {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  },
+
+  // Add multiple emails to monitor (bulk)
+  addBulkEmails: async (emailData: { emailAddresses: string[] }) => {
+    return apiRequest('/emails/bulk', {
       method: 'POST',
       body: JSON.stringify(emailData),
     });
