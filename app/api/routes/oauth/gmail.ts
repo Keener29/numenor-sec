@@ -22,13 +22,24 @@ const connectEmailSchema = z.object({
  */
 router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (req, res, next) => {
   try {
-    const { emailAddress, businessId, approveToken } = req.query;
+    // After Zod validation, req.query is validated and typed
+    // businessId is already transformed to a number (if provided)
+    const emailAddress = req.query.emailAddress as string;
+    const businessId = req.query.businessId as number | undefined;
+    const approveToken = req.query.approveToken as string | undefined;
 
     let targetBusinessId: number;
 
-    // If businessId is provided (from email approval flow), use it
-    if (businessId && typeof businessId === 'string') {
-        targetBusinessId = parseInt(businessId as string);
+    // If businessId OR approveToken is provided (from email approval flow), use businessId
+    // This allows the email approval flow to work without authentication
+    if (businessId || approveToken) {
+      if (!businessId) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'businessId is required when using approveToken' 
+        });
+      }
+      targetBusinessId = businessId;
     } else {
       // Otherwise, require authentication (from dashboard)
       const authHeader = req.headers.authorization;
@@ -63,7 +74,7 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
     }
 
     // If this is from email approval flow, validate the approval token
-    if (approveToken && typeof approveToken === 'string') {
+    if (approveToken) {
       const emailId = (emailCheck.rows[0] as { id: number }).id;
       
       // Validate the approval token
@@ -95,7 +106,7 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
     oauthLogger.error('Error generating Gmail OAuth URL', {
       operation: 'generate-auth-url',
       emailAddress: req.query.emailAddress as string,
-      businessId: req.query.businessId ? parseInt(req.query.businessId as string) : undefined
+      businessId: req.query.businessId as number | undefined
     }, error as Error);
     next(error);
   }
