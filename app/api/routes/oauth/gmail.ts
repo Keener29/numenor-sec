@@ -86,7 +86,7 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
       );
     }
 
-    const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+    const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress as string);
     
     // Redirect directly to Google OAuth instead of returning JSON
     res.redirect(authUrl);

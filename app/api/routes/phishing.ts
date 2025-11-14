@@ -99,7 +99,7 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
 router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phishingStatisticsQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     const businessId = req.user!.business_id!;
-    const days = req.query.days as number || 30;
+    const days = (req.query.days as unknown as number) || 30;
 
     securityLogger.info('Getting threat statistics for business', {
       operation: 'get-threat-statistics',
