@@ -40,25 +40,25 @@ export default function Home() {
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="text-center">
-            <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
+                  <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
               <span className="block">Automated Phishing Detection</span>{" "}
               <span className="block text-blue-600">for Small & Medium Businesses</span>
-            </h1>
+                  </h1>
             <p className="mt-6 max-w-3xl mx-auto text-xl text-gray-600">
               Simple, reliable email security that works automatically. Get peace of mind knowing every email is scanned for threats before they reach your team.
-            </p>
+                  </p>
             <div className="mt-10">
-              <Link
-                to="/signup"
+                    <Link
+                      to="/signup"
                 className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-lg font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-lg"
               >
                 Start Protecting Your Inbox
-              </Link>
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
+            
       {/* The Problem Section */}
       <div className="bg-gray-50 py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -105,7 +105,7 @@ export default function Home() {
                     alt="Founder of Numenor Security"
                     className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover object-[60%_30%] shadow-lg"
                   />
-                </div>
+                  </div>
                 <div className="flex-1 text-center md:text-left">
                   <p className="text-lg text-gray-700 leading-relaxed">
                     Numenor Security was created by a <strong className="text-gray-900">Computer Engineer from the University of Waterloo</strong> with <strong className="text-gray-900">CompTIA Security+ certification</strong>. Built with engineering rigor and cybersecurity expertise.
@@ -221,7 +221,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
+          </div>
 
       {/* Free PDF Section */}
       <div className="bg-white py-16 lg:py-20">
@@ -241,8 +241,8 @@ export default function Home() {
               Download Free Phishing Guide
             </a>
           </div>
-        </div>
-      </div>
+                  </div>
+              </div>
 
       {/* Reviews / Testimonials Section */}
       {/* <div className="bg-gray-50 py-16 lg:py-20">
@@ -271,7 +271,7 @@ export default function Home() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                  </div>
               </div>
               <p className="text-gray-700 mb-4">
                 "Finally, a security solution that actually makes sense for small businesses. Easy to set up and gives us real peace of mind."
@@ -296,7 +296,7 @@ export default function Home() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                  </div>
               </div>
               <p className="text-gray-700 mb-4">
                 "The alerts are clear and actionable. We caught a phishing attempt the first week and avoided what could have been a costly mistake."
@@ -321,7 +321,7 @@ export default function Home() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                   </svg>
-                </div>
+                  </div>
               </div>
               <p className="text-gray-700 mb-4">
                 "As a small law firm, we needed enterprise-level security without the enterprise price tag. This delivers exactly that."
@@ -361,6 +361,9 @@ export default function Home() {
               </Link>
               <Link to="/privacy" className="text-sm text-gray-500 hover:text-gray-900">
                 Privacy Policy
+              </Link>
+              <Link to="/contact" className="text-sm text-gray-500 hover:text-gray-900">
+                Contact
               </Link>
             </div>
             <p className="mt-4 text-sm text-gray-500">
