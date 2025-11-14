@@ -4,6 +4,10 @@ export const addEmailSchema = z.object({
   emailAddress: z.string().email('Invalid email address')
 });
 
+export const addBulkEmailsSchema = z.object({
+  emailAddresses: z.array(z.string().email('Invalid email address')).min(1, 'At least one email address is required').max(10, 'Maximum 10 emails allowed per request')
+});
+
 export const updateEmailSchema = z.object({
   isConnected: z.boolean().optional()
 });
