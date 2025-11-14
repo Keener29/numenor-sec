@@ -546,19 +546,19 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 
 ### High Priority
 1. **Register any needed emails** - Set up proper email addresses for production use
-2. **Double check terms and conditions** - Review and update legal documentation
+2. **DONE: Double check terms and conditions** - Review and update legal documentation
 3. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
-4. **Server multi-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
+4. **DONE: Server multi-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
 5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
 6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 7. **attachment analyzer is weak, can be improved**
 8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
 9. **DONE: Don't check forwarded emails**
-10. **Inject warning in medium + risk emails**
+10. **DONE: Inject warning in medium + risk emails**
 11. **DONE: Sign in and sign up with google**
 12. **DONE: Free pdf download for phishing basics**
-13. **Critical/High bug**
-14. **favicon**
+13. **DONE: Critical/High bug**
+14. **DONE: favicon**
 ### Future Enhancements
 - Implement machine learning for threat detection
 
