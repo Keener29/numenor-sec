@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
-import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema } from '../schemas/user.js';
+import { authLimiter } from '../middleware/rateLimit.js';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
 import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
 import crypto from 'crypto';
@@ -11,7 +12,7 @@ import { OAuth2Client } from 'google-auth-library';
 const router = Router();
 
 // Register new user
-router.post('/register', validateBody(registerSchema), async (req, res, next) => {
+router.post('/register', authLimiter, validateBody(registerSchema), async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, businessName } = req.body;
 
@@ -70,7 +71,7 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
 });
 
 // Login user
-router.post('/login', validateBody(loginSchema), async (req, res, next) => {
+router.post('/login', authLimiter, validateBody(loginSchema), async (req, res, next) => {
   try {
     const { email, password, rememberMe } = req.body as { email: string; password: string; rememberMe?: boolean };
 
@@ -113,12 +114,9 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
  * Body: { credential: string }
  * Verifies Google ID token, creates user+business if needed, sets auth cookie and returns user.
  */
-router.post('/google', async (req, res, next) => {
+router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, res, next) => {
   try {
-    const { credential } = req.body as { credential?: string };
-    if (!credential) {
-      return res.status(400).json({ error: 'Missing Google credential' });
-    }
+    const { credential } = req.body;
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
@@ -211,12 +209,9 @@ router.post('/google', async (req, res, next) => {
 });
 
 // Forgot password (initiate reset)
-router.post('/forgot-password', async (req, res, next) => {
+router.post('/forgot-password', authLimiter, validateBody(forgotPasswordSchema), async (req, res, next) => {
   try {
-    const { email } = req.body as { email?: string };
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+    const { email } = req.body;
 
     // Do not reveal whether user exists
     const lookup = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -234,7 +229,7 @@ router.post('/forgot-password', async (req, res, next) => {
         [user.id, tokenHash, expiresAt]
       );
 
-      const appUrl = process.env.APP_URL || 'http://localhost:3000';
+      const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
       const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
       // Send reset email (do not reveal success to the client)
@@ -249,7 +244,7 @@ router.post('/forgot-password', async (req, res, next) => {
 });
 
 // Reset password
-router.post('/reset-password', validateBody(resetPasswordSchema), async (req, res, next) => {
+router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), async (req, res, next) => {
   try {
     const { token, newPassword } = req.body as { token: string; newPassword: string };
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');

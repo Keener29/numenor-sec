@@ -20,12 +20,28 @@ import accountsRoutes from './routes/accounts.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimit.js';
+import { enforceHttps } from './middleware/httpsEnforcement.js';
 
 const app = express();
 const PORT = process.env.API_PORT || 3001;
 
+// Trust proxy for correct X-Forwarded-* headers (required for HTTPS detection behind reverse proxy)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// HTTPS enforcement middleware (must be before other middleware)
+app.use(enforceHttps);
+
 // Security middleware (XSS Protection, HTTP Strict Transport Security, etc)
-app.use(helmet());
+app.use(helmet({
+  hsts: process.env.NODE_ENV === 'production' ? {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  } : false
+}));
 
 // CORS configuration
 app.use(cors({
@@ -42,12 +58,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Cookie parsing middleware
 app.use(cookieParser());
 
+// Apply general rate limiting to all API routes
+app.use('/api', apiLimiter);
+
 // Request logging middleware
 app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+// Health check endpoint (excluded from rate limiting)
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -125,13 +144,16 @@ app.use(errorHandler);
 
 // Start server
 app.listen(PORT, async () => {
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const host = process.env.API_HOST || 'localhost';
+  
   logger.info('Numenor Security API server started', {
     operation: 'server-startup',
     metadata: {
       port: PORT,
       environment: process.env.NODE_ENV || 'development',
-      apiDocs: `http://localhost:${PORT}/api`,
-      healthCheck: `http://localhost:${PORT}/health`
+      apiDocs: `${protocol}://${host}:${PORT}/api`,
+      healthCheck: `${protocol}://${host}:${PORT}/health`
     }
   });
   

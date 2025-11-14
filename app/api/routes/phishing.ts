@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
-import { validateBody } from '../middleware/validation.js';
+import { validateBody, validateQuery } from '../middleware/validation.js';
 import { phishingDetector } from '../services/detector/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
 import { securityLogger } from '../services/logger.js';
+import { phishingStatisticsQuerySchema, phishingPatternsQuerySchema } from '../schemas/phishing.js';
 import { z } from 'zod';
 
 
@@ -95,10 +96,10 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
  * @desc Get phishing threat statistics for business
  * @access Private (Business users only)
  */
-router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
+router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phishingStatisticsQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     const businessId = req.user!.business_id!;
-    const days = parseInt(req.query.days as string) || 30;
+    const days = (req.query.days as unknown as number) || 30;
 
     securityLogger.info('Getting threat statistics for business', {
       operation: 'get-threat-statistics',
@@ -255,7 +256,7 @@ router.get('/statistics', authenticateToken, requireBusiness, async (req: AuthRe
  * @desc Get detected phishing patterns and their descriptions
  * @access Private (Business users only)
  */
-router.get('/patterns', authenticateToken, async (req: AuthRequest, res, next) => {
+router.get('/patterns', authenticateToken, validateQuery(phishingPatternsQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     // Get pattern statistics from database (will return empty array if no data)
     const patternStats = await query(
