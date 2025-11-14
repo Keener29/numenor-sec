@@ -204,11 +204,12 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     const businessName = (businessResult.rows[0] as { business_name: string }).business_name;
     const businessEmail = (businessResult.rows[0] as { owner_email: string }).owner_email;
 
-    // Check for existing emails in bulk
-    const placeholders = normalizedEmails.map((_, i) => `$${i + 1}`).join(', ');
+    // Check for existing emails in bulk (using parameterized query for security)
+    // Build safe parameterized query - emails are already validated and normalized
+    const emailPlaceholders = normalizedEmails.map((_, i) => `$${i + 1}`).join(', ');
     const existingEmailsResult = await client.query(
       `SELECT email_address FROM monitored_emails 
-       WHERE email_address IN (${placeholders}) AND business_id = $${normalizedEmails.length + 1}`,
+       WHERE email_address IN (${emailPlaceholders}) AND business_id = $${normalizedEmails.length + 1}`,
       [...normalizedEmails, businessId]
     );
 
