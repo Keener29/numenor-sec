@@ -1,0 +1,32 @@
+# Dockerfile for database migrations
+# Uses the same base as API but runs migrations instead
+FROM node:20-alpine
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create app user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S numenor -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies (including dev dependencies for tsx)
+RUN npm ci && npm cache clean --force
+
+# Copy migration files and database connection code
+COPY app/db ./app/db
+
+# Switch to non-root user
+USER numenor
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Run migrations
+CMD ["npm", "run", "db:migrate"]
+
