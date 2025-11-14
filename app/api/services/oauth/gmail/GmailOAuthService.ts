@@ -39,7 +39,10 @@ export class GmailOAuthService extends OAuthProvider {
   private initializeOAuthClient(): void {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/oauth/gmail/callback';
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+      (process.env.NODE_ENV === 'production' 
+        ? 'https://numenorsecurity.com/api/oauth/gmail/callback'
+        : 'http://localhost:3001/api/oauth/gmail/callback');
 
     if (!clientId || !clientSecret) {
       throw ErrorFactory.oauthService(

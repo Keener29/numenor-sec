@@ -29,6 +29,14 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(8, 'New password must be at least 8 characters')
 });
 
+export const googleAuthSchema = z.object({
+  credential: z.string().min(1, 'Google credential is required')
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Valid email address is required')
+});
+
 // Schema for account deletion request body
 export const deleteAccountSchema = z.object({
   reason: z

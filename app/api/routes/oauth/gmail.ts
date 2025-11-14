@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../../middleware/auth.js';
-import { validateBody } from '../../middleware/validation.js';
+import { validateBody, validateQuery } from '../../middleware/validation.js';
+import { oauthLimiter } from '../../middleware/rateLimit.js';
 import { query } from '../../../db/connection.js';
 import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.js';
 import { oauthLogger } from '../../services/logger.js';
+import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 
@@ -18,13 +20,9 @@ const connectEmailSchema = z.object({
  * @desc Generate Gmail OAuth authorization URL
  * @access Public (for email approval flow) or Private (for dashboard)
  */
-router.get('/auth-url', async (req, res, next) => {
+router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (req, res, next) => {
   try {
     const { emailAddress, businessId, approveToken } = req.query;
-
-    if (!emailAddress || typeof emailAddress !== 'string') {
-      return res.status(400).send('Email address is required');
-    }
 
     let targetBusinessId: number;
 
@@ -108,23 +106,26 @@ router.get('/auth-url', async (req, res, next) => {
  * @desc Handle Gmail OAuth callback from Google
  * @access Public (OAuth callback)
  */
-router.get("/callback", async (req, res, next) => {
+router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async (req, res, next) => {
   try {
     const { code, state, error } = req.query;
 
     if (error) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=${error}`);
+      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+      return res.redirect(`${frontendUrl}/success?oauth_error=${error}`);
     }
 
     if (!code || !state) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=missing_parameters`);
+      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+      return res.redirect(`${frontendUrl}/success?oauth_error=missing_parameters`);
     }
 
     let stateData;
     try {
       stateData = JSON.parse(state as string);
     } catch (parseError) {
-      return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=invalid_state`);
+      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+      return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
     }
 
     const { businessId, emailAddress } = stateData;
@@ -142,7 +143,8 @@ router.get("/callback", async (req, res, next) => {
     );
 
     // Redirect to success page (no login required)
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?email=${encodeURIComponent(emailAddress)}`);
+    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+    res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (error) {
     oauthLogger.error('Error handling Gmail OAuth callback', {
@@ -152,7 +154,8 @@ router.get("/callback", async (req, res, next) => {
         state: req.query.state as string
       }
     }, error as Error);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/success?oauth_error=callback_failed`);
+    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+    res.redirect(`${frontendUrl}/success?oauth_error=callback_failed`);
   }
 });
 
