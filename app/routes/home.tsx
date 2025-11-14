@@ -96,17 +96,28 @@ export default function Home() {
               Built by a Cybersecurity Expert
             </p>
           </div>
-          <div className="mt-12 max-w-3xl mx-auto">
-            <div className="bg-gray-50 rounded-lg p-8">
-              <p className="text-lg text-gray-700 leading-relaxed">
-                Numenor Security was created by a <strong className="text-gray-900">Computer Engineer from the University of Waterloo</strong> with <strong className="text-gray-900">CompTIA Security+ certification</strong>. This isn't a side project—it's built with engineering rigor and real cybersecurity expertise.
-              </p>
-              <p className="mt-4 text-lg text-gray-700 leading-relaxed">
-                We specialize in protecting small and medium businesses—dentists, law firms, medical clinics, accountants, and agencies. These organizations are prime targets for phishing because they handle sensitive client data but often lack enterprise-level security teams.
-              </p>
-              <p className="mt-4 text-lg text-gray-700 leading-relaxed">
-                Our solution combines professional security training with practical engineering to give SMBs enterprise-grade protection without the enterprise complexity.
-              </p>
+          <div className="mt-12 max-w-4xl mx-auto">
+            <div className="bg-gray-50 rounded-lg p-8 lg:p-10">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-6 lg:gap-8">
+                <div className="flex-shrink-0">
+                  <img
+                    src="/headshot.JPEG"
+                    alt="Founder of Numenor Security"
+                    className="w-32 h-32 lg:w-40 lg:h-40 rounded-full object-cover object-[60%_30%] shadow-lg"
+                  />
+                </div>
+                <div className="flex-1 text-center md:text-left">
+                  <p className="text-lg text-gray-700 leading-relaxed">
+                    Numenor Security was created by a <strong className="text-gray-900">Computer Engineer from the University of Waterloo</strong> with <strong className="text-gray-900">CompTIA Security+ certification</strong>. Built with engineering rigor and cybersecurity expertise.
+                  </p>
+                  <p className="mt-4 text-lg text-gray-700 leading-relaxed">
+                    We specialize in protecting small and medium businesses—dentists, law firms, medical clinics, accountants, and agencies. These organizations are prime targets for phishing because they handle sensitive client data but often lack enterprise-level security teams.
+                  </p>
+                  <p className="mt-4 text-lg text-gray-700 leading-relaxed">
+                    Our solution combines professional security training with practical engineering to give SMBs enterprise-grade protection without the enterprise complexity.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -234,7 +245,7 @@ export default function Home() {
       </div>
 
       {/* Reviews / Testimonials Section */}
-      <div className="bg-gray-50 py-16 lg:py-20">
+      {/* <div className="bg-gray-50 py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="lg:text-center">
             <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
@@ -319,7 +330,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Final CTA Section */}
       <div className="bg-blue-700">
