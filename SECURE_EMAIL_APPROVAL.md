@@ -28,7 +28,8 @@ The Numenor Security platform implements a secure email approval/decline system 
    - `GET /api/oauth/gmail/auth-url` - Generate OAuth URL and handle approval (redirects to Google)
    - `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
    - `GET /api/emails/` - List monitored emails
-   - `POST /api/emails/` - Add new email
+   - `POST /api/emails/` - Add single email (max 5 per business)
+   - `POST /api/emails/bulk` - Add multiple emails (max 5 per business, max 5 per request)
    - `PUT /api/emails/:id` - Update email
    - `DELETE /api/emails/:id` - Remove email
    - `POST /api/emails/:id/resend` - Resend permission email
@@ -43,7 +44,15 @@ The Numenor Security platform implements a secure email approval/decline system 
 
 ## Security Features
 
-### 1. Cryptographic Token System
+### 1. Email Input Security
+- **RFC 5322 Validation**: Comprehensive email format validation
+- **Input Sanitization**: Dangerous characters blocked (XSS protection)
+- **Length Limits**: Max 320 characters per email (RFC 5321)
+- **Bulk Limits**: Max 5 emails per business, max 5 per bulk request
+- **SQL Injection Protection**: Parameterized queries
+- **DoS Protection**: Input size limits (10KB) and rate limiting
+
+### 2. Cryptographic Token System
 
 #### Token Generation
 ```typescript
