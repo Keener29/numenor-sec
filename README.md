@@ -559,6 +559,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 12. **DONE: Free pdf download for phishing basics**
 13. **DONE: Critical/High bug**
 14. **DONE: favicon**
+15. **Blue text font in emails, change to white**
 ### Future Enhancements
 - Implement machine learning for threat detection
 

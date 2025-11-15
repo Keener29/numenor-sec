@@ -73,7 +73,7 @@ export default function Home() {
           <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3">
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
               <div className="text-4xl font-bold text-red-600">90%</div>
-              <p className="mt-2 text-gray-600">of SMB data breaches start with phishing attacks</p>
+              <p className="mt-2 text-gray-600">of Small and Medium Businesses' data breaches start with phishing attacks</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
               <div className="text-4xl font-bold text-red-600">1 in 4</div>
@@ -81,7 +81,7 @@ export default function Home() {
             </div>
             <div className="bg-white rounded-lg shadow-md p-6 text-center">
               <div className="text-4xl font-bold text-red-600">$5K-$50K</div>
-              <p className="mt-2 text-gray-600">average financial impact per phishing incident for SMBs</p>
+              <p className="mt-2 text-gray-600">average financial impact per phishing incident for small and medium businesses</p>
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export default function Home() {
                     We specialize in protecting small and medium businesses—dentists, law firms, medical clinics, accountants, and agencies. These organizations are prime targets for phishing because they handle sensitive client data but often lack enterprise-level security teams.
                   </p>
                   <p className="mt-4 text-lg text-gray-700 leading-relaxed">
-                    Our solution combines professional security training with practical engineering to give SMBs enterprise-grade protection without the enterprise complexity.
+                    Our solution combines professional security training with practical engineering to give small and medium businesses protection without the enterprise complexity.
                   </p>
                 </div>
               </div>
@@ -210,7 +210,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3 text-center">
             <div className="bg-white rounded-lg p-6 shadow-sm">
-              <p className="text-gray-700 font-medium">Built for Canadian SMBs</p>
+              <p className="text-gray-700 font-medium">Built for Canadian small and medium businesses</p>
             </div>
             <div className="bg-white rounded-lg p-6 shadow-sm">
               <p className="text-gray-700 font-medium">Designed using industry best practices</p>
