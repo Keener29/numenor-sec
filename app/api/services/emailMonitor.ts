@@ -524,13 +524,13 @@ class EmailMonitor {
             Reasons: ${sanitizedReason}. Do not click links or download attachments. Verify the sender before responding.
           </div>
           <div style="font-size: 11px; color: ${style.textColor}; opacity: 0.8; margin-top: 8px;">
-            Numenor Security — Automated warning
+            Numenor Security  -  Automated warning
           </div>
         </div>
       `;
       
       // Generate plain-text warning
-      const plainWarning = `WARNING [${riskLabel.toUpperCase()} RISK] — ${reason}${threatAssessment.confidence !== null && threatAssessment.confidence !== undefined ? `. Score: ${threatAssessment.confidence}` : ''}\n\n`;
+      const plainWarning = `WARNING [${riskLabel.toUpperCase()} RISK]  -  ${reason}${threatAssessment.confidence !== null && threatAssessment.confidence !== undefined ? `. Score: ${threatAssessment.confidence}` : ''}\n\n`;
 
       // Create draft email with banner
       const draftId = await gmailOAuthService.createDraftWithContent(

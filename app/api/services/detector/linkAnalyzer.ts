@@ -363,11 +363,11 @@ export class LinkAnalyzerService {
         }
         else if (this.isImageLink(link) && !trustedDomain) {
           risks.push(`HTTP image asset: ${hostname}`);
-          score += 2; // tiny penalty — not ideal, but common
+          score += 2; // tiny penalty  -  not ideal, but common
         }
         else if (this.isClickAction(link) && !trustedDomain) {
           risks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
-          score += 30; // serious — login/reset over HTTP is bad
+          score += 30; // serious  -  login/reset over HTTP is bad
         }
         else if (!trustedDomain) {
           risks.push(`Insecure HTTP link on untrusted domain: ${link}`);
