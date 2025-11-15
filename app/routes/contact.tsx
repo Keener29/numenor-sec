@@ -49,7 +49,7 @@ export default function Contact() {
               We're here to help with security questions, onboarding, or general inquiries. 
               Whether you need assistance setting up your account, have questions about our 
               phishing detection service, or want to learn more about protecting your business, 
-              we're ready to help. Responses are fast and personal—no automated replies.
+              we're ready to help. Responses are fast and personal - no automated replies.
             </p>
           </div>
 

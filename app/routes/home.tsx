@@ -111,7 +111,7 @@ export default function Home() {
                     Numenor Security was created by a <strong className="text-gray-900">Computer Engineer from the University of Waterloo</strong> with <strong className="text-gray-900">CompTIA Security+ certification</strong>. Built with engineering rigor and cybersecurity expertise.
                   </p>
                   <p className="mt-4 text-lg text-gray-700 leading-relaxed">
-                    We specialize in protecting small and medium businesses—dentists, law firms, medical clinics, accountants, and agencies. These organizations are prime targets for phishing because they handle sensitive client data but often lack enterprise-level security teams.
+                    We specialize in protecting small and medium businesses - dentists, law firms, medical clinics, accountants, and agencies. These organizations are prime targets for phishing because they handle sensitive client data but often lack enterprise-level security teams.
                   </p>
                   <p className="mt-4 text-lg text-gray-700 leading-relaxed">
                     Our solution combines professional security training with practical engineering to give small and medium businesses protection without the enterprise complexity.
@@ -276,7 +276,7 @@ export default function Home() {
               <p className="text-gray-700 mb-4">
                 "Finally, a security solution that actually makes sense for small businesses. Easy to set up and gives us real peace of mind."
               </p>
-              <p className="text-sm text-gray-500">— Small Business Owner</p>
+              <p className="text-sm text-gray-500"> -  Small Business Owner</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center mb-4">
@@ -301,7 +301,7 @@ export default function Home() {
               <p className="text-gray-700 mb-4">
                 "The alerts are clear and actionable. We caught a phishing attempt the first week and avoided what could have been a costly mistake."
               </p>
-              <p className="text-sm text-gray-500">— Medical Practice Manager</p>
+              <p className="text-sm text-gray-500"> -  Medical Practice Manager</p>
             </div>
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center mb-4">
@@ -326,7 +326,7 @@ export default function Home() {
               <p className="text-gray-700 mb-4">
                 "As a small law firm, we needed enterprise-level security without the enterprise price tag. This delivers exactly that."
               </p>
-              <p className="text-sm text-gray-500">— Law Firm Partner</p>
+              <p className="text-sm text-gray-500"> -  Law Firm Partner</p>
             </div>
           </div>
         </div>
