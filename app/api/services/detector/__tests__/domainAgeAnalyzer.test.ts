@@ -19,6 +19,21 @@ describe('Domain Age Analyzer', () => {
   beforeEach(() => {
     clearDomainAgeCache();
     mockFetch.mockReset();
+    // Set default mock to prevent real API calls
+    // Tests can override this with mockResolvedValueOnce or mockRejectedValueOnce
+    mockFetch.mockImplementation((url: string | URL | Request) => {
+      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
+      const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
+      const defaultResponse = {
+        ok: true,
+        json: async () => ({
+          domain: domain,
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago
+        })
+      };
+      return Promise.resolve(defaultResponse as Response);
+    });
   });
 
   describe('analyzeDomainAge', () => {
@@ -107,6 +122,8 @@ describe('Domain Age Analyzer', () => {
     });
 
     it('should handle WHOIS API failures gracefully', async () => {
+      // Mock both WHOIS APIs to fail (there are 2 APIs tried in sequence)
+      mockFetch.mockRejectedValueOnce(new Error('API Error'));
       mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
       const result = await analyzeDomainAge('failing-domain.com');

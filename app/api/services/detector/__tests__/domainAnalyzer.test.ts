@@ -25,6 +25,21 @@ global.fetch = mockFetch;
 describe('Domain Analyzer Utilities', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    // Set default mock to prevent real API calls
+    // Tests can override this with mockResolvedValueOnce or mockRejectedValueOnce
+    mockFetch.mockImplementation((url: string | URL | Request) => {
+      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
+      const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
+      const defaultResponse = {
+        ok: true,
+        json: async () => ({
+          domain: domain,
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
+        })
+      };
+      return Promise.resolve(defaultResponse as Response);
+    });
   });
 
   describe('analyzeDomain', () => {
