@@ -48,11 +48,6 @@ RUN npm ci --only=production && npm prune --production
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/app ./app
 
-COPY --chown=numenor:nodejs README.md README.md
-COPY --chown=numenor:nodejs EMAIL_SETUP.md EMAIL_SETUP.md
-COPY --chown=numenor:nodejs SECURE_EMAIL_APPROVAL.md SECURE_EMAIL_APPROVAL.md
-
-
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
 
