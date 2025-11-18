@@ -55,8 +55,11 @@ export function isFromOwnService(emailAddress: string | null): boolean {
 
   if (!emailAddress) return false;
 
-  const domain = emailAddress.split("@")[1];
-  if (!domain) return false;
+  const parts = emailAddress.split("@");
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  const local = parts[0];
+  if (!domain || !local) return false;
 
   // Known legitimate local/service domains
   const ownServiceDomains = [

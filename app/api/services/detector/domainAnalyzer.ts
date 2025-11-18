@@ -334,7 +334,14 @@ export function extractDomain(input: string): string | null {
       if (!emailAddress) {
         return null;
       }
-      return emailAddress.split('@')[1].toLowerCase().trim();
+      const parts = emailAddress.split('@');
+      if (parts.length !== 2) {
+        return null;
+      }
+      if(parts[1].trim() === '') {
+        return null;
+      }
+      return parts[1].toLowerCase().trim();
     }
     
     // If it's a URL
