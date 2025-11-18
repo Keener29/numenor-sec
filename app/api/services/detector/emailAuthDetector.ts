@@ -111,35 +111,19 @@ export class EmailAuthenticationService {
 
     // Check for DKIM results in ARC-Authentication-Results header
     // ARC (Authenticated Received Chain) preserves authentication results across intermediaries
+    
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
-    if (arcAuthResults) {
-      const normalized = this.normalizeHeaderValue(arcAuthResults);
-      const dkimMatch = normalized.match(/dkim=([a-z]+)/i);
-      if (dkimMatch) {
-        const result = dkimMatch[1].toLowerCase();
-        if (isValidDKIMResult(result)) {
-          if (result === 'pass') {
-            return result;
-          }
-        }
-      }
+    const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
+    const resultArc = normalizedArcAuthResults && normalizedArcAuthResults.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    if (resultArc === 'pass' && isValidDKIMResult(resultArc)) {
+      return resultArc;
     }
+
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
-    if (authResults) {
-      const normalized = this.normalizeHeaderValue(authResults);
-      const dkimMatch = normalized.match(/dkim=([a-z]+)/i);
-      if (dkimMatch) {
-        const result = dkimMatch[1].toLowerCase();
-        if (isValidDKIMResult(result)) {
-          oauthLogger.debug(`DKIM authentication result: ${result}`, {
-            operation: 'fetch-new-emails',
-            metadata: {
-              result
-            }
-          });
-          return result;
-        }
-      }
+    const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
+    const resultAuth = normalizedAuthResults && normalizedAuthResults.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    if (resultAuth && isValidDKIMResult(resultAuth)) {
+      return resultAuth;
     }
 
     // Check for DKIM-Signature header presence
@@ -159,28 +143,17 @@ export class EmailAuthenticationService {
    */
   private analyzeDMARC(headers: Record<string, string>): DMARCResult {
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
-    if (arcAuthResults) {
-      const normalized = this.normalizeHeaderValue(arcAuthResults);
-      const dmarcMatch = normalized.match(/dmarc=([a-z]+)/i);
-      if (dmarcMatch) {
-        const result = dmarcMatch[1].toLowerCase();
-        if (isValidDMARCResult(result)) {
-          if (result === 'pass') {
-            return result;
-          }
-        }
-      }
+    const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
+    const resultArc = normalizedArcAuthResults && normalizedArcAuthResults.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    if (resultArc === 'pass' && isValidDMARCResult(resultArc)) {
+      return resultArc;
     }
+
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
-    if (authResults) {
-      const normalized = this.normalizeHeaderValue(authResults);
-      const dmarcMatch = normalized.match(/dmarc=([a-z]+)/i);
-      if (dmarcMatch) {
-        const result = dmarcMatch[1].toLowerCase();
-        if (isValidDMARCResult(result)) {
-          return result;
-        }
-      }
+    const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
+    const resultAuth = normalizedAuthResults && normalizedAuthResults.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    if (resultAuth && isValidDMARCResult(resultAuth)) {
+      return resultAuth;
     }
 
     return 'none';
