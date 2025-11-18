@@ -168,71 +168,93 @@ export class EmailAuthenticationService {
     const risks: string[] = [];
     let score = 0;
 
-    // SPF analysis
-    if (authResults.spf === 'fail') {
-      risks.push('SPF authentication failed');
-      score += isAllowListed ? 15 : 50; // Adjusted: 15-20 for allow-listed, 50 for normal
-    } else if (authResults.spf === 'softfail') {
-      risks.push('SPF authentication soft fail');
-      score += isAllowListed ? 10 : 40; // Adjusted: reduced for allow-listed
-    } else if (authResults.spf === 'none') {
-      risks.push('No SPF authentication');
-      score += isAllowListed ? 3 : 25; // Adjusted: 0-5 for allow-listed, 25 for normal
-    }
-
-    // DKIM analysis
-    if (authResults.dkim === 'fail') {
-      risks.push('DKIM authentication failed');
-      score += isAllowListed ? 15 : 40; // Adjusted: 15-20 for allow-listed, 40 for normal
-    } else if (authResults.dkim === 'none') {
-      risks.push('No DKIM authentication');
-      score += isAllowListed ? 3 : 20; // Adjusted: 0-5 for allow-listed, 20 for normal
-    }
-
-    // DMARC analysis
-    if (authResults.dmarc === 'fail') {
-      risks.push('DMARC authentication failed');
-      score += isAllowListed ? 12 : 35; // Adjusted: 10-15 for allow-listed, 35 for normal
-    } else if (authResults.dmarc === 'none') {
-      risks.push('No DMARC authentication');
-      score += isAllowListed ? 0 : 20; // Adjusted: 0 for allow-listed, 20 for normal
-    }
-
-    // Critical combination: Missing SPF + Missing DKIM = High phishing risk
-    if (authResults.spf === 'none' && authResults.dkim === 'none') {
-      if (isAllowListed) {
-        risks.push('Both SPF and DKIM authentication missing - sender domain is allow-listed');
-        score += 2; // Reduced penalty for allow-listed domains
-      } else {
-        risks.push('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
-        score += 40; // Combination penalty for non-allow-listed domains
-      }
-    }
-
-    // Overall assessment
-    if (authResults.overall === 'fail') {
-      if (isAllowListed) {
-        risks.push('Email authentication failed - sender domain is allow-listed');
-        score += 20; // Reduced penalty for allow-listed domains
-      } else {
-        risks.push('Email authentication completely failed');
-        score += 100; // Full penalty for non-allow-listed domains
-      }
-    } else if (authResults.overall === 'partial') {
-      risks.push('Partial email authentication');
-    } else if (authResults.overall === 'none') {
-      if (isAllowListed) {
-        risks.push('No email authentication - sender domain is allow-listed');
-        score += 5; // Minimal penalty for allow-listed domains
-      } else {
-        risks.push('CRITICAL: No email authentication at all');
-        score += 100; // Full penalty for non-allow-listed domains
-      }
-    }
+    score += this.spfScore(authResults.spf, risks, isAllowListed);
+    score += this.dkimScore(authResults.dkim, risks, isAllowListed);
+    score += this.dmarcScore(authResults.dmarc, risks, isAllowListed);
+    score += this.spfDkimCombinedScore(authResults.spf, authResults.dkim, risks, isAllowListed);
+    score += this.overallAuthRiskScore(authResults.overall, risks, isAllowListed);
 
     return { risks, score };
   }
 
+  spfScore(spf: SPFResult, risks: string[], isAllowListed: boolean = false): number {
+    let score = 0;
+    if (spf === 'fail') {
+      risks.push('SPF authentication failed');
+      score += isAllowListed ? 15 : 50;
+    } else if (spf === 'softfail') {
+      risks.push('SPF authentication soft fail');
+      score += isAllowListed ? 10 : 40;
+    } else if (spf === 'none') {
+      risks.push('No SPF authentication');
+      score += isAllowListed ? 3 : 25;
+    }
+    return score;
+  }
+
+  dkimScore(dkim: DKIMResult, risks: string[], isAllowListed: boolean = false): number {
+    let score = 0;
+    if (dkim === 'fail') {
+      risks.push('DKIM authentication failed');
+      score += isAllowListed ? 15 : 40;
+    } else if (dkim === 'none') {
+      risks.push('No DKIM authentication');
+      score += isAllowListed ? 3 : 20;
+    }
+    return score;
+  }
+
+  dmarcScore(dmarc: DMARCResult, risks: string[], isAllowListed: boolean = false): number {
+    let score = 0;
+    if (dmarc === 'fail') {
+      risks.push('DMARC authentication failed');
+      score += isAllowListed ? 12 : 35;
+    } else if (dmarc === 'none') {
+      risks.push('No DMARC authentication');
+      score += isAllowListed ? 0 : 20;
+    }
+    return score;
+  }
+  
+  spfDkimCombinedScore(spf: SPFResult, dkim: DKIMResult, risks: string[], isAllowListed: boolean = false): number {
+    let score = 0;
+    // Critical combination: Missing SPF + Missing DKIM = High phishing risk
+    if (spf === 'none' && dkim === 'none') {
+      if (isAllowListed) {
+        risks.push('Both SPF and DKIM authentication missing - sender domain is allow-listed');
+        score += 2;
+      } else {
+        risks.push('CRITICAL: Both SPF and DKIM authentication missing - high phishing risk');
+        score += 40;
+      }
+    }
+    return score;
+  }
+  
+  overallAuthRiskScore(overall: OverallAuthResult, risks: string[], isAllowListed: boolean = false): number {
+    let score = 0;
+    // Overall assessment
+    if (overall === 'fail') {
+      if (isAllowListed) {
+        risks.push('Email authentication failed - sender domain is allow-listed');
+        score += 20;
+      } else {
+        risks.push('Email authentication completely failed');
+        score += 100;
+      }
+    } else if (overall === 'partial') {
+      risks.push('Partial email authentication');
+    } else if (overall === 'none') {
+      if (isAllowListed) {
+        risks.push('No email authentication - sender domain is allow-listed');
+        score += 5;
+      } else {
+        risks.push('CRITICAL: No email authentication at all');
+        score += 100;
+      }
+    }
+    return score;
+  }
   /**
    * Generate authentication-specific recommendations
    */
