@@ -19,6 +19,7 @@ import {
 } from './domainAnalyzer.js';
 import { isTrustedDomain } from './domainAgeAnalyzer.js';
 import { parse } from 'tldts';
+import { stripHtmlTags } from '../../utils/emailUtils.js';
 
 export interface LinkAnalysis {
   risks: string[];
@@ -161,24 +162,45 @@ export class LinkAnalyzerService {
   private extractAnchors(html: string): Array<{ href: string; text: string; index: number; attrs: Record<string, string> }> {
     const anchors: Array<{ href: string; text: string; index: number; attrs: Record<string, string> }> = [];
     if (!html) return anchors;
+    
+    // Prevent DoS by limiting input size (email bodies can be large but 1MB should be sufficient)
+    const MAX_HTML_LENGTH = 1024 * 1024; // 1MB
+    if (html.length > MAX_HTML_LENGTH) {
+      return anchors;
+    }
+    
     // Quick check to avoid heavy regex if no anchors
     if (!/<a\b/i.test(html)) return anchors;
     
-    const anchorRegex = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
+    // Use /<a\b([^>]+)>/ instead of /<a\b([^>]*)>/ to prevent ReDoS (requires at least one character)
+    // Limit inner content to prevent DoS from deeply nested tags
+    const MAX_INNER_LENGTH = 10000; // 10KB per anchor inner content
+    const anchorRegex = /<a\b([^>]+)>([\s\S]*?)<\/a>/gi;
     let match: RegExpExecArray | null;
     while ((match = anchorRegex.exec(html)) !== null) {
       const full = match[0];
       const attrsRaw = match[1] || '';
-      const inner = match[2] || '';
+      let inner = match[2] || '';
       const index = match.index ?? 0;
+      
+      // Limit inner content size to prevent DoS
+      if (inner.length > MAX_INNER_LENGTH) {
+        inner = inner.substring(0, MAX_INNER_LENGTH);
+      }
       
       // Extract href
       const hrefMatch = /\bhref\s*=\s*("(.*?)"|'(.*?)'|([^\s"'<>]+))/i.exec(attrsRaw);
       const href = hrefMatch ? (hrefMatch[2] || hrefMatch[3] || hrefMatch[4] || '').trim() : '';
       if (!href || !/^https?:\/\//i.test(href)) continue;
       
-      // Normalize inner text (strip tags, collapse whitespace)
-      const text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      // Normalize inner text (strip tags safely, collapse whitespace)
+      let text: string;
+      try {
+        text = stripHtmlTags(inner).replace(/\s+/g, ' ').trim();
+      } catch (error) {
+        // Fallback to safe regex if input is too large (should be rare after MAX_INNER_LENGTH check)
+        text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      }
       
       // Extract class/style/role for button-like detection
       const attrs: Record<string, string> = {};
@@ -513,7 +535,15 @@ export class LinkAnalyzerService {
     }
 
     // Repetition / gibberish heuristic
-    const repeats = labels.some(l => /(.*-)\1/.test(l) || /(.)\1{6,}/.test(l));
+    // Use /([^-]+-)\1/ instead of /(.*-)\1/ to prevent ReDoS (requires at least one non-hyphen char)
+    // Domain labels are already limited to 63 chars, so this is safe
+    const repeats = labels.some(l => {
+      // Check for repeated pattern ending with hyphen (e.g., "abc-abc-")
+      if (/([^-]+-)\1/.test(l)) return true;
+      // Check for same character repeated 6+ times (e.g., "aaaaaa")
+      if (/(.)\1{6,}/.test(l)) return true;
+      return false;
+    });
     if (repeats) {
       risks.push('Repeated/gibberish label detected');
       score += 15;

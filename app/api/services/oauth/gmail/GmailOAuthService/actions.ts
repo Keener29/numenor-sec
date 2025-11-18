@@ -3,6 +3,7 @@ import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
 import type { EmailMessage, LogContext } from '../../base/types.js';
 import type { GmailMessage } from '../types.js';
+import { decodeHtmlEntities, stripHtmlTags } from '../../../../utils/emailUtils.js';
 
 type GmailClient = any;
 
@@ -148,7 +149,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
     if (message.payload.mimeType === 'text/html') {
       html = body;
       // Create plain text version by stripping HTML tags
-      plainText = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+      plainText = decodeHtmlEntities(stripHtmlTags(body)).trim();
     } else {
       plainText = body;
       html = body.replace(/\n/g, '<br>');
@@ -163,7 +164,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
   }
   // Fallback: if no plain text found but HTML exists, strip HTML tags
   if (!plainText && html) {
-    plainText = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+    plainText = decodeHtmlEntities(stripHtmlTags(html)).trim();
   }
   
   return { html: html || '', plainText: plainText || '' };

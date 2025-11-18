@@ -22,6 +22,7 @@ interface ConnectedEmailsDropdownProps {
 }
 
 const MAX_EMAILS = 5;
+const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);
@@ -67,10 +68,6 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       return [];
     }
     
-    // Basic email format check (simple regex for UX feedback only)
-    // Backend does comprehensive RFC 5322 validation
-    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
     const emails: string[] = [];
     
     // Split by both commas and newlines, then filter and validate
@@ -82,7 +79,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     for (const part of parts) {
       const normalized = part.toLowerCase().trim();
       // Basic format check - backend will do comprehensive validation
-      if (basicEmailRegex.test(normalized)) {
+      if (BASIC_EMAIL_REGEX.test(normalized)) {
         emails.push(normalized);
       }
     }
@@ -111,8 +108,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     }
 
     // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail.trim())) {
+    if (!BASIC_EMAIL_REGEX.test(newEmail.trim())) {
       setError("Please enter a valid email address");
       return;
     }
