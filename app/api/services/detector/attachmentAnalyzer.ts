@@ -33,20 +33,22 @@ export class AttachmentAnalyzerService {
       const extension = this.getFileExtension(attachment);
       const attachmentRisks: string[] = [];
       let attachmentScore = 0;
-
-      if (this.isExecutableFile(extension)) {
+      const executableScore = this.isExecutableFile(extension, isTrustedSender);
+      const archiveScore = this.isArchiveFile(extension, isTrustedSender);
+      const scriptScore = this.isScriptFile(extension, isTrustedSender);
+      if (executableScore > 0) {
         attachmentRisks.push('Executable file attachment');
-        attachmentScore += isTrustedSender ? 15 : 30; // Reduced risk for trusted senders
+        attachmentScore += executableScore;
       }
 
-      if (this.isArchiveFile(extension)) {
+      if (archiveScore > 0) {
         attachmentRisks.push('Archive file attachment');
-        attachmentScore += isTrustedSender ? 8 : 15; // Reduced risk for trusted senders
+        attachmentScore += archiveScore;
       }
 
-      if (this.isScriptFile(extension)) {
+      if (scriptScore > 0) {
         attachmentRisks.push('Script file attachment');
-        attachmentScore += isTrustedSender ? 12 : 25; // Reduced risk for trusted senders
+        attachmentScore += scriptScore;
       }
 
       if (attachmentRisks.length > 0) {
@@ -104,22 +106,28 @@ export class AttachmentAnalyzerService {
   /**
    * Check if file extension is executable
    */
-  private isExecutableFile(extension?: string): boolean {
-    return extension ? this.executableExtensions.includes(extension) : false;
+  private isExecutableFile(extension?: string, isTrustedSender: boolean = false): number {
+    const isExecutable = extension ? this.executableExtensions.includes(extension) : false;
+    if (!isExecutable) return 0;
+    return isTrustedSender ? 15 : 30;
   }
 
   /**
    * Check if file extension is archive
    */
-  private isArchiveFile(extension?: string): boolean {
-    return extension ? this.archiveExtensions.includes(extension) : false;
+  private isArchiveFile(extension?: string, isTrustedSender: boolean = false): number {
+    const isArchive = extension ? this.archiveExtensions.includes(extension) : false;
+    if (!isArchive) return 0;
+    return isTrustedSender ? 8 : 15;
   }
 
   /**
    * Check if file extension is script
    */
-  private isScriptFile(extension?: string): boolean {
-    return extension ? this.scriptExtensions.includes(extension) : false;
+  private isScriptFile(extension?: string, isTrustedSender: boolean = false): number {
+    const isScript = extension ? this.scriptExtensions.includes(extension) : false;
+    if (!isScript) return 0;
+    return isTrustedSender ? 12 : 25;
   }
 }
 
