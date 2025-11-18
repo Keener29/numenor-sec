@@ -8,6 +8,7 @@ import fastLevenshtein from 'fast-levenshtein';
 const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
+import { extractEmailAddress } from '~/api/utils/emailUtils.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
@@ -320,17 +321,20 @@ export function extractDomain(input: string): string | null {
     return null;
   }
   
+  // Prevent DoS by limiting input size (email headers can be long but 2KB should be sufficient)
+  const MAX_INPUT_LENGTH = 2048;
+  if (input.length > MAX_INPUT_LENGTH) {
+    return null;
+  }
+  
   try {
     // If it's an email address
     if (input.includes('@')) {
-      const emailMatch = input.match(/<([^>]+)>/) || [input];
-      const email = emailMatch[1] || emailMatch[0];
-      const parts = email.split('@');
-      if (parts.length !== 2 || !parts[1]) {
+      const emailAddress = extractEmailAddress(input);
+      if (!emailAddress) {
         return null;
       }
-      const domain = parts[1];
-      return domain ? domain.toLowerCase() : null;
+      return emailAddress.split('@')[1].toLowerCase().trim();
     }
     
     // If it's a URL

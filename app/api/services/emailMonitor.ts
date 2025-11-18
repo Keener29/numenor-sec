@@ -3,7 +3,7 @@ import { phishingDetector, type EmailAnalysis } from './detector/phishingDetecto
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
-import { isFromOwnService } from '../utils/emailUtils.js';
+import { extractEmailAddress, isFromOwnService } from '../utils/emailUtils.js';
 import type { ThreatAssessment } from '../types/email.js';
 
 interface MonitoredEmail {
@@ -362,9 +362,9 @@ class EmailMonitor {
           sender: emailMessage.sender
         }
       });
-
+      const emailAddress = extractEmailAddress(emailMessage.sender);
       // Skip analysis for emails from our own service (localhost, 127.0.0.1, etc.)
-      if (isFromOwnService(emailMessage.sender)) {
+      if (isFromOwnService(emailAddress)) {
         monitoringLogger.debug('Skipping analysis for email from own service', {
           operation: 'process-email-message',
           emailAddress: monitoredEmail.emailAddress,
@@ -380,7 +380,7 @@ class EmailMonitor {
       const emailData: EmailAnalysis = {
         subject: emailMessage.subject,
         body: emailMessage.body,
-        sender: emailMessage.sender,
+        sender: emailAddress || '',
         recipient: emailMessage.recipient,
         attachments: emailMessage.attachments,
         links: emailMessage.links,
