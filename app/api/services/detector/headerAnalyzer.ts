@@ -126,15 +126,12 @@ export class HeaderAnalyzerService {
     score += await this.checkForReplyToFromMismatch(isTrustedDomain);
 
     // Check for suspicious header patterns
-    score += this.analyzeSuspiciousHeaders();
-
-    if (!isTrustedDomain) {
-      const lookalikeAnalysis = await this.analyzeLookalikeDomains(senderEmail, businessId);
-      score += lookalikeAnalysis;
-    }
-
     if (!isTrustedDomain) {
       const senderDomain = extractDomainUtil(senderEmail);
+      score += this.analyzeExcessiveHeaders();
+      score += this.analyzeReceivedHeaders();
+      score += this.analyzeUserAgent();
+      score += await this.analyzeLookalikeDomains(senderEmail, senderDomain, businessId);
       if (senderDomain && isTemporaryEmailDomain(senderDomain)) {
         this.risks.push('Temporary or disposable email address');
         score += 25;
@@ -323,10 +320,7 @@ export class HeaderAnalyzerService {
     return false;
   }
 
-  /**
-   * Analyze headers for suspicious patterns
-   */
-  private analyzeSuspiciousHeaders(): number {
+  private analyzeUserAgent(): number {
     let score = 0;
     // Check for missing or suspicious User-Agent
     // User-Agent: Identifies the email client/software that sent the email
@@ -349,12 +343,16 @@ export class HeaderAnalyzerService {
         score += 5; // Reduced from 15 to 5 - User-Agent is often missing in legitimate emails
       }
     }
+    return score;
+  }
 
-    // Check for suspicious X- headers (potential spoofing indicators)
-    // X- headers: Custom headers (non-standard, start with "X-")
-    // Excessive X- headers can indicate spoofing attempts or malicious modifications
-    // Note: Many legitimate email systems (especially enterprise/university) include multiple X- headers
-    // So we'll use a higher threshold to reduce false positives
+  // Check for suspicious X- headers (potential spoofing indicators)
+  // X- headers: Custom headers (non-standard, start with "X-")
+  // Excessive X- headers can indicate spoofing attempts or malicious modifications
+  // Note: Many legitimate email systems (especially enterprise/university) include multiple X- headers
+  // So we'll use a higher threshold to reduce false positives
+  private analyzeExcessiveHeaders(): number {
+    let score = 0;
     const xHeaders = Object.keys(this.headers).filter(key => 
       key.toLowerCase().startsWith('x-')
     );
@@ -379,10 +377,13 @@ export class HeaderAnalyzerService {
       this.risks.push(`Excessive X- headers - potential spoofing attempt`);
       score += penalty;
     }
-    
-    // Check for suspicious Received header patterns
-    // Received headers: Show email routing path (one per mail server)
-    // Excessive Received headers (>10) can indicate email loops or spoofing attempts
+    return score;
+  }
+  // Check for suspicious Received header patterns
+  // Received headers: Show email routing path (one per mail server)
+  // Excessive Received headers (>10) can indicate email loops or spoofing attempts
+  private analyzeReceivedHeaders(): number {
+    let score = 0;
     const receivedHeaders = Object.keys(this.headers).filter(key => 
       key.toLowerCase().startsWith('received')
     );
@@ -394,19 +395,17 @@ export class HeaderAnalyzerService {
       this.risks.push('Excessive Received headers - potential email loop or spoofing');
       score += 10;
     }
-
     return score;
   }
 
   /**
    * Analyze domains for lookalike attacks (typosquatting and homoglyphs)
    */
-  private async analyzeLookalikeDomains(senderEmail: string, businessId?: number): Promise<number> {
+  private async analyzeLookalikeDomains(senderEmail: string, senderDomain: string | null, businessId?: number): Promise<number> {
     let score = 0;
 
-    const senderDomain = extractDomainUtil(senderEmail);
     if (!senderDomain) {
-      return score;
+      return 0;
     }
 
     // Check for lookalike attacks and domain age using shared domain analyzer
