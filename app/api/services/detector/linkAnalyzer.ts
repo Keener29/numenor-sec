@@ -69,6 +69,7 @@ export class LinkAnalyzerService {
   private isNamespaceURL(urlString: string): boolean {
     return SAFE_NAMESPACE_PREFIXES.some(prefix => urlString.startsWith(prefix));
   }
+  private linkRisks: string[] = [];
   /**
    * Analyze all links in an email
    */
@@ -332,7 +333,7 @@ export class LinkAnalyzerService {
     domainCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>,
     businessId?: number,
   ): Promise<LinkAnalysisResult> {
-    const risks: string[] = [];
+    this.linkRisks = [];
     let score = 0;
     let hostname: string | undefined;
     
@@ -363,82 +364,90 @@ export class LinkAnalyzerService {
       // Check for URL shorteners
       // Popular URL shorteners should be detected but receive minimal penalty
       if (isPopularUrlShortener(hostname)) {
-        risks.push(`URL shortener detected: ${hostname}, small penalty`);
+        this.linkRisks.push(`URL shortener detected: ${hostname}, small penalty`);
         score += 2; // Small penalty for popular URL shorteners
       }
       
       // Check for IP addresses in URLs (VERY suspicious)
       if (isIPAddress(hostname)) {
-        risks.push(`IP address in URL: ${hostname}`);
+        this.linkRisks.push(`IP address in URL: ${hostname}`);
         score += 35;
       }
 
-      // Allow safe HTTP domains (legacy CDNs / W3C / ESPs)
-      const isKnownSafeHttp =
-        url.protocol === "http:" &&
-        hostname !== undefined &&
-        KNOWN_SAFE_HTTP_DOMAINS.some(d => hostname!.endsWith(d));
-
-      if (url.protocol === "http:") {
-        if (isKnownSafeHttp && this.isImageLink(link)) {
-          // fine, legit email vendors do this
-        }
-        else if (this.isImageLink(link) && !trustedDomain) {
-          risks.push(`HTTP image asset: ${hostname}`);
-          score += 2; // tiny penalty  -  not ideal, but common
-        }
-        else if (this.isClickAction(link) && !trustedDomain) {
-          risks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
-          score += 30; // serious  -  login/reset over HTTP is bad
-        }
-        else if (!trustedDomain) {
-          risks.push(`Insecure HTTP link on untrusted domain: ${link}`);
-          score += 15; // general penalty
-        }
-      }
+      score += this.checkHttpLink(url, trustedDomain, link);
 
       // Use cached domain analysis
       if (domainAnalysis && domainAnalysis.isSuspicious) {
-        for (const type of domainAnalysis.types) {
-          switch (type) {
-            case 'typosquatting':
-              risks.push(`Typosquatting detected: "${hostname}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
-              break;
-            case 'homoglyph':
-              risks.push(`Homoglyph attack detected: "${hostname}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
-              break;
-            case 'suspicious_pattern':
-              risks.push(`Suspicious domain pattern: "${hostname}"`);
-              break;
-            case 'domain_age':
-              if (domainAnalysis.domainAge) {
-                const ageText = domainAnalysis.domainAge.ageInDays 
-                  ? `${domainAnalysis.domainAge.ageInDays} days old`
-                  : 'unknown age';
-                risks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge.riskLevel})`);
-              }
-              break;
-          }
-        }
+        this.classifySuspiciousLink(domainAnalysis, hostname);
         score += domainAnalysis.riskScore;
       }
       
       // Check for suspicious URL patterns
       const urlPatternRisks = this.checkUrlPatterns(url, trustedDomain);
-      risks.push(...urlPatternRisks.risks);
+      this.linkRisks.push(...urlPatternRisks.risks);
       score += urlPatternRisks.score;
       
     } catch (error) {
-      risks.push(`Malformed URL: ${link} with error: ${error}`);
+      this.linkRisks.push(`Malformed URL: ${link} with error: ${error}`);
       score += 3;
     }
     
     return {
       link,
-      isSuspicious: risks.length > 0,
-      risks,
+      isSuspicious: this.linkRisks.length > 0,
+      risks: this.linkRisks,
       score
     };
+  }
+
+  private classifySuspiciousLink(domainAnalysis: DomainAnalysisResult, hostname: string) {
+    for (const type of domainAnalysis.types) {
+      switch (type) {
+        case 'typosquatting':
+          this.linkRisks.push(`Typosquatting detected: "${hostname}" is similar to "${domainAnalysis.similarDomain}" (distance: ${domainAnalysis.distance})`);
+          break;
+        case 'homoglyph':
+          this.linkRisks.push(`Homoglyph attack detected: "${hostname}" contains visually similar characters to "${domainAnalysis.similarDomain}"`);
+          break;
+        case 'suspicious_pattern':
+          this.linkRisks.push(`Suspicious domain pattern: "${hostname}"`);
+          break;
+        case 'domain_age':
+          const ageText = domainAnalysis.domainAge?.ageInDays 
+            ? `${domainAnalysis.domainAge?.ageInDays ?? 0} days old`
+            : 'unknown age';
+            this.linkRisks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge?.riskLevel})`);
+          break;
+      }
+    }
+  }
+
+  private checkHttpLink(url: URL, trustedDomain: boolean, link: string): number {
+    let score = 0;
+    // Allow safe HTTP domains (legacy CDNs / W3C / ESPs)
+    const isKnownSafeHttp =
+    url.protocol === "http:" &&
+    url.hostname !== undefined &&
+    KNOWN_SAFE_HTTP_DOMAINS.some(d => url.hostname!.endsWith(d));
+
+    if (url.protocol === "http:") {
+      if (isKnownSafeHttp && this.isImageLink(link)) {
+        // fine, legit email vendors do this
+      }
+      else if (this.isImageLink(link) && !trustedDomain) {
+        this.linkRisks.push(`HTTP image asset: ${url.hostname}`);
+        score += 2; // tiny penalty  -  not ideal, but common
+      }
+      else if (this.isClickAction(link) && !trustedDomain) {
+        this.linkRisks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
+        score += 30; // serious  -  login/reset over HTTP is bad
+      }
+      else if (!trustedDomain) {
+        this.linkRisks.push(`Insecure HTTP link on untrusted domain: ${link}`);
+        score += 15; // general penalty
+      }
+    }
+    return score;
   }
   
   /**
