@@ -86,7 +86,8 @@ class PhishingDetector {
       threatScore += authAnalysis.score;
 
       // Analyze missing headers
-      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.headers, emailData.sender, businessId);
+      headerAnalyzerService.headers = emailData.headers;
+      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.sender, businessId);
       riskFactors.push(...headerAnalysis.risks);
       threatScore += headerAnalysis.score;
     } else {
