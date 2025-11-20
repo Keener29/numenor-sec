@@ -129,30 +129,25 @@ describe('DeleteConfirmModal', () => {
   it('does not close modal when Escape is pressed during deletion', async () => {
     const onClose = jest.fn();
     const user = userEvent.setup();
-    mockAuthAPI.deleteAccount = jest.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve({ status: 'deleted', accountId: 123, businessDeleted: true }), 100);
-        })
-    ) as jest.MockedFunction<typeof mockAuthAPI.deleteAccount>;
-
-    render(
-      <DeleteConfirmModal
-        isOpen={true}
-        onClose={onClose}
-        accountId={123}
-      />
-    );
-
-    const deleteButton = screen.getByRole('button', { name: /delete/i });
-    await user.click(deleteButton);
-
+  
+    mockAuthAPI.deleteAccount = jest
+      .fn()
+      .mockResolvedValue({
+        status: 'deleted',
+        accountId: 123,
+        businessDeleted: true,
+      });
+  
+    render(<DeleteConfirmModal isOpen onClose={onClose} accountId={123} />);
+  
+    await user.click(screen.getByRole('button', { name: /delete/i }));
+  
     // Try to press Escape while deleting
     await user.keyboard('{Escape}');
-
-    // Should not close during deletion
+  
     expect(onClose).not.toHaveBeenCalled();
   });
+  
 
   it('allows user to enter optional reason', async () => {
     const user = userEvent.setup();
@@ -219,51 +214,41 @@ describe('DeleteConfirmModal', () => {
 
   it('shows loading state during deletion', async () => {
     const user = userEvent.setup();
-    mockAuthAPI.deleteAccount = jest.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve({ status: 'deleted', accountId: 123, businessDeleted: true }), 100);
-        })
-    ) as jest.MockedFunction<typeof mockAuthAPI.deleteAccount>;
-
-    render(
-      <DeleteConfirmModal
-        isOpen={true}
-        onClose={jest.fn()}
-        accountId={123}
-      />
-    );
-
+  
+    mockAuthAPI.deleteAccount = jest.fn().mockResolvedValue({
+      status: 'deleted',
+      accountId: 123,
+      businessDeleted: true,
+    });
+  
+    render(<DeleteConfirmModal isOpen onClose={jest.fn()} accountId={123} />);
+  
     const deleteButton = screen.getByRole('button', { name: /delete/i });
     await user.click(deleteButton);
-
+  
     expect(screen.getByText(/deleting.../i)).toBeInTheDocument();
     expect(deleteButton).toBeDisabled();
   });
+  
 
   it('disables cancel button during deletion', async () => {
     const user = userEvent.setup();
-    mockAuthAPI.deleteAccount = jest.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve({ status: 'deleted', accountId: 123, businessDeleted: true }), 100);
-        })
-    ) as jest.MockedFunction<typeof mockAuthAPI.deleteAccount>;
-
-    render(
-      <DeleteConfirmModal
-        isOpen={true}
-        onClose={jest.fn()}
-        accountId={123}
-      />
-    );
-
+  
+    mockAuthAPI.deleteAccount = jest.fn().mockResolvedValue({
+      status: 'deleted',
+      accountId: 123,
+      businessDeleted: true,
+    });
+  
+    render(<DeleteConfirmModal isOpen onClose={jest.fn()} accountId={123} />);
+  
     const deleteButton = screen.getByRole('button', { name: /delete/i });
     await user.click(deleteButton);
-
+  
     const cancelButton = screen.getByRole('button', { name: /cancel/i });
     expect(cancelButton).toBeDisabled();
   });
+  
 
   it('displays error message on API failure', async () => {
     const user = userEvent.setup();
