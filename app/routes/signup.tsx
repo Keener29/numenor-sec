@@ -109,6 +109,27 @@ export default function Signup() {
     }
   };
 
+  const validatePassword = (value: string, name: string) => {
+    const password = name === "password" ? value : formData.password;
+    const confirmPassword = name === "confirmPassword" ? value : formData.confirmPassword;
+
+    // Check password length
+    if (name === "password") {
+      if (value.length > 0 && value.length < 8) {
+        setPasswordLengthError("Password must be at least 8 characters");
+      } else {
+        setPasswordLengthError("");
+      }
+    }
+
+    // Check password match
+    if (confirmPassword && password !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+    } else {
+      setPasswordError("");
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const updatedFormData = {
@@ -119,24 +140,7 @@ export default function Signup() {
 
     // Real-time password validation
     if (name === "password" || name === "confirmPassword") {
-      const password = name === "password" ? value : formData.password;
-      const confirmPassword = name === "confirmPassword" ? value : formData.confirmPassword;
-
-      // Check password length
-      if (name === "password") {
-        if (value.length > 0 && value.length < 8) {
-          setPasswordLengthError("Password must be at least 8 characters");
-        } else {
-          setPasswordLengthError("");
-        }
-      }
-
-      // Check password match
-      if (confirmPassword && password !== confirmPassword) {
-        setPasswordError("Passwords do not match");
-      } else {
-        setPasswordError("");
-      }
+      validatePassword(value, name);
     }
   };
 
