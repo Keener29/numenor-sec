@@ -401,7 +401,7 @@ class EmailMonitor {
         }
       });
 
-      if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+      if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
         await this.injectPhishingBannerIntoEmail(monitoredEmail, emailMessage, threatAssessment);
 
         // Store threat assessment for high/critical threats

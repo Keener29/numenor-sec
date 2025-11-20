@@ -318,7 +318,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     // Major tech companies
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
     'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 
-    'youtu.be', 'grammarly.com',
+    'youtu.be', 'grammarly.com', 'mailsuite.com',
     'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
     'tiktok.com', 'spotify.com', 'shopify.com', 'fitbit.com',
     
