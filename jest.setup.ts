@@ -27,14 +27,20 @@ global.IntersectionObserver = class IntersectionObserver {
   root = null;
   rootMargin = '';
   thresholds = [];
-  
-  constructor() {}
-  disconnect() {}
-  observe() {}
+
+  constructor() { }
+  disconnect() {
+    // noop for testing
+  }
+  observe() {
+    // noop for testing
+  }
   takeRecords(): IntersectionObserverEntry[] {
     return [];
   }
-  unobserve() {}
+  unobserve() {
+    // noop for testing
+  }
 } as typeof IntersectionObserver;
 
 // Mock fetch globally to prevent real API calls in tests
@@ -46,7 +52,7 @@ const createDefaultFetchMock = () => {
     const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
     const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
     const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
-    
+
     const defaultResponse = {
       ok: true,
       json: async () => ({
@@ -56,7 +62,7 @@ const createDefaultFetchMock = () => {
     };
     return Promise.resolve(defaultResponse as Response);
   });
-  
+
   return defaultMock;
 };
 
