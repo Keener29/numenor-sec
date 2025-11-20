@@ -288,22 +288,17 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
 
   let buttonText = "Add Email";
 
-  // loading states
   if (isAddingEmail) {
-    if (isBulkMode && bulkProgress) {
-      buttonText = `Adding ${bulkProgress.current}/${bulkProgress.total}...`;
-    } else {
-      buttonText = "Adding...";
-    }
-  }
-  // limit reached
-  else if (emails.length >= MAX_EMAILS) {
+    buttonText = isBulkMode && bulkProgress
+      ? `Adding ${bulkProgress.current}/${bulkProgress.total}...`
+      : "Adding...";
+  } else if (emails.length >= MAX_EMAILS) {
     buttonText = "Limit Reached";
-  }
-  // bulk mode
-  else if (isBulkMode) {
+  } else if (isBulkMode) {
     const count = bulkEmails.trim() ? bulkEmailsCount : 0;
     buttonText = `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
+  } else {
+    buttonText = "Add Email";
   }
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
