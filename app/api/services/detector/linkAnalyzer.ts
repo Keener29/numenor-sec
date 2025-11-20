@@ -31,7 +31,6 @@ export interface LinkAnalysis {
 export interface LinkAnalysisResult {
   link: string;
   isSuspicious: boolean;
-  risks: string[];
   score: number;
   domainAnalysis?: DomainAnalysisResult;
 }
@@ -83,8 +82,47 @@ export class LinkAnalyzerService {
     
     // Extract unique domains to avoid redundant domain analysis
     const domainAnalysisCache = new Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>();
-    const uniqueDomains = new Set<string>();
+    const uniqueDomains = this.extractUniqueDomains(links, ctaLinks);
     
+    this.preAnalyzeDomains(uniqueDomains, domainAnalysisCache);
+    
+    // Second pass: analyze each link using cached domain analysis
+    for (const link of links) {
+      // Only score main CTA links; ignore secondary/footer/inline links
+      if (!ctaLinks.has(this.normalize(link))) {
+        continue;
+      }
+      const result = await this.analyzeSingleLink(link, domainAnalysisCache);
+      
+      if (result.isSuspicious) {
+        suspiciousLinks.push(link);
+        risks.push(...this.linkRisks);
+        totalScore += result.score;
+      }
+    }
+    
+    return {
+      risks,
+      score: totalScore,
+      suspiciousLinks,
+      totalLinks: links.length
+    };
+  }
+
+  private async preAnalyzeDomains(uniqueDomains: Set<string>, domainAnalysisCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>, businessId?: number) {
+    for (const domain of uniqueDomains) {
+      const trustedDomain = await isTrustedDomain(domain, businessId);
+      let domainAnalysis: DomainAnalysisResult | undefined;
+
+      if (!trustedDomain) {
+        domainAnalysis = await analyzeDomain(domain, businessId);
+      }
+      domainAnalysisCache.set(domain, { domainAnalysis, trustedDomain });
+    }
+  }
+
+  private extractUniqueDomains(links: string[], ctaLinks: Set<string>): Set<string> {
+    const uniqueDomains = new Set<string>();
     // First pass: extract unique domains from all links
     for (const link of links) {
       // Skip non-CTA (secondary) links entirely
@@ -96,39 +134,7 @@ export class LinkAnalyzerService {
         // Invalid URL, will be handled in analyzeSingleLink
       }
     }
-    
-    // Pre-analyze each unique domain once
-    for (const domain of uniqueDomains) {
-      const trustedDomain = await isTrustedDomain(domain, businessId);
-      let domainAnalysis: DomainAnalysisResult | undefined;
-
-      if (!trustedDomain) {
-        domainAnalysis = await analyzeDomain(domain, businessId);
-      }
-      domainAnalysisCache.set(domain, { domainAnalysis, trustedDomain });
-    }
-    
-    // Second pass: analyze each link using cached domain analysis
-    for (const link of links) {
-      // Only score main CTA links; ignore secondary/footer/inline links
-      if (!ctaLinks.has(this.normalize(link))) {
-        continue;
-      }
-      const result = await this.analyzeSingleLink(link, domainAnalysisCache, businessId,);
-      
-      if (result.isSuspicious) {
-        suspiciousLinks.push(link);
-        risks.push(...result.risks);
-        totalScore += result.score;
-      }
-    }
-    
-    return {
-      risks,
-      score: totalScore,
-      suspiciousLinks,
-      totalLinks: links.length
-    };
+    return uniqueDomains;
   }
   
   private isInFooterRegion(anchorIndex: number, html: string, lowerHtml: string): boolean {
@@ -330,8 +336,7 @@ export class LinkAnalyzerService {
    */
   private async analyzeSingleLink(
     link: string, 
-    domainCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>,
-    businessId?: number,
+    domainCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>
   ): Promise<LinkAnalysisResult> {
     this.linkRisks = [];
     let score = 0;
@@ -347,7 +352,6 @@ export class LinkAnalyzerService {
         return {
           link,
           isSuspicious: false,
-          risks: [],
           score: 0
         };
       }
@@ -383,10 +387,7 @@ export class LinkAnalyzerService {
       }
       
       // Check for suspicious URL patterns
-      const urlPatternRisks = this.checkUrlPatterns(url, trustedDomain);
-      this.linkRisks.push(...urlPatternRisks.risks);
-      score += urlPatternRisks.score;
-      
+      score += this.checkUrlPatterns(url, trustedDomain);
     } catch (error) {
       this.linkRisks.push(`Malformed URL: ${link} with error: ${error}`);
       score += 3;
@@ -395,7 +396,6 @@ export class LinkAnalyzerService {
     return {
       link,
       isSuspicious: this.linkRisks.length > 0,
-      risks: this.linkRisks,
       score
     };
   }
@@ -450,13 +450,23 @@ export class LinkAnalyzerService {
     return score;
   }
   
-  /**
-   * Check for suspicious URL patterns
-   */
-  private checkUrlPatterns(url: URL, trustedDomain: boolean): { risks: string[]; score: number } {
-    const risks: string[] = [];
+  private checkUrlPatterns(url: URL, trustedDomain: boolean): number {
     let score = 0;
+    score += this.checkSuspiciousPath(url, trustedDomain);
+    score += this.checkSuspiciousQueryParameters(url, trustedDomain);
+    score += this.checkExcessiveSubdomains(url, trustedDomain);
     
+    if (trustedDomain) {
+      return score;
+    }
+    score += this.checkStructuralChecks(url);
+    score += this.checkRepetition(url);
+    score += this.checkSuspiciousTLD(url);
+    return score;
+  }
+
+  private checkSuspiciousPath(url: URL, trustedDomain: boolean): number {
+    let score = 0;
     // Check for suspicious path patterns
     const suspiciousPaths = [
       /\/login/i, /\/signin/i, /\/account/i, /\/verify/i, /\/confirm/i,
@@ -466,21 +476,22 @@ export class LinkAnalyzerService {
     const pathScore = suspiciousPaths.some(p => p.test(url.pathname)) ? 5 : 0;
 
     if (pathScore > 0) {
-      risks.push(`Suspicious URL path: ${url.pathname}`);
+      this.linkRisks.push(`Suspicious URL path: ${url.pathname}`);
       score += pathScore;
     
       // Extra penalty ONLY if domain looks off
       if (!trustedDomain) {
         score += 10;
-        risks.push("Suspicious login-like path on untrusted domain");
+        this.linkRisks.push("Suspicious login-like path on untrusted domain");
       }
     }
-    
-    // Check for suspicious query parameters
+    return score;
+  }
+  private checkSuspiciousQueryParameters(url: URL, trustedDomain: boolean): number {
+    let score = 0;
     const suspiciousParams = [
       'password', 'pwd', 'pass', 'token', 'key', 'secret', 'auth'
     ];
-    
     
     const hasSuspiciousParams = suspiciousParams.some(param => 
       url.searchParams.has(param) || url.search.includes(`${param}=`)
@@ -493,17 +504,17 @@ export class LinkAnalyzerService {
       // If domain is not recognized as legit, increase penalty
       if (!trustedDomain) {
         score += 12;
-        risks.push(`Credential-like params on untrusted domain: ${url.search}`);
+        this.linkRisks.push(`Credential-like params on untrusted domain: ${url.search}`);
       } else {
-        risks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
+        this.linkRisks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
       }
     }
 
-    if (trustedDomain) {
-      return { risks, score };
-    }
-    
-    // Check for excessive subdomains (potential subdomain takeover)
+    return score;
+  }
+
+  private checkExcessiveSubdomains(url: URL, trustedDomain: boolean): number {
+    let score = 0;
     const info = parse(url.hostname);
     const subdomain = info.subdomain || '';
     // Count labels in subdomain
@@ -511,25 +522,29 @@ export class LinkAnalyzerService {
     const subdomainCount = subLabels.length;
 
     if (subdomainCount > 5) {
-      risks.push(`Very excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
-      score += 25;
+      this.linkRisks.push(`Very excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
+      score += trustedDomain ? 25 : 5;
     } else if (subdomainCount > 3) {
-      risks.push(`Excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
-      score += 10;
+      this.linkRisks.push(`Excessive subdomains: ${url.hostname} (count=${subdomainCount})`);
+      score += trustedDomain ? 10 : 2;
     }
+    return score;
+  }
+  private checkStructuralChecks(url: URL): number {
+    let score = 0;
     // Structural checks
     const labels = url.hostname.split('.').filter(Boolean);
     for (const label of labels) {
       if (label.length > 63) {
-        risks.push(`Label too long (${label.length}): ${label}`);
+        this.linkRisks.push(`Label too long (${label.length}): ${label}`);
         score += 30;
       }
       if (/^xn--/.test(label)) {
-        risks.push(`Punycode label detected: ${label}`);
+        this.linkRisks.push(`Punycode label detected: ${label}`);
         score += 15;
       }
       if (/^-|-$/.test(label)) {
-        risks.push(`Suspicious leading/trailing hyphen in label: ${label}`);
+        this.linkRisks.push(`Suspicious leading/trailing hyphen in label: ${label}`);
         score += 10;
       }
       if (/^[0-9]+$/.test(label)) {
@@ -539,14 +554,17 @@ export class LinkAnalyzerService {
     }
     // Total length
     if (url.hostname.length > 253) {
-      risks.push(`Hostname too long: ${url.hostname.length} chars`);
+      this.linkRisks.push(`Hostname too long: ${url.hostname.length} chars`);
       score += 50;
     }
-
+    return score;
+  }
+  private checkRepetition(url: URL): number {
+    let score = 0;
     // Repetition / gibberish heuristic
     // Use /([^-]+-)\1/ instead of /(.*-)\1/ to prevent ReDoS (requires at least one non-hyphen char)
     // Domain labels are already limited to 63 chars, so this is safe
-    const repeats = labels.some(l => {
+    const repeats = url.hostname.split('.').filter(Boolean).some(l => {
       // Check for repeated pattern ending with hyphen (e.g., "abc-abc-")
       if (/([^-]+-)\1/.test(l)) return true;
       // Check for same character repeated 6+ times (e.g., "aaaaaa")
@@ -554,21 +572,21 @@ export class LinkAnalyzerService {
       return false;
     });
     if (repeats) {
-      risks.push('Repeated/gibberish label detected');
+      this.linkRisks.push('Repeated/gibberish label detected');
       score += 15;
     }
-    
-    // Check for suspicious TLDs
+    return score;
+  }
+  private checkSuspiciousTLD(url: URL): number {
+    let score = 0;
     const suspiciousTlds = ['.tk', '.ml', '.ga', '.cf', '.click', '.download'];
     const tld = url.hostname.split('.').pop()?.toLowerCase();
     if (tld && suspiciousTlds.includes(`.${tld}`)) {
-      risks.push(`Suspicious TLD: .${tld}`);
+      this.linkRisks.push(`Suspicious TLD: .${tld}`);
       score += 15;
     }
-    
-    return { risks, score };
+    return score;
   }
-  
   /**
    * Generate recommendations based on link analysis
    */
