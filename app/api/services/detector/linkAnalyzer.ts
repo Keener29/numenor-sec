@@ -28,12 +28,6 @@ export interface LinkAnalysis {
   totalLinks: number;
 }
 
-export interface LinkAnalysisResult {
-  link: string;
-  isSuspicious: boolean;
-  score: number;
-  domainAnalysis?: DomainAnalysisResult;
-}
 const KNOWN_SAFE_HTTP_DOMAINS = [
   'w3.org',             // HTML DTDs
   'akamai.net',
@@ -73,7 +67,7 @@ export class LinkAnalyzerService {
    * Analyze all links in an email
    */
   async analyzeLinks(links: string[], businessId?: number, emailBody?: string): Promise<LinkAnalysis> {
-    const risks: string[] = [];
+    this.linkRisks = [];
     const suspiciousLinks: string[] = [];
     let totalScore = 0;
     
@@ -84,25 +78,24 @@ export class LinkAnalyzerService {
     const domainAnalysisCache = new Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>();
     const uniqueDomains = this.extractUniqueDomains(links, ctaLinks);
     
-    this.preAnalyzeDomains(uniqueDomains, domainAnalysisCache);
-    
+    await this.preAnalyzeDomains(uniqueDomains, domainAnalysisCache, businessId);
+
     // Second pass: analyze each link using cached domain analysis
     for (const link of links) {
       // Only score main CTA links; ignore secondary/footer/inline links
       if (!ctaLinks.has(this.normalize(link))) {
         continue;
       }
-      const result = await this.analyzeSingleLink(link, domainAnalysisCache);
+      const score = await this.analyzeSingleLink(link, domainAnalysisCache);
       
-      if (result.isSuspicious) {
+      if (this.linkRisks.length > 0) {
         suspiciousLinks.push(link);
-        risks.push(...this.linkRisks);
-        totalScore += result.score;
+        totalScore += score;
       }
     }
     
     return {
-      risks,
+      risks: this.linkRisks,
       score: totalScore,
       suspiciousLinks,
       totalLinks: links.length
@@ -337,8 +330,7 @@ export class LinkAnalyzerService {
   private async analyzeSingleLink(
     link: string, 
     domainCache: Map<string, { domainAnalysis?: DomainAnalysisResult; trustedDomain: boolean }>
-  ): Promise<LinkAnalysisResult> {
-    this.linkRisks = [];
+  ): Promise<number> {
     let score = 0;
     let hostname: string | undefined;
     
@@ -349,11 +341,7 @@ export class LinkAnalyzerService {
       // Namespace / DTD / schema links ≡ ignore entirely
       const isNamespaceURL = this.isNamespaceURL(link);
       if (isNamespaceURL) {
-        return {
-          link,
-          isSuspicious: false,
-          score: 0
-        };
+        return 0;
       }
       
       // Get domain analysis from cache if available, otherwise fetch it
@@ -393,11 +381,7 @@ export class LinkAnalyzerService {
       score += 3;
     }
     
-    return {
-      link,
-      isSuspicious: this.linkRisks.length > 0,
-      score
-    };
+    return score;
   }
 
   private classifySuspiciousLink(domainAnalysis: DomainAnalysisResult, hostname: string) {
