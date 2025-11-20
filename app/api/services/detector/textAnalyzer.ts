@@ -28,6 +28,7 @@ export interface EmailTextAnalysis {
 }
 
 export class TextAnalyzer {
+  private patterns: string[] = [];
   private phishingPatterns: PhishingPattern[] = [
     // High-confidence phishing patterns (more specific)
     {
@@ -149,21 +150,26 @@ export class TextAnalyzer {
   ];
 
   private readonly SUBJECT_WEIGHT = 1.5;
-  private readonly LOW_SEVERITY_CAP = 10; // Maximum contribution from low severity patterns
+  private readonly LOW_SEVERITY_CAP = 10; // Maximum contribution from low severity patterns\
+
+  public getPatterns(): string[] {
+    return this.patterns;
+  }
 
   /**
    * Analyze email text with subject and body distinction
    */
   analyzeEmailText(emailData: EmailTextAnalysis): TextAnalysisResult {
-    const subjectResult = this.analyzeText(emailData.subject);
-    const bodyResult = this.analyzeText(emailData.body);
+    const allPatterns: string[] = [];
+    let subjectScore = this.analyzeText(emailData.subject);
+    allPatterns.push(...this.patterns);
+    const bodyScore = this.analyzeText(emailData.body);
+    allPatterns.push(...this.patterns);
     
     // Apply context-aware weighting
-    const subjectScore = subjectResult.score * this.SUBJECT_WEIGHT;
-    const bodyScore = bodyResult.score;
+    subjectScore = subjectScore * this.SUBJECT_WEIGHT;
     
     // Combine patterns and scores
-    const allPatterns = [...subjectResult.patterns, ...bodyResult.patterns];
     const totalScore = subjectScore + bodyScore;
     
     // Apply legitimate pattern reduction (negative scores)
@@ -179,15 +185,13 @@ export class TextAnalyzer {
     };
   }
 
-  analyzeText(text: string): TextAnalysisResult {
-    const patterns: string[] = [];
-    let score = 0;
+  private analyzePhishingPatterns(text: string): number {
     let lowSeverityScore = 0;
-
+    let score = 0;
     // Analyze phishing patterns
     for (const pattern of this.phishingPatterns) {
       if (pattern.pattern.test(text)) {
-        patterns.push(pattern.name);
+        this.patterns.push(pattern.name);
         const patternScore = this.getSeverityScore(pattern.severity);
         
         if (pattern.severity === 'low') {
@@ -200,24 +204,30 @@ export class TextAnalyzer {
 
     // Cap low severity contributions
     score += Math.min(lowSeverityScore, this.LOW_SEVERITY_CAP);
+    return score;
+  }
 
-    // Check for suspicious keyword density
+  private checkKeywordDensity(text: string): number {
+    let score = 0;
     const keywordCount = this.suspiciousKeywords.filter(keyword => 
       text.toLowerCase().includes(keyword.toLowerCase())
     ).length;
     
     if (keywordCount >= 3 && keywordCount < 6) {
-      patterns.push('medium_keyword_density');
+      this.patterns.push('medium_keyword_density');
       score += 5;
     } else if (keywordCount >= 6) {
-      patterns.push('high_keyword_density');
+      this.patterns.push('high_keyword_density');
       score += 10;
     }
+  return score
+  }
 
-    // Check for excessive punctuation
+  private checkExcessivePunctuation(text: string): number {
+    let score = 0;
     const exclamationCount = (text.match(/!/g) || []).length;
     const questionCount = (text.match(/\?/g) || []).length;
-    
+
     // Ratio based on size (avoid punishing short messages too harshly)
     const punctuationRatio = (exclamationCount + questionCount) / Math.max(text.length, 1);
 
@@ -226,7 +236,7 @@ export class TextAnalyzer {
 
     // Score logic
     if (punctuationRatio > 0.05 || punctuationClusters > 0) {
-      patterns.push('excessive_punctuation');
+      this.patterns.push('excessive_punctuation');
 
       // weighted scoring
       let punctScore = 0;
@@ -236,12 +246,16 @@ export class TextAnalyzer {
 
       score += punctScore;
     }
+    return score;
+  }
 
+  private checkExcessiveCaps(text: string): number {
+    let score = 0;
     const capsSequences = (text.match(/[A-Z]{5,}/g) || []).length;
     const capsPercentage = (text.match(/[A-Z]/g) || []).length / Math.max(text.length, 1);
 
     if (capsPercentage > 0.4 && capsSequences > 0) {
-      patterns.push('excessive_caps');
+      this.patterns.push('excessive_caps');
 
       // scale
       let capsScore = 5;
@@ -250,8 +264,19 @@ export class TextAnalyzer {
 
       score += capsScore;
     }
+    return score;
+  }
 
-    return { patterns, score };
+  analyzeText(text: string): number {
+    this.patterns = [];
+    let score = 0;
+    
+    score += this.analyzePhishingPatterns(text);
+    score += this.checkKeywordDensity(text);
+    score += this.checkExcessivePunctuation(text);
+    score += this.checkExcessiveCaps(text);
+
+    return score;
   }
 
   /**
