@@ -412,9 +412,8 @@ export class LinkAnalyzerService {
   }
   private checkSuspiciousQueryParameters(url: URL, trustedDomain: boolean): number {
     let score = 0;
-    const suspiciousParams = [
-      'password', 'pwd', 'pass', 'token', 'key', 'secret', 'auth'
-    ];
+    const suspiciousParams = ['password', 'pwd', 'pass', 'secret'];
+
 
     const hasSuspiciousParams = suspiciousParams.some(param =>
       url.searchParams.has(param) || url.search.includes(`${param}=`)
@@ -426,7 +425,7 @@ export class LinkAnalyzerService {
 
       // If domain is not recognized as legit, increase penalty
       if (!trustedDomain) {
-        score += 12;
+        score += 50;
         this.linkRisks.push(`Credential-like params on untrusted domain: ${url.search}`);
       } else {
         this.linkRisks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
