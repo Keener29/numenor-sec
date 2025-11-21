@@ -29,7 +29,7 @@ export interface EmailTextAnalysis {
 
 export class TextAnalyzer {
   private patterns: string[] = [];
-  private phishingPatterns: PhishingPattern[] = [
+  private readonly phishingPatterns: PhishingPattern[] = [
     // High-confidence phishing patterns (more specific)
     {
       name: 'urgent_action_required',
@@ -49,7 +49,7 @@ export class TextAnalyzer {
       severity: 'high',
       description: 'Financial pressure with urgency tactics'
     },
-    
+
     // Authority impersonation (more specific)
     {
       name: 'irs_impersonation',
@@ -63,7 +63,7 @@ export class TextAnalyzer {
       severity: 'critical',
       description: 'CEO fraud or business email compromise'
     },
-    
+
     // Social engineering
     {
       name: 'personal_info_request',
@@ -83,7 +83,7 @@ export class TextAnalyzer {
       severity: 'low',
       description: 'Common phishing link text'
     },
-    
+
     // Technical indicators
     {
       name: 'suspicious_html',
@@ -91,7 +91,7 @@ export class TextAnalyzer {
       severity: 'medium',
       description: 'Potentially malicious HTML content'
     },
-    
+
     // Medium-confidence patterns (less specific, need context)
     {
       name: 'generic_urgency',
@@ -105,11 +105,11 @@ export class TextAnalyzer {
       severity: 'low',
       description: 'Generic verification language'
     },
-    
+
   ];
 
   // Legitimate business patterns that should reduce suspicion (negative scores)
-  private legitimatePatterns: PhishingPattern[] = [
+  private readonly legitimatePatterns: PhishingPattern[] = [
     {
       name: 'meeting_request',
       pattern: /(meeting|conference call|appointment|schedule|calendar)/i,
@@ -142,7 +142,7 @@ export class TextAnalyzer {
     }
   ];
 
-  private suspiciousKeywords = [
+  private readonly suspiciousKeywords = [
     'verify', 'confirm', 'update', 'validate', 'secure', 'protect',
     'suspended', 'locked', 'expired', 'compromised', 'breach',
     'immediately', 'urgent', 'asap', 'deadline', 'limited time',
@@ -165,17 +165,17 @@ export class TextAnalyzer {
     allPatterns.push(...this.patterns);
     const bodyScore = this.analyzeText(emailData.body);
     allPatterns.push(...this.patterns);
-    
+
     // Apply context-aware weighting
     subjectScore = subjectScore * this.SUBJECT_WEIGHT;
-    
+
     // Combine patterns and scores
     const totalScore = subjectScore + bodyScore;
-    
+
     // Apply legitimate pattern reduction (negative scores)
     const legitimateScore = this.analyzeLegitimatePatterns(emailData.subject + ' ' + emailData.body);
     const finalScore = Math.max(0, totalScore + legitimateScore);
-    
+
     return {
       patterns: [...new Set(allPatterns)],
       score: finalScore,
@@ -193,7 +193,7 @@ export class TextAnalyzer {
       if (pattern.pattern.test(text)) {
         this.patterns.push(pattern.name);
         const patternScore = this.getSeverityScore(pattern.severity);
-        
+
         if (pattern.severity === 'low') {
           lowSeverityScore += patternScore;
         } else {
@@ -209,10 +209,10 @@ export class TextAnalyzer {
 
   private checkKeywordDensity(text: string): number {
     let score = 0;
-    const keywordCount = this.suspiciousKeywords.filter(keyword => 
+    const keywordCount = this.suspiciousKeywords.filter(keyword =>
       text.toLowerCase().includes(keyword.toLowerCase())
     ).length;
-    
+
     if (keywordCount >= 3 && keywordCount < 6) {
       this.patterns.push('medium_keyword_density');
       score += 5;
@@ -220,7 +220,7 @@ export class TextAnalyzer {
       this.patterns.push('high_keyword_density');
       score += 10;
     }
-  return score
+    return score
   }
 
   private checkExcessivePunctuation(text: string): number {
@@ -270,7 +270,7 @@ export class TextAnalyzer {
   analyzeText(text: string): number {
     this.patterns = [];
     let score = 0;
-    
+
     score += this.analyzePhishingPatterns(text);
     score += this.checkKeywordDensity(text);
     score += this.checkExcessivePunctuation(text);
@@ -285,14 +285,14 @@ export class TextAnalyzer {
    */
   private analyzeLegitimatePatterns(text: string): number {
     let legitimateScore = 0;
-    
+
     for (const pattern of this.legitimatePatterns) {
       if (pattern.pattern.test(text)) {
         // Return negative scores to reduce suspicion
         legitimateScore -= this.getSeverityScore(pattern.severity);
       }
     }
-    
+
     return legitimateScore;
   }
 
@@ -301,7 +301,7 @@ export class TextAnalyzer {
    */
   private determineContext(emailData: EmailTextAnalysis): string {
     const text = (emailData.subject + ' ' + emailData.body).toLowerCase();
-    
+
     if (text.includes('meeting') || text.includes('conference')) {
       return 'meeting';
     }
@@ -314,7 +314,7 @@ export class TextAnalyzer {
     if (text.includes('newsletter') || text.includes('news')) {
       return 'newsletter';
     }
-    
+
     return 'general';
   }
 

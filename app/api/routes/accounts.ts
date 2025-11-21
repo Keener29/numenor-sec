@@ -64,7 +64,7 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
        WHERE u.id = $1`,
       [accountId]
     );
-    
+
     const userDetails = userDetailsResult.rows[0] as {
       email: string;
       first_name: string;
@@ -72,7 +72,7 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
       business_name: string | null;
     } | undefined;
 
-    if (reason && reason.trim() && userDetails) {
+    if (reason?.trim() && userDetails) {
       await query(
         `INSERT INTO account_deletions (user_email, user_name, business_name, reason, deleted_at)
          VALUES ($1, $2, $3, $4, NOW())`,

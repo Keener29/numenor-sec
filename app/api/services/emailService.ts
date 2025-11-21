@@ -62,7 +62,7 @@ function getEmailConfig(): EmailConfig {
  */
 function createTransporter(): Transporter {
   const config = getEmailConfig();
-  
+
   const nodemailerConfig = {
     host: config.host,
     port: config.port,
@@ -99,10 +99,8 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
     businessName,
     emailAddress,
     businessEmail,
-    emailId,
     businessId,
-    approvalToken,
-    declineToken
+    approvalToken
   } = params;
 
   const apiUrl = process.env.API_URL || 'http://localhost:3001';
@@ -233,7 +231,7 @@ This email was sent by Numenor Security on behalf of ${businessName}
  */
 function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
   const { businessName, monitoredEmail, emailMessage, threatAssessment } = params;
-  
+
   const threatLevelColors = {
     high: '#dc2626',
     critical: '#991b1b',
@@ -542,7 +540,7 @@ class EmailService {
     try {
       this.config = getEmailConfig();
       this.transporter = createTransporter();
-      
+
       emailLogger.info('Email service initialized successfully', {
         operation: 'initialize-service',
         metadata: {
@@ -592,19 +590,16 @@ class EmailService {
 
       // Generate secure tokens
       const approvalToken = tokenService.generateApprovalToken(emailId, businessId);
-      const declineToken = tokenService.generateDeclineToken(emailId, businessId);
-      
+
       // Generate email template
       const template = generatePermissionRequestTemplate({
         businessName,
         emailAddress,
         businessEmail,
-        emailId,
         businessId,
-        approvalToken,
-        declineToken
+        approvalToken
       });
-      
+
       // Prepare mail options
       const fromAddress = process.env.SMTP_FROM || this.config.auth.user;
       const mailOptions = {
@@ -614,10 +609,10 @@ class EmailService {
         html: template.html,
         text: template.text
       };
-      
+
       // Send email
       const result = await this.transporter.sendMail(mailOptions);
-      
+
       emailLogger.info('Permission request email sent successfully', {
         ...context,
         metadata: {
@@ -634,7 +629,7 @@ class EmailService {
 
     } catch (error) {
       emailLogger.error('Failed to send permission request email', context, error as Error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -683,7 +678,7 @@ class EmailService {
         emailMessage,
         threatAssessment
       });
-      
+
       const fromAddress = process.env.SMTP_FROM || this.config.auth.user;
       const mailOptions = {
         from: `${fromAddress}`,
@@ -692,9 +687,9 @@ class EmailService {
         html: template.html,
         text: template.text
       };
-      
+
       const result = await this.transporter.sendMail(mailOptions);
-      
+
       emailLogger.info('Threat alert email sent successfully', {
         ...context,
         metadata: {
@@ -711,7 +706,7 @@ class EmailService {
 
     } catch (error) {
       emailLogger.error('Failed to send threat alert email', context, error as Error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -737,7 +732,7 @@ class EmailService {
       }
 
       await this.transporter.verify();
-      
+
       emailLogger.info('Email service connection verified', context);
       return true;
     } catch (error) {
@@ -751,7 +746,7 @@ class EmailService {
    */
   getConfig(): Omit<EmailConfig, 'auth'> | null {
     if (!this.config) return null;
-    
+
     return {
       host: this.config.host,
       port: this.config.port,

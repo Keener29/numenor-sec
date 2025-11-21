@@ -15,6 +15,17 @@ export interface GmailMessage {
   raw?: string;
 }
 
+export interface DraftContentOptions {
+  businessId: number;
+  emailAddress: string;
+  originalMessage: GmailMessage;
+  modifiedHtml: string;
+  modifiedPlainText: string;
+  subject: string;
+  from: string;
+  to: string;
+}
+
 export interface GmailMessagePayload {
   partId: string;
   mimeType: string;

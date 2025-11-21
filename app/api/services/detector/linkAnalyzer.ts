@@ -335,7 +335,7 @@ export class LinkAnalyzerService {
         case 'suspicious_pattern':
           this.linkRisks.push(`Suspicious domain pattern: "${hostname}"`);
           break;
-        case 'domain_age':{
+        case 'domain_age': {
           const ageText = domainAnalysis.domainAge?.ageInDays
             ? `${domainAnalysis.domainAge?.ageInDays ?? 0} days old`
             : 'unknown age';
@@ -462,11 +462,11 @@ export class LinkAnalyzerService {
         this.linkRisks.push(`Label too long (${label.length}): ${label}`);
         score += 30;
       }
-      if (/^xn--/.test(label)) {
+      if (label.startsWith("xn--")) {
         this.linkRisks.push(`Punycode label detected: ${label}`);
         score += 15;
       }
-      if (/^-|-$/.test(label)) {
+      if (label.startsWith("-") || label.endsWith("-")) {
         this.linkRisks.push(`Suspicious leading/trailing hyphen in label: ${label}`);
         score += 10;
       }

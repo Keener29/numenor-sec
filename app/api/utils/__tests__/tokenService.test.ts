@@ -55,28 +55,6 @@ describe('TokenService', () => {
     });
   });
 
-  describe('generateDeclineToken', () => {
-    it('should generate a token with correct format', () => {
-      const token = tokenService.generateDeclineToken(123, 456);
-
-      expect(token).toBeDefined();
-      expect(typeof token).toBe('string');
-      const parts = token.split('_');
-      expect(parts.length).toBeGreaterThanOrEqual(5);
-      expect(parts[0]).toBe('decline');
-      expect(Number.parseInt(parts[1])).toBe(123);
-      expect(Number.parseInt(parts[2])).toBe(456);
-    });
-
-    it('should throw error when TOKEN_SECRET is missing', () => {
-      delete process.env.TOKEN_SECRET;
-
-      expect(() => {
-        tokenService.generateDeclineToken(123, 456);
-      }).toThrow('TOKEN_SECRET environment variable is required');
-    });
-  });
-
   describe('validateApprovalToken', () => {
     it('should validate a correctly generated approval token', () => {
       const token = tokenService.generateApprovalToken(123, 456);
@@ -95,13 +73,6 @@ describe('TokenService', () => {
     it('should reject token with wrong business ID', () => {
       const token = tokenService.generateApprovalToken(123, 456);
       const isValid = tokenService.validateApprovalToken(token, 123, 999);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject token with wrong action type', () => {
-      const declineToken = tokenService.generateDeclineToken(123, 456);
-      const isValid = tokenService.validateApprovalToken(declineToken, 123, 456);
 
       expect(isValid).toBe(false);
     });
@@ -161,74 +132,15 @@ describe('TokenService', () => {
     });
   });
 
-  describe('validateDeclineToken', () => {
-    it('should validate a correctly generated decline token', () => {
-      const token = tokenService.generateDeclineToken(123, 456);
-      const isValid = tokenService.validateDeclineToken(token, 123, 456);
-
-      expect(isValid).toBe(true);
-    });
-
-    it('should reject token with wrong email ID', () => {
-      const token = tokenService.generateDeclineToken(123, 456);
-      const isValid = tokenService.validateDeclineToken(token, 999, 456);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject token with wrong business ID', () => {
-      const token = tokenService.generateDeclineToken(123, 456);
-      const isValid = tokenService.validateDeclineToken(token, 123, 999);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject token with wrong action type', () => {
-      const approvalToken = tokenService.generateApprovalToken(123, 456);
-      const isValid = tokenService.validateDeclineToken(approvalToken, 123, 456);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject expired token (older than 24 hours)', () => {
-      // Create a token manually with old timestamp
-      const oldTimestamp = Date.now() - (25 * 60 * 60 * 1000); // 25 hours ago
-      const payload = `decline_123_456_${oldTimestamp}`;
-      const secret = process.env.TOKEN_SECRET!;
-      const crypto = require('node:crypto');
-      const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-      const expiredToken = `${payload}_${hash}`;
-
-      const isValid = tokenService.validateDeclineToken(expiredToken, 123, 456);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should reject malformed token', () => {
-      const isValid = tokenService.validateDeclineToken('invalid', 123, 456);
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should return false when TOKEN_SECRET is missing during validation', () => {
-      const token = tokenService.generateDeclineToken(123, 456);
-      delete process.env.TOKEN_SECRET;
-
-      const isValid = tokenService.validateDeclineToken(token, 123, 456);
-
-      expect(isValid).toBe(false);
-    });
-  });
-
   describe('Security properties', () => {
     it('should generate tokens that cannot be validated with different secret', () => {
       const token = tokenService.generateApprovalToken(123, 456);
-      
+
       // Change secret
       process.env.TOKEN_SECRET = 'different-secret';
-      
+
       const isValid = tokenService.validateApprovalToken(token, 123, 456);
-      
+
       expect(isValid).toBe(false);
     });
 

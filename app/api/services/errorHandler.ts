@@ -6,9 +6,9 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 import { logger } from './logger.js';
-import { 
-  EmailServiceError, 
-  OAuthServiceError, 
+import {
+  EmailServiceError,
+  OAuthServiceError,
   TokenValidationError
 } from '../types/email.js';
 import type { LogContext } from '../types/email.js';
@@ -42,46 +42,46 @@ export const ErrorCodes = {
   EMAIL_SEND_FAILED: 'EMAIL_SEND_FAILED',
   EMAIL_TEMPLATE_ERROR: 'EMAIL_TEMPLATE_ERROR',
   EMAIL_VALIDATION_FAILED: 'EMAIL_VALIDATION_FAILED',
-  
+
   // OAuth Service Errors
   OAUTH_CONFIGURATION_ERROR: 'OAUTH_CONFIGURATION_ERROR',
   OAUTH_TOKEN_EXCHANGE_FAILED: 'OAUTH_TOKEN_EXCHANGE_FAILED',
   OAUTH_TOKEN_REFRESH_FAILED: 'OAUTH_TOKEN_REFRESH_FAILED',
   OAUTH_AUTHORIZATION_FAILED: 'OAUTH_AUTHORIZATION_FAILED',
   OAUTH_STATE_VALIDATION_FAILED: 'OAUTH_STATE_VALIDATION_FAILED',
-  
+
   // Token Validation Errors
   TOKEN_INVALID: 'TOKEN_INVALID',
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
   TOKEN_MALFORMED: 'TOKEN_MALFORMED',
   TOKEN_MISSING: 'TOKEN_MISSING',
-  
+
   // Database Errors
   DATABASE_CONNECTION_ERROR: 'DATABASE_CONNECTION_ERROR',
   DATABASE_QUERY_ERROR: 'DATABASE_QUERY_ERROR',
   RECORD_NOT_FOUND: 'RECORD_NOT_FOUND',
   DUPLICATE_RECORD: 'DUPLICATE_RECORD',
-  
+
   // Validation Errors
   VALIDATION_ERROR: 'VALIDATION_ERROR',
   REQUIRED_FIELD_MISSING: 'REQUIRED_FIELD_MISSING',
   INVALID_EMAIL_FORMAT: 'INVALID_EMAIL_FORMAT',
   INVALID_BUSINESS_ID: 'INVALID_BUSINESS_ID',
-  
+
   // Authentication Errors
   AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
   AUTHENTICATION_FAILED: 'AUTHENTICATION_FAILED',
   AUTHORIZATION_FAILED: 'AUTHORIZATION_FAILED',
   INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
-  
+
   // Rate Limiting
   RATE_LIMIT_EXCEEDED: 'RATE_LIMIT_EXCEEDED',
-  
+
   // External Service Errors
   EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
   GMAIL_API_ERROR: 'GMAIL_API_ERROR',
   SMTP_SERVER_ERROR: 'SMTP_SERVER_ERROR',
-  
+
   // Generic Errors
   INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE'
@@ -150,9 +150,13 @@ export class ErrorFactory {
    * Create a not found error
    */
   static notFound(resource: string, identifier?: string): ApiError {
+    let message = resource + ' not found';
+    if (identifier) {
+      message += ': ' + identifier;
+    }
     return {
       code: ErrorCodes.RECORD_NOT_FOUND,
-      message: `${resource} not found${identifier ? `: ${identifier}` : ''}`,
+      message: message,
       statusCode: 404,
       timestamp: new Date().toISOString()
     };
@@ -237,10 +241,8 @@ export function errorHandler(
   logger.error('Unhandled error occurred', context, error);
 
   // Handle different error types
-  if (error instanceof EmailServiceError) {
+  if (error instanceof EmailServiceError || error instanceof OAuthServiceError) {
     handleEmailServiceError(error, res, requestId);
-  } else if (error instanceof OAuthServiceError) {
-    handleOAuthServiceError(error, res, requestId);
   } else if (error instanceof TokenValidationError) {
     handleTokenValidationError(error, res, requestId);
   } else if (error instanceof ZodError) {
@@ -255,29 +257,6 @@ export function errorHandler(
  */
 function handleEmailServiceError(
   error: EmailServiceError,
-  res: Response,
-  requestId?: string
-): void {
-  const apiError: ApiError = {
-    code: error.code,
-    message: error.message,
-    statusCode: error.statusCode,
-    details: error.details,
-    timestamp: new Date().toISOString(),
-    requestId
-  };
-
-  res.status(error.statusCode).json({
-    success: false,
-    error: apiError
-  });
-}
-
-/**
- * Handle OAuth service errors
- */
-function handleOAuthServiceError(
-  error: OAuthServiceError,
   res: Response,
   requestId?: string
 ): void {
@@ -345,8 +324,8 @@ function handleGenericError(
 ): void {
   const apiError: ApiError = {
     code: ErrorCodes.INTERNAL_SERVER_ERROR,
-    message: process.env.NODE_ENV === 'production' 
-      ? 'An internal server error occurred' 
+    message: process.env.NODE_ENV === 'production'
+      ? 'An internal server error occurred'
       : error.message,
     statusCode: 500,
     timestamp: new Date().toISOString(),
@@ -370,7 +349,7 @@ export function asyncHandler<T extends any[]>(
   fn: (...args: T) => Promise<any>
 ) {
   return (...args: T): Promise<any> => {
-    const [req, res, next] = args;
+    const [, , next] = args;
     return Promise.resolve(fn(...args)).catch(next);
   };
 }

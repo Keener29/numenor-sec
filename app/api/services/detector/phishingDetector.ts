@@ -41,7 +41,7 @@ class PhishingDetector {
       sender: emailData.sender,
       recipient: emailData.recipient
     };
-    
+
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     detectedPatterns.push(...textAnalysis.patterns);
     threatScore += textAnalysis.score;
@@ -80,7 +80,7 @@ class PhishingDetector {
     let authenticationResults;
     let headerAnalysis: HeaderAnalysis | undefined;
     if (emailData.headers && Object.keys(emailData.headers).length > 0) {
-      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);      
+      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);
       const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
       riskFactors.push(...authAnalysis.risks);
       threatScore += authAnalysis.score;
@@ -90,18 +90,15 @@ class PhishingDetector {
       headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.sender, businessId);
       riskFactors.push(...headerAnalysis.risks);
       threatScore += headerAnalysis.score;
+    } else if (isAllowListed) {
+      // No headers available - this is a CRITICAL risk factor    
+      riskFactors.push('No email headers available - sender domain is allow-listed');
+      threatScore += 20; // Reduced penalty for allow-listed domains
+      recommendations.push('Email headers missing - sender domain is trusted');
     } else {
-      // No headers available - this is a CRITICAL risk factor
-      
-      if (isAllowListed) {
-        riskFactors.push('No email headers available - sender domain is allow-listed');
-        threatScore += 20; // Reduced penalty for allow-listed domains
-        recommendations.push('Email headers missing - sender domain is trusted');
-      } else {
-        riskFactors.push('No email headers available for authentication analysis');
-        threatScore += 100; // Critical - cannot verify email authenticity at all
-        recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
-      }
+      riskFactors.push('No email headers available for authentication analysis');
+      threatScore += 100; // Critical - cannot verify email authenticity at all
+      recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
     }
 
     // Determine threat level
@@ -157,7 +154,7 @@ class PhishingDetector {
       sender: emailData.sender,
       recipient: emailData.recipient
     };
-    
+
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     if (textAnalysis.patterns.includes('ceo_fraud')) {
       indicators.push('Executive impersonation detected');
@@ -185,8 +182,8 @@ class PhishingDetector {
     return 'low';
   }
   private generateRecommendations(
-    threatLevel: string, 
-    patterns: string[], 
+    threatLevel: string,
+    patterns: string[],
     risks: string[]
   ): string[] {
     const recommendations: string[] = [];
@@ -211,7 +208,7 @@ class PhishingDetector {
     // Authentication-specific recommendations
     const authRecommendations = emailAuthenticationService.generateAuthenticationRecommendations(risks);
     recommendations.push(...authRecommendations);
-    
+
     if (risks.some(risk => risk.includes('No email headers available'))) {
       recommendations.push('CRITICAL: Email headers missing - this email cannot be verified and should be treated as highly suspicious');
     }
