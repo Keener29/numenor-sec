@@ -273,7 +273,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       setActionLoading(prev => ({ ...prev, [emailId]: null }));
     }
   };
-  const getButtonText = (bulkEmailsCount: number) => {
+  const getButtonText = (bulkEmailsCount: number = 0) => {
     const emailsLength = emails.length;
     if (isAddingEmail) {
       return isBulkMode && bulkProgress
@@ -286,7 +286,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     }
   
     if (isBulkMode) {
-      const count = bulkEmailsCount ?? 0;
+      const count = bulkEmailsCount;
       return `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
     }
   

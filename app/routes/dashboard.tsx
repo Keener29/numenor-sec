@@ -53,6 +53,7 @@ const processChartData = (dailyAlerts: any[]) => {
     console.log(`Date: ${dateString}, Day: ${dayName}, Alerts: ${alertCount}`);
     
     chartData.push({
+      uuid: crypto.randomUUID(),
       day: dayName,
       alerts: alertCount
     });
