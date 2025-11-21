@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/contact";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Contact Us - Numenor Security" },
     { name: "description", content: "Get in touch with Numenor Security. We're here to help with security questions, onboarding, or general inquiries." },

@@ -5,7 +5,7 @@ import { authAPI } from "../utils/api";
 import { loginWithGoogle } from "~/utils/googleAuth";
 import { GoogleLogin } from "@react-oauth/google";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Sign Up - Numenor Security" },
     { name: "description", content: "Create your Numenor Security account" },

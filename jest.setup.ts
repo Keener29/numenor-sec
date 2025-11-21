@@ -1,7 +1,7 @@
 // Jest setup file for React Testing Library
 import '@testing-library/jest-dom/jest-globals';
 import '@testing-library/jest-dom';
-import { TextEncoder, TextDecoder } from 'util';
+import { TextEncoder, TextDecoder } from 'node:util';
 
 // Polyfill TextEncoder/TextDecoder for jsdom
 global.TextEncoder = TextEncoder as typeof global.TextEncoder;

@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/account-deleted";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Account Deleted - Numenor Security" },
     { name: "description", content: "Your account has been deleted" },

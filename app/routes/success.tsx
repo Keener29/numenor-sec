@@ -10,6 +10,21 @@ export default function Success() {
   const email = searchParams.get('email');
   const error = searchParams.get('oauth_error');
 
+  let errorMessage = '';
+  switch (error) {
+    case 'missing_parameters':
+      errorMessage = 'Missing required parameters';
+      break;
+    case 'invalid_state':
+      errorMessage = 'Invalid request state';
+      break;
+    case 'callback_failed':
+      errorMessage = 'OAuth callback failed';
+      break;
+    default:
+      errorMessage = error || 'Unknown error';
+      break;
+  }
   // If there's an error, show error message
   if (error) {
     return (
@@ -29,9 +44,7 @@ export default function Success() {
             </p>
             <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-md">
               <p className="text-sm text-red-800">
-                Error: {error === 'missing_parameters' ? 'Missing required parameters' : 
-                       error === 'invalid_state' ? 'Invalid request state' :
-                       error === 'callback_failed' ? 'OAuth callback failed' : error}
+                Error: {errorMessage}
               </p>
             </div>
             <div className="mt-6">

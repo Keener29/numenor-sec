@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/home";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Numenor Security - Automated Phishing Detection for Small & Medium Businesses" },
     { name: "description", content: "Automated phishing detection for SMBs. Built by a Waterloo-trained cybersecurity engineer. Protect your inbox with real-time email scanning." },

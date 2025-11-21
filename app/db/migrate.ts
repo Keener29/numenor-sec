@@ -120,13 +120,12 @@ export const runMigrations = async (): Promise<void> => {
 
 // Run migrations if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runMigrations()
-    .then(() => {
-      console.log('Migrations completed');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Migration failed:', error);
-      process.exit(1);
-    });
+  try {
+    await runMigrations();
+    console.log('Migrations completed');
+    process.exit(0);
+  } catch (error) {
+    console.error('Migration failed:', error);
+    process.exit(1);
+  }
 }
