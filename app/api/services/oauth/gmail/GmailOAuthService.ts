@@ -255,14 +255,7 @@ export class GmailOAuthService extends OAuthProvider {
     return Actions.createDraftWithContent(
       this.setCredentials.bind(this),
       this.gmail,
-      options.businessId,
-      options.emailAddress,
-      options.originalMessage,
-      options.modifiedHtml,
-      options.modifiedPlainText,
-      options.subject,
-      options.from,
-      options.to
+      options
     );
   }
 

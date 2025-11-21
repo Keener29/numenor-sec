@@ -2,7 +2,7 @@ import { oauthLogger } from '../../../logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
 import type { EmailMessage, LogContext } from '../../base/types.js';
-import type { FetchEmailsOptions, GmailMessage } from '../types.js';
+import type { DraftContentOptions, FetchEmailsOptions, GmailMessage } from '../types.js';
 import { decodeHtmlEntities, stripHtmlTags } from '../../../../utils/emailUtils.js';
 
 export type SetCredentialsFn = (businessId: number, emailAddress: string) => Promise<void>;
@@ -168,15 +168,9 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
 export async function createDraftWithContent(
   setCredentials: SetCredentialsFn,
   gmail: any,
-  businessId: number,
-  emailAddress: string,
-  originalMessage: GmailMessage,
-  modifiedHtml: string,
-  modifiedPlainText: string,
-  subject: string,
-  from: string,
-  to: string
+  options: DraftContentOptions
 ): Promise<string> {
+  const { businessId, emailAddress, originalMessage, modifiedHtml, modifiedPlainText, subject, from, to } = options;
   const context: LogContext = {
     operation: 'create-draft-with-content',
     businessId,

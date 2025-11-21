@@ -11,7 +11,7 @@ export function extractAnchors(html: string): Array<{ href: string; text: string
   let match: RegExpExecArray | null;
 
   while ((match = anchorRegex.exec(html)) !== null) {
-    const [full, attrsRaw, inner] = match;
+    const [, attrsRaw, inner] = match;
     const index = match.index ?? 0;
 
     const anchor = parseAnchor(attrsRaw, inner, index);

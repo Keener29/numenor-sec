@@ -3,10 +3,8 @@ import { oauthLogger } from '../../../logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../../base/types.js';
 
-type OAuth2Client = any;
-
 export function generateAuthUrl(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): string {
@@ -55,7 +53,7 @@ export function generateAuthUrl(
   }
 }
 
-export async function exchangeCodeForTokens(oauth2Client: OAuth2Client, code: string): Promise<OAuthTokens> {
+export async function exchangeCodeForTokens(oauth2Client: any, code: string): Promise<OAuthTokens> {
   const context: LogContext = { operation: 'exchange-code-for-tokens' };
   try {
     oauthLogger.info('Exchanging authorization code for Gmail tokens', context);
@@ -140,7 +138,7 @@ export async function getTokens(businessId: number, emailAddress: string): Promi
 }
 
 export async function refreshTokenIfNeeded(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): Promise<OAuthTokens> {
@@ -175,7 +173,7 @@ export async function refreshTokenIfNeeded(
 }
 
 export async function setCredentials(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): Promise<void> {

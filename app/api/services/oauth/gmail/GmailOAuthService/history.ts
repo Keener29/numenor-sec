@@ -34,7 +34,7 @@ export function parseGmailMessage(message: GmailMessage, emailAddress?: string):
   }
 
   // Lightweight URL extraction; not a full HTML parser by design
-  const linkRegex = /https?:\/\/[^\s<>":{}|\\^`\[\]]+/g;
+  const linkRegex = /https?:\/\/[^\s<>":{}|\\^`[\]]+/g;
   const links = body.match(linkRegex) || [];
 
   return {
@@ -80,7 +80,7 @@ async function fetchHistoryPages(
 }
 
 function isCorrectInboxMessage(message: gmail_v1.Schema$Message | undefined): boolean {
-  if (!message || !message.id) return false;
+  if (!message?.id) return false;
   const labelIds = message.labelIds || [];
   return labelIds.includes('INBOX') &&
     !labelIds.includes('SENT') &&
