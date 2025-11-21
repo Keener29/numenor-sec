@@ -273,6 +273,27 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       setActionLoading(prev => ({ ...prev, [emailId]: null }));
     }
   };
+  const getButtonText = (bulkEmailsCount: number) => {
+    const emailsLength = emails.length;
+    if (isAddingEmail) {
+      return isBulkMode && bulkProgress
+        ? `Adding ${bulkProgress.current}/${bulkProgress.total}...`
+        : "Adding...";
+    }
+  
+    if (emailsLength >= MAX_EMAILS) {
+      return "Limit Reached";
+    }
+  
+    if (isBulkMode) {
+      const count = bulkEmailsCount ?? 0;
+      return `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
+    }
+  
+    return "Add Email";
+  };
+  
+  
 
   // Only count emails that have Gmail OAuth connected
   const connectedEmails = emails.filter(email => {
@@ -286,20 +307,8 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     emails.length >= MAX_EMAILS ||
     (isBulkMode ? !bulkEmails.trim() : !newEmail.trim());
 
-  let buttonText = "Add Email";
+  const buttonText = getButtonText(bulkEmailsCount);
 
-  if (isAddingEmail) {
-    buttonText = isBulkMode && bulkProgress
-      ? `Adding ${bulkProgress.current}/${bulkProgress.total}...`
-      : "Adding...";
-  } else if (emails.length >= MAX_EMAILS) {
-    buttonText = "Limit Reached";
-  } else if (isBulkMode) {
-    const count = bulkEmails.trim() ? bulkEmailsCount : 0;
-    buttonText = `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
-  } else {
-    buttonText = "Add Email";
-  }
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="p-5">
