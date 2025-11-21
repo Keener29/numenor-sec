@@ -5,6 +5,7 @@ import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
 import { extractEmailAddress, isFromOwnService } from '../utils/emailUtils.js';
 import type { ThreatAssessment } from '../types/email.js';
+import type { DraftContentOptions } from './oauth/gmail/types.js';
 
 interface MonitoredEmail {
   id: number;
@@ -543,16 +544,17 @@ class EmailMonitor {
         scoreText +
         "\n\n";
       // Create draft email with banner
-      const draftId = await gmailOAuthService.createDraftWithContent(
-        monitoredEmail.businessId,
-        monitoredEmail.emailAddress,
-        fullGmailMessage,
-        bannerHtml,
-        plainWarning,
-        `Fwd: ${emailMessage.subject}`,
-        monitoredEmail.emailAddress,
-        emailMessage.sender
-      );
+      const draftContentOptions: DraftContentOptions = {
+        businessId: monitoredEmail.businessId,
+        emailAddress: monitoredEmail.emailAddress,
+        originalMessage: fullGmailMessage,
+        modifiedHtml: bannerHtml,
+        modifiedPlainText: plainWarning,
+        subject: `Fwd: ${emailMessage.subject}`,
+        from: monitoredEmail.emailAddress,
+        to: emailMessage.sender
+      };
+      const draftId = await gmailOAuthService.createDraftWithContent(draftContentOptions);
 
       monitoringLogger.info('Draft created with phishing banner', {
         operation: 'inject-phishing-banner',

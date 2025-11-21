@@ -4,7 +4,6 @@ import type { EmailMessage, LogContext } from '../../base/types.js';
 import type { GmailMessage } from '../types.js';
 import type { gmail_v1 } from 'googleapis';
 
-type GmailClient = any;
 export type SetCredentialsFn = (businessId: number, emailAddress: string) => Promise<void>;
 
 /**
@@ -51,7 +50,7 @@ export function parseGmailMessage(message: GmailMessage, emailAddress?: string):
   };
 }
 async function fetchHistoryPages(
-  gmail: GmailClient,
+  gmail: any,
   startHistoryId: string
 ): Promise<{ entries: gmail_v1.Schema$History[]; latestHistoryId: string }> {
   const entries: gmail_v1.Schema$History[] = [];
@@ -135,7 +134,7 @@ function normalizeGmailErrors(error: any, context: LogContext): Error {
 
 export async function listHistorySince(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   startHistoryId: string
@@ -170,7 +169,7 @@ export async function listHistorySince(
 
 export async function getCurrentHistoryId(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string
 ): Promise<string> {
@@ -190,7 +189,7 @@ export async function getCurrentHistoryId(
 
 export async function getMessagesByIds(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   messageIds: string[],

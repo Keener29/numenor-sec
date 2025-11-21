@@ -17,7 +17,8 @@ import type {
   EmailMessage,
 } from '../base/types.js';
 import type {
-  GmailMessage, DraftContentOptions
+  GmailMessage, DraftContentOptions,
+  FetchEmailsOptions
 } from './types.js';
 
 
@@ -109,19 +110,20 @@ export class GmailOAuthService extends OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults: number = 10,
-    query: string = '',
+    searchQuery: string = '',
     connectionTimestamp?: Date
   ): Promise<EmailMessage[]> {
-    return Actions.fetchEmails(
-      this.setCredentials.bind(this),
-      this.gmail,
+    const fetchEmailsOptions: FetchEmailsOptions = {
+      setCredentials: this.setCredentials.bind(this),
+      gmail: this.gmail,
       businessId,
       emailAddress,
       maxResults,
-      query,
-      History.parseGmailMessage,
+      searchQuery,
+      parseGmailMessage: History.parseGmailMessage,
       connectionTimestamp
-    );
+    };
+    return Actions.fetchEmails(fetchEmailsOptions);
   }
 
   /**
