@@ -9,6 +9,7 @@
 ## Executive Summary
 
 This audit covers four critical security areas:
+
 1. **TLS Everywhere** - HTTPS enforcement
 2. **Secrets Management** - No hardcoded secrets
 3. **Rate Limiting & Input Validation** - Protection against abuse
@@ -33,10 +34,12 @@ This audit covers four critical security areas:
    - Missing HSTS (HTTP Strict Transport Security) headers
 
 2. **Server Logs Expose HTTP URLs (app/api/server.ts:133-134)**
+
    ```typescript
    apiDocs: `http://localhost:${PORT}/api`,
    healthCheck: `http://localhost:${PORT}/health`
    ```
+
    - Hardcoded HTTP URLs in production logs
 
 3. **Default URLs Use HTTP (Multiple Files)**
@@ -54,27 +57,29 @@ This audit covers four critical security areas:
 
 ```typescript
 // app/api/server.ts - Add HTTPS enforcement middleware
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   app.use((req, res, next) => {
-    if (req.header('x-forwarded-proto') !== 'https') {
-      res.redirect(`https://${req.header('host')}${req.url}`);
+    if (req.header("x-forwarded-proto") !== "https") {
+      res.redirect(`https://${req.header("host")}${req.url}`);
     } else {
       next();
     }
   });
-  
+
   // Trust proxy for correct X-Forwarded-* headers
-  app.set('trust proxy', 1);
+  app.set("trust proxy", 1);
 }
 
 // Update Helmet configuration
-app.use(helmet({
-  hsts: {
-    maxAge: 31536000, // 1 year
-    includeSubDomains: true,
-    preload: true
-  }
-}));
+app.use(
+  helmet({
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+  })
+);
 ```
 
 ```nginx
@@ -82,7 +87,7 @@ app.use(helmet({
 server {
     listen 80;
     server_name your-domain.com;
-    
+
     # Redirect all HTTP to HTTPS
     return 301 https://$server_name$request_uri;
 }
@@ -90,17 +95,17 @@ server {
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
-    
+
     ssl_certificate /etc/nginx/ssl/cert.pem;
     ssl_certificate_key /etc/nginx/ssl/key.pem;
-    
+
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
-    
+
     # HSTS header
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
-    
+
     # ... rest of configuration
 }
 ```
@@ -114,6 +119,7 @@ server {
 **Issue:** Hardcoded default password in database configuration.
 
 **File:** `app/db/config.ts:24`
+
 ```typescript
 password: process.env.DB_PASSWORD || 'password',
 ```
@@ -121,21 +127,22 @@ password: process.env.DB_PASSWORD || 'password',
 **Severity:** 🟠 **HIGH**
 
 **Fix Required:**
+
 ```typescript
 // app/db/config.ts
 export const getDatabaseConfig = (): DatabaseConfig => {
   const password = process.env.DB_PASSWORD;
   if (!password) {
-    throw new Error('DB_PASSWORD environment variable is required');
+    throw new Error("DB_PASSWORD environment variable is required");
   }
-  
+
   return {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    database: process.env.DB_NAME || 'numenor_security',
-    user: process.env.DB_USER || 'postgres',
+    host: process.env.DB_HOST || "localhost",
+    port: Number.parseInt(process.env.DB_PORT || "5432"),
+    database: process.env.DB_NAME || "numenor_security",
+    user: process.env.DB_USER || "postgres",
     password, // No default fallback
-    ssl: process.env.NODE_ENV === 'production' ? true : false,
+    ssl: process.env.NODE_ENV === "production" ? true : false,
   };
 };
 ```
@@ -145,6 +152,7 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 **Issue:** Default passwords in docker-compose.yml (development only, but still risky).
 
 **File:** `docker-compose.yml:7-9`
+
 ```yaml
 POSTGRES_DB: numenor_security
 POSTGRES_USER: numenor_user
@@ -154,6 +162,7 @@ POSTGRES_PASSWORD: numenor_password
 **Severity:** 🟡 **MEDIUM** (Development only, but should use env vars)
 
 **Fix Required:**
+
 ```yaml
 # docker-compose.yml
 environment:
@@ -199,13 +208,13 @@ npm install express-rate-limit
 
 ```typescript
 // app/api/middleware/rateLimit.ts (NEW FILE)
-import rateLimit from 'express-rate-limit';
+import rateLimit from "express-rate-limit";
 
 // General API rate limiter
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  message: "Too many requests from this IP, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -214,7 +223,7 @@ export const apiLimiter = rateLimit({
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Limit each IP to 5 requests per windowMs
-  message: 'Too many authentication attempts, please try again later.',
+  message: "Too many authentication attempts, please try again later.",
   skipSuccessfulRequests: true, // Don't count successful requests
   standardHeaders: true,
   legacyHeaders: false,
@@ -224,7 +233,7 @@ export const authLimiter = rateLimit({
 export const oauthLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // Limit each IP to 10 OAuth attempts per hour
-  message: 'Too many OAuth attempts, please try again later.',
+  message: "Too many OAuth attempts, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -232,28 +241,38 @@ export const oauthLimiter = rateLimit({
 
 ```typescript
 // app/api/server.ts - Add rate limiting
-import { apiLimiter, authLimiter } from './middleware/rateLimit.js';
+import { apiLimiter, authLimiter } from "./middleware/rateLimit.js";
 
 // Apply general rate limiting to all API routes
-app.use('/api', apiLimiter);
+app.use("/api", apiLimiter);
 
 // Apply stricter rate limiting to auth routes
-app.use('/api/auth', authLimiter);
+app.use("/api/auth", authLimiter);
 ```
 
 ```typescript
 // app/api/routes/auth.ts - Apply rate limiting
-import { authLimiter } from '../middleware/rateLimit.js';
+import { authLimiter } from "../middleware/rateLimit.js";
 
-router.post('/login', authLimiter, validateBody(loginSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.post(
+  "/login",
+  authLimiter,
+  validateBody(loginSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 
-router.post('/register', authLimiter, validateBody(registerSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.post(
+  "/register",
+  authLimiter,
+  validateBody(registerSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 
-router.post('/forgot-password', authLimiter, async (req, res, next) => {
+router.post("/forgot-password", authLimiter, async (req, res, next) => {
   // ... existing code
 });
 ```
@@ -282,57 +301,73 @@ router.post('/forgot-password', authLimiter, async (req, res, next) => {
 
 ```typescript
 // app/api/schemas/oauth.ts (NEW FILE)
-import { z } from 'zod';
+import { z } from "zod";
 
 export const oauthAuthUrlSchema = z.object({
-  emailAddress: z.string().email('Valid email address is required'),
+  emailAddress: z.string().email("Valid email address is required"),
   businessId: z.string().regex(/^\d+$/).transform(Number).optional(),
-  approveToken: z.string().optional()
+  approveToken: z.string().optional(),
 });
 
 export const oauthCallbackSchema = z.object({
-  code: z.string().min(1, 'Authorization code is required'),
-  state: z.string().min(1, 'State parameter is required'),
-  error: z.string().optional()
+  code: z.string().min(1, "Authorization code is required"),
+  state: z.string().min(1, "State parameter is required"),
+  error: z.string().optional(),
 });
 ```
 
 ```typescript
 // app/api/routes/oauth/gmail.ts
-import { validateQuery } from '../middleware/validation.js';
-import { oauthAuthUrlSchema, oauthCallbackSchema } from '../schemas/oauth.js';
+import { validateQuery } from "../middleware/validation.js";
+import { oauthAuthUrlSchema, oauthCallbackSchema } from "../schemas/oauth.js";
 
-router.get('/auth-url', validateQuery(oauthAuthUrlSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.get(
+  "/auth-url",
+  validateQuery(oauthAuthUrlSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 
-router.get('/callback', validateQuery(oauthCallbackSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.get(
+  "/callback",
+  validateQuery(oauthCallbackSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 ```
 
 ```typescript
 // app/api/schemas/user.ts - Add missing schemas
 export const googleAuthSchema = z.object({
-  credential: z.string().min(1, 'Google credential is required')
+  credential: z.string().min(1, "Google credential is required"),
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Valid email address is required')
+  email: z.string().email("Valid email address is required"),
 });
 ```
 
 ```typescript
 // app/api/routes/auth.ts
-import { googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
+import { googleAuthSchema, forgotPasswordSchema } from "../schemas/user.js";
 
-router.post('/google', validateBody(googleAuthSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.post(
+  "/google",
+  validateBody(googleAuthSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 
-router.post('/forgot-password', validateBody(forgotPasswordSchema), async (req, res, next) => {
-  // ... existing code
-});
+router.post(
+  "/forgot-password",
+  validateBody(forgotPasswordSchema),
+  async (req, res, next) => {
+    // ... existing code
+  }
+);
 ```
 
 ### ✅ GOOD: Most Routes Have Validation
@@ -351,6 +386,7 @@ router.post('/forgot-password', validateBody(forgotPasswordSchema), async (req, 
 **Issue:** Database configuration defaults to `postgres` superuser.
 
 **File:** `app/db/config.ts:23`
+
 ```typescript
 user: process.env.DB_USER || 'postgres',
 ```
@@ -360,6 +396,7 @@ user: process.env.DB_USER || 'postgres',
 **Fix Required:**
 
 1. **Create Dedicated Database User**
+
 ```sql
 -- Create application user with limited privileges
 CREATE USER numenor_app WITH PASSWORD 'strong_password_here';
@@ -376,19 +413,22 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO nu
 ```
 
 2. **Update Configuration**
+
 ```typescript
 // app/db/config.ts
 export const getDatabaseConfig = (): DatabaseConfig => {
   const user = process.env.DB_USER;
   if (!user) {
-    throw new Error('DB_USER environment variable is required');
+    throw new Error("DB_USER environment variable is required");
   }
-  
+
   // Ensure we're not using postgres superuser in production
-  if (process.env.NODE_ENV === 'production' && user === 'postgres') {
-    throw new Error('Cannot use postgres superuser in production. Use a dedicated application user.');
+  if (process.env.NODE_ENV === "production" && user === "postgres") {
+    throw new Error(
+      "Cannot use postgres superuser in production. Use a dedicated application user."
+    );
   }
-  
+
   return {
     // ... rest of config
   };
@@ -404,6 +444,7 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 **Severity:** 🟡 **MEDIUM** (Acceptable for MVP, but should be documented)
 
 **Recommendation:** For MVP, this is acceptable. For production scaling, consider:
+
 - Separate read/write connection pools
 - Read replicas for reporting queries
 
@@ -418,6 +459,7 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 **Issue:** SSL disabled in development mode.
 
 **File:** `app/db/config.ts:25`
+
 ```typescript
 ssl: process.env.NODE_ENV === 'production' ? true : false,
 ```
@@ -425,6 +467,7 @@ ssl: process.env.NODE_ENV === 'production' ? true : false,
 **Severity:** 🟡 **MEDIUM** (Development only, but should warn)
 
 **Fix Required:**
+
 ```typescript
 // app/db/config.ts
 ssl: process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production',
@@ -434,37 +477,42 @@ ssl: process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production',
 
 ## Summary Table
 
-| Issue | Severity | File | Line | Fix Summary |
-|-------|----------|------|------|-------------|
-| HTTPS not enforced | 🔴 CRITICAL | nginx.conf | 14-61 | Uncomment HTTPS config, add HTTP→HTTPS redirect, enable HSTS |
-| HTTP URLs in logs | 🔴 CRITICAL | app/api/server.ts | 133-134 | Use environment variables for URLs, ensure HTTPS in production |
-| No app-level rate limiting | 🔴 CRITICAL | app/api/server.ts | - | Install express-rate-limit, add middleware to all routes |
-| Default DB password | 🟠 HIGH | app/db/config.ts | 24 | Remove default, require env var, throw error if missing |
-| Using postgres superuser | 🟠 HIGH | app/db/config.ts | 23 | Create dedicated app user, prevent postgres user in production |
-| Missing OAuth validation | 🟠 HIGH | app/api/routes/oauth/gmail.ts | 21,111 | Add Zod schemas for query params |
-| Missing auth validation | 🟠 HIGH | app/api/routes/auth.ts | 116,214 | Add Zod schemas for Google auth and forgot password |
-| Missing query validation | 🟠 HIGH | app/api/routes/phishing.ts | 101,258 | Add Zod schemas for query parameters |
-| Docker default passwords | 🟡 MEDIUM | docker-compose.yml | 7-9 | Use environment variables with required flags |
-| No read/write separation | 🟡 MEDIUM | app/db/connection.ts | 18-43 | Document limitation, plan for future scaling |
-| SSL disabled in dev | 🟡 MEDIUM | app/db/config.ts | 25 | Add DB_SSL env var option |
+| Issue                      | Severity    | File                          | Line    | Fix Summary                                                    |
+| -------------------------- | ----------- | ----------------------------- | ------- | -------------------------------------------------------------- |
+| HTTPS not enforced         | 🔴 CRITICAL | nginx.conf                    | 14-61   | Uncomment HTTPS config, add HTTP→HTTPS redirect, enable HSTS   |
+| HTTP URLs in logs          | 🔴 CRITICAL | app/api/server.ts             | 133-134 | Use environment variables for URLs, ensure HTTPS in production |
+| No app-level rate limiting | 🔴 CRITICAL | app/api/server.ts             | -       | Install express-rate-limit, add middleware to all routes       |
+| Default DB password        | 🟠 HIGH     | app/db/config.ts              | 24      | Remove default, require env var, throw error if missing        |
+| Using postgres superuser   | 🟠 HIGH     | app/db/config.ts              | 23      | Create dedicated app user, prevent postgres user in production |
+| Missing OAuth validation   | 🟠 HIGH     | app/api/routes/oauth/gmail.ts | 21,111  | Add Zod schemas for query params                               |
+| Missing auth validation    | 🟠 HIGH     | app/api/routes/auth.ts        | 116,214 | Add Zod schemas for Google auth and forgot password            |
+| Missing query validation   | 🟠 HIGH     | app/api/routes/phishing.ts    | 101,258 | Add Zod schemas for query parameters                           |
+| Docker default passwords   | 🟡 MEDIUM   | docker-compose.yml            | 7-9     | Use environment variables with required flags                  |
+| No read/write separation   | 🟡 MEDIUM   | app/db/connection.ts          | 18-43   | Document limitation, plan for future scaling                   |
+| SSL disabled in dev        | 🟡 MEDIUM   | app/db/config.ts              | 25      | Add DB_SSL env var option                                      |
 
 ---
 
 ## Acceptance Criteria Status
 
 ### ✅ TLS is Enforced Correctly
+
 **Status:** ❌ **FAIL** - HTTPS not configured, HTTP redirects missing, HSTS not enabled
 
 ### ✅ No High-Severity Secret Leaks Exist
+
 **Status:** ⚠️ **PARTIAL** - No hardcoded secrets found, but default passwords exist
 
 ### ✅ No Plaintext or Logged Secrets
+
 **Status:** ✅ **PASS** - No secrets found in logs or code
 
 ### ✅ Rate Limiting & Input Validation Implemented
+
 **Status:** ⚠️ **PARTIAL** - Rate limiting only in nginx, missing validation on some routes
 
 ### ✅ DB Access Uses Least Privilege
+
 **Status:** ❌ **FAIL** - Using postgres superuser, no dedicated app user
 
 ---
@@ -497,4 +545,3 @@ ssl: process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production',
 The codebase shows good security practices in several areas (parameterized queries, Zod validation, secrets in env vars), but critical gaps exist in TLS enforcement and rate limiting. **These must be addressed before production deployment.**
 
 **Overall Security Score: 6/10** (Good foundation, needs critical fixes)
-

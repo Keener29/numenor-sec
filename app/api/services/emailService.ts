@@ -26,7 +26,7 @@ import type {
  */
 function getEmailConfig(): EmailConfig {
   const host = process.env.SMTP_HOST;
-  const port = parseInt(process.env.SMTP_PORT || '587');
+  const port = Number.parseInt(process.env.SMTP_PORT || '587');
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
 
@@ -232,7 +232,7 @@ This email was sent by Numenor Security on behalf of ${businessName}
  * Generate threat alert email template
  */
 function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
-  const { businessName, ownerEmail, monitoredEmail, emailMessage, threatAssessment } = params;
+  const { businessName, monitoredEmail, emailMessage, threatAssessment } = params;
   
   const threatLevelColors = {
     high: '#dc2626',

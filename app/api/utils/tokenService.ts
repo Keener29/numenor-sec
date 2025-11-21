@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 // Generate secure approval/decline tokens
 export const tokenService = {
@@ -28,9 +28,9 @@ export const tokenService = {
       if (parts.length < 5) return false;
       
       const action = parts[0];
-      const tokenEmailId = parseInt(parts[1]);
-      const tokenBusinessId = parseInt(parts[2]);
-      const timestamp = parseInt(parts[3]);
+      const tokenEmailId = Number.parseInt(parts[1]);
+      const tokenBusinessId = Number.parseInt(parts[2]);
+      const timestamp = Number.parseInt(parts[3]);
       const providedHash = parts[4];
       
       if (action !== 'approve') return false;
@@ -61,9 +61,9 @@ export const tokenService = {
       if (parts.length < 5) return false;
       
       const action = parts[0];
-      const tokenEmailId = parseInt(parts[1]);
-      const tokenBusinessId = parseInt(parts[2]);
-      const timestamp = parseInt(parts[3]);
+      const tokenEmailId = Number.parseInt(parts[1]);
+      const tokenBusinessId = Number.parseInt(parts[2]);
+      const timestamp = Number.parseInt(parts[3]);
       const providedHash = parts[4];
       
       if (action !== 'decline') return false;

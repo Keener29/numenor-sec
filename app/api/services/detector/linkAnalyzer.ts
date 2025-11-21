@@ -156,7 +156,7 @@ export class LinkAnalyzerService {
     return false;
   }
 
-  private normalize = (url: string): string => {
+  private readonly normalize = (url: string): string => {
     try {
       const u = new URL(url);
       // Strip tracking params often used in legit CTAs
@@ -308,7 +308,7 @@ export class LinkAnalyzerService {
       score += this.checkHttpLink(url, trustedDomain, link);
 
       // Use cached domain analysis
-      if (domainAnalysis && domainAnalysis.isSuspicious) {
+      if (domainAnalysis?.isSuspicious) {
         this.classifySuspiciousLink(domainAnalysis, hostname);
         score += domainAnalysis.riskScore;
       }
@@ -335,12 +335,13 @@ export class LinkAnalyzerService {
         case 'suspicious_pattern':
           this.linkRisks.push(`Suspicious domain pattern: "${hostname}"`);
           break;
-        case 'domain_age':
+        case 'domain_age':{
           const ageText = domainAnalysis.domainAge?.ageInDays
             ? `${domainAnalysis.domainAge?.ageInDays ?? 0} days old`
             : 'unknown age';
           this.linkRisks.push(`Newly registered domain: "${hostname}" (${ageText}, risk: ${domainAnalysis.domainAge?.riskLevel})`);
           break;
+        }
       }
     }
   }

@@ -207,7 +207,7 @@ export function detectTyposquatting(domain: string): TyposquattingResult {
     // Early exits
     if (!distance || distance > 2) continue;
     if (Math.abs(domainName.length - brandName.length) > 2) continue;
-    if (domainName[0] !== brandName[0]) continue; // must start similarly
+    if (!domainName.startsWith(brandName[0])) continue; // must start similarly
     if (ratio >= 0.34) continue; // normalized distance too big
 
     return {
@@ -304,7 +304,7 @@ export function isIPAddress(hostname: string): boolean {
   // Validate that each octet is between 0-255
   const octets = hostname.split('.');
   for (const octet of octets) {
-    const num = parseInt(octet, 10);
+    const num = Number.parseInt(octet, 10);
     if (num < 0 || num > 255) {
       return false;
     }

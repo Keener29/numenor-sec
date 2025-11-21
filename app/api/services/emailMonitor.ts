@@ -650,7 +650,7 @@ class EmailMonitor {
 
   private getProcessedRetentionHours(): number {
     const raw = process.env.PROCESSED_EMAIL_RETENTION_HOURS;
-    const parsed = raw ? parseInt(raw, 10) : NaN;
+    const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
     if (Number.isFinite(parsed) && parsed >= 24 && parsed <= 48) {
       return parsed;
     }

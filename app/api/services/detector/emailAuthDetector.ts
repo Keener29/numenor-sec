@@ -114,14 +114,14 @@ export class EmailAuthenticationService {
     
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
-    const resultArc = normalizedArcAuthResults && normalizedArcAuthResults.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    const resultArc = normalizedArcAuthResults?.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
     if (resultArc === 'pass' && isValidDKIMResult(resultArc)) {
       return resultArc;
     }
 
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
-    const resultAuth = normalizedAuthResults && normalizedAuthResults.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    const resultAuth = normalizedAuthResults?.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
     if (resultAuth && isValidDKIMResult(resultAuth)) {
       return resultAuth;
     }
@@ -144,14 +144,14 @@ export class EmailAuthenticationService {
   private analyzeDMARC(headers: Record<string, string>): DMARCResult {
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
-    const resultArc = normalizedArcAuthResults && normalizedArcAuthResults.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    const resultArc = normalizedArcAuthResults?.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
     if (resultArc === 'pass' && isValidDMARCResult(resultArc)) {
       return resultArc;
     }
 
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
-    const resultAuth = normalizedAuthResults && normalizedAuthResults.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    const resultAuth = normalizedAuthResults?.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
     if (resultAuth && isValidDMARCResult(resultAuth)) {
       return resultAuth;
     }
@@ -300,7 +300,7 @@ export class EmailAuthenticationService {
         [businessId, senderDomain]
       );
 
-      const count = parseInt((result.rows[0] as { count: string }).count);
+      const count = Number.parseInt((result.rows[0] as { count: string }).count);
       return count > 0;
     } catch (error) {
       // If there's an error checking the database, default to not allow-listed

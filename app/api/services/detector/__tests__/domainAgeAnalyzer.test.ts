@@ -22,7 +22,15 @@ describe('Domain Age Analyzer', () => {
     // Set default mock to prevent real API calls
     // Tests can override this with mockResolvedValueOnce or mockRejectedValueOnce
     mockFetch.mockImplementation((url: string | URL | Request) => {
-      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      let urlString: string;
+
+      if (typeof url === 'string') {
+        urlString = url;
+      } else if (url instanceof URL) {
+        urlString = url.toString();
+      } else {
+        urlString = url.url;
+      }
       const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
       const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
       const defaultResponse = {

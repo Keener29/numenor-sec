@@ -12,10 +12,10 @@ const router = Router();
 router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySchema), async (req: AuthRequest, res, next) => {
   try {
     const businessId = req.user!.business_id!;
-    const { page, limit, connected } = req.query as { page?: string; limit?: string; connected?: string };
+    const { page, limit } = req.query as { page?: string; limit?: string; connected?: string };
 
-    const pageNum = parseInt(page || '1');
-    const limitNum = parseInt(limit || '10');
+    const pageNum = Number.parseInt(page || '1');
+    const limitNum = Number.parseInt(limit || '10');
     const offset = (pageNum - 1) * limitNum;
     let whereClause = 'WHERE business_id = $1';
     const queryParams = [businessId];
@@ -42,7 +42,7 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySche
       queryParams
     );
 
-    const totalCount = parseInt((countResult.rows[0] as { count: string }).count);
+    const totalCount = Number.parseInt((countResult.rows[0] as { count: string }).count);
     const totalPages = Math.ceil(totalCount / limitNum);
 
     res.json({
@@ -233,7 +233,7 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
       'SELECT COUNT(*) as count FROM monitored_emails WHERE business_id = $1',
       [businessId]
     );
-    const currentCount = parseInt((countResult.rows[0] as { count: string }).count);
+    const currentCount = Number.parseInt((countResult.rows[0] as { count: string }).count);
     const MAX_EMAILS = 5;
     
     if (currentCount + newEmails.length > MAX_EMAILS) {
@@ -343,7 +343,7 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
   try {
     const businessId = req.user!.business_id!;
     const emailId = req.params.id;
-    const { emailAddress, isConnected } = req.body;
+    const { emailAddress } = req.body;
 
     // Check if email exists and belongs to this business
     const existingEmail = await query(

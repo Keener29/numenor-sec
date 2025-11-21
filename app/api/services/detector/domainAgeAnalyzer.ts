@@ -174,7 +174,7 @@ function formatWhoisDataResponse(data: any, domain: string): WhoisResponse | nul
   let registrar: string | undefined;
   let status: string | undefined;
   
-  if (data && data.WhoisRecord) {
+  if (data?.WhoisRecord) {
     // WHOIS XML API format
     const whoisRecord = data.WhoisRecord;
     createdDate = whoisRecord.createdDate;
@@ -260,7 +260,7 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
   try {
     // Try parsing as ISO date
     const date = new Date(dateString);
-    if (!isNaN(date.getTime())) {
+    if (!Number.isNaN(date.getTime())) {
       return date;
     }
 
@@ -276,8 +276,8 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
       const match = dateString.match(format);
       if (match) {
         const [, year, month, day] = match;
-        const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        if (!isNaN(parsedDate.getTime())) {
+        const parsedDate = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day));
+        if (!Number.isNaN(parsedDate.getTime())) {
           return parsedDate;
         }
       }
@@ -367,7 +367,7 @@ export async function isTrustedDomain(domain: string, businessId?: number): Prom
         [businessId, domain]
       );
 
-      const count = parseInt((result.rows[0] as { count: string }).count);
+      const count = Number.parseInt((result.rows[0] as { count: string }).count);
       return count > 0;
     } catch (error) {
       oauthLogger.error('Failed to check monitored email domains for domain age analysis', {

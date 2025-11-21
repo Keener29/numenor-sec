@@ -44,7 +44,7 @@ export function parseGmailMessage(message: GmailMessage, emailAddress?: string):
     body: body || message.snippet,
     sender: headers.from || 'Unknown Sender',
     recipient: headers.to || emailAddress || 'Unknown Recipient',
-    timestamp: new Date(parseInt(message.internalDate)),
+    timestamp: new Date(Number.parseInt(message.internalDate)),
     links,
     headers,
     labels: message.labelIds || []

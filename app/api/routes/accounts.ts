@@ -27,12 +27,12 @@ const router = Router();
  */
 router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema), async (req: AuthRequest, res, next) => {
   try {
-    const accountId = parseInt(req.params.accountId, 10);
+    const accountId = Number.parseInt(req.params.accountId, 10);
     const currentUserId = req.user!.id;
     const { reason } = req.body as { reason?: string };
 
     // Validate accountId
-    if (isNaN(accountId)) {
+    if (Number.isNaN(accountId)) {
       return res.status(400).json({ error: 'Invalid account ID' });
     }
 

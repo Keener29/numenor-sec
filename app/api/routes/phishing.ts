@@ -144,7 +144,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
     }
 
     // Get recent alerts (will return empty array if no data)
-    let recentAlerts: { rows: unknown[] } = { rows: [] };
+    let recentAlerts: { rows: unknown[] };
     try {
       recentAlerts = await query(
         `SELECT 

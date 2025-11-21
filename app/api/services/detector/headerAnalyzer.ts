@@ -48,14 +48,14 @@ export function getOrgDomain(domain: string): string {
  * Header Analyzer Service Class
  */
 export class HeaderAnalyzerService {
-  private builtInTrustedDomains: string[] = [
+  private readonly builtInTrustedDomains: string[] = [
     // Internal systems (always safe)
     'localhost',
     '127.0.0.1',
   ];
 
   // Legitimate email service providers that businesses commonly use
-  private legitimateEmailServices: string[] = [
+  private readonly legitimateEmailServices: string[] = [
     // Transactional ESPs
     'amazonses.com', 'sendgrid.net', 'mailgun.org', 'mailgun.net', 'postmarkapp.com',
     'mandrillapp.com', 'sparkpostmail.com',
@@ -307,7 +307,7 @@ export class HeaderAnalyzerService {
           [businessId, senderDomain]
         );
 
-        const count = parseInt((result.rows[0] as { count: string }).count);
+        const count = Number.parseInt((result.rows[0] as { count: string }).count);
         return count > 0;
       } catch (error) {
         oauthLogger.error('Failed to check monitored email domains', {
@@ -425,12 +425,13 @@ export class HeaderAnalyzerService {
         case 'suspicious_pattern':
           this.risks.push(`Suspicious domain pattern: "${senderDomain}"`);
           break;
-        case 'domain_age':
-          const ageText = domainAnalysis.domainAge?.ageInDays 
+        case 'domain_age': {
+            const ageText = domainAnalysis.domainAge?.ageInDays 
             ? `${domainAnalysis.domainAge.ageInDays} days old`
             : 'unknown age';
-          this.risks.push(`Newly registered sender domain: "${senderDomain}" (${ageText}, risk: ${domainAnalysis.domainAge?.riskLevel})`);
-          break;
+            this.risks.push(`Newly registered sender domain: "${senderDomain}" (${ageText}, risk: ${domainAnalysis.domainAge?.riskLevel})`);
+            break;
+          }
         }
       }
       score += domainAnalysis.riskScore;

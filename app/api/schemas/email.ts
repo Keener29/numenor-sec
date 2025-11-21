@@ -11,7 +11,8 @@ const emailValidator = (email: string): boolean => {
   if (email.length < 3) return false; // Minimum: a@b
   
   // Check for dangerous characters that could be used for injection
-  const dangerousChars = /[<>'"`\\\x00-\x1f\x7f-\x9f]/;
+  const dangerousChars = /[<>'"`\\\s]/;
+
   if (dangerousChars.test(email)) return false;
   
   // RFC 5322 compliant email regex (simplified but secure)

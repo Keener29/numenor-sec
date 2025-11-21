@@ -49,7 +49,14 @@ const createDefaultFetchMock = () => {
   const defaultMock = jest.fn((url: string | URL | Request) => {
     // Default: return a successful response with a domain that's 365 days old
     // This prevents real API calls while allowing tests to override
-    const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+    let urlString: string;
+    if (typeof url === 'string') {
+      urlString = url;
+    } else if (url instanceof URL) {
+      urlString = url.toString();
+    } else {
+      urlString = url.url;
+    }
     const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
     const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
 

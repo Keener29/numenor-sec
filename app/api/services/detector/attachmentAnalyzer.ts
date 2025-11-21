@@ -15,9 +15,9 @@ export interface AttachmentAnalysis {
  * Attachment Analyzer Service
  */
 export class AttachmentAnalyzerService {
-  private executableExtensions = ['exe', 'scr', 'bat', 'cmd', 'com', 'pif', 'vbs', 'js'];
-  private archiveExtensions = ['zip', 'rar', '7z', 'tar', 'gz'];
-  private scriptExtensions = ['js', 'vbs', 'ps1', 'sh', 'bat', 'cmd'];
+  private readonly executableExtensions = ['exe', 'scr', 'bat', 'cmd', 'com', 'pif', 'vbs', 'js'];
+  private readonly archiveExtensions = ['zip', 'rar', '7z', 'tar', 'gz'];
+  private readonly scriptExtensions = ['js', 'vbs', 'ps1', 'sh', 'bat', 'cmd'];
 
   /**
    * Analyze email attachments for security risks

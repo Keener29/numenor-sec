@@ -33,8 +33,8 @@ describe('TokenService', () => {
       const parts = token.split('_');
       expect(parts.length).toBeGreaterThanOrEqual(5);
       expect(parts[0]).toBe('approve');
-      expect(parseInt(parts[1])).toBe(123);
-      expect(parseInt(parts[2])).toBe(456);
+      expect(Number.parseInt(parts[1])).toBe(123);
+      expect(Number.parseInt(parts[2])).toBe(456);
     });
 
     it('should generate different tokens for same inputs at different times', async () => {
@@ -64,8 +64,8 @@ describe('TokenService', () => {
       const parts = token.split('_');
       expect(parts.length).toBeGreaterThanOrEqual(5);
       expect(parts[0]).toBe('decline');
-      expect(parseInt(parts[1])).toBe(123);
-      expect(parseInt(parts[2])).toBe(456);
+      expect(Number.parseInt(parts[1])).toBe(123);
+      expect(Number.parseInt(parts[2])).toBe(456);
     });
 
     it('should throw error when TOKEN_SECRET is missing', () => {
@@ -111,7 +111,7 @@ describe('TokenService', () => {
       const oldTimestamp = Date.now() - (25 * 60 * 60 * 1000); // 25 hours ago
       const payload = `approve_123_456_${oldTimestamp}`;
       const secret = process.env.TOKEN_SECRET!;
-      const crypto = require('crypto');
+      const crypto = require('node:crypto');
       const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
       const expiredToken = `${payload}_${hash}`;
 
@@ -195,7 +195,7 @@ describe('TokenService', () => {
       const oldTimestamp = Date.now() - (25 * 60 * 60 * 1000); // 25 hours ago
       const payload = `decline_123_456_${oldTimestamp}`;
       const secret = process.env.TOKEN_SECRET!;
-      const crypto = require('crypto');
+      const crypto = require('node:crypto');
       const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
       const expiredToken = `${payload}_${hash}`;
 
