@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 interface SecurityRecommendation {
+  uuid: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -11,7 +12,7 @@ interface SecurityRecommendation {
 interface ThreatSummary {
   totalThreats: number;
   threatLevels: Record<string, number>;
-  topPatterns: Array<{ pattern: string; count: number }>;
+  topPatterns: Array<{ uuid: string; pattern: string; count: number }>;
 }
 
 interface PhishingPreventionProps {
@@ -60,6 +61,7 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
 
       const recommendationsData = await recommendationsResponse.json();
       const statisticsData = await statisticsResponse.json();
+      recommendationsData.recommendations = recommendationsData.recommendations.map((recommendation: SecurityRecommendation) => ({ ...recommendation, uuid: crypto.randomUUID() }));
 
       setRecommendations(recommendationsData.recommendations || []);
 
@@ -73,7 +75,7 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
       }, {} as Record<string, number>);
 
       const topPatterns = Object.entries(patternCounts)
-        .map(([pattern, count]) => ({ pattern, count: count as number }))
+        .map(([pattern, count]) => ({ uuid: crypto.randomUUID(), pattern, count: count as number }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
@@ -196,9 +198,9 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <div className="mt-4">
               <h5 className="text-sm font-medium text-gray-700 mb-2">Top Threat Patterns:</h5>
               <div className="flex flex-wrap gap-2">
-                {threatSummary.topPatterns.map((pattern, index) => (
+                {threatSummary.topPatterns.map((pattern) => (
                   <span
-                    key={index}
+                    key={pattern.uuid}
                     className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
                   >
                     {pattern.pattern.replace(/_/g, ' ')} ({pattern.count})
@@ -223,9 +225,9 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
           </div>
         ) : (
           <div className="space-y-4">
-            {recommendations.map((recommendation, index) => (
+            {recommendations.map((recommendation) => (
               <div
-                key={index}
+                key={recommendation.uuid}
                 className={`border rounded-lg p-4 ${getPriorityColor(recommendation.priority)}`}
               >
                 <div className="flex items-start">
@@ -267,19 +269,19 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <ul className="text-sm text-gray-600 space-y-2">
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Never click links in suspicious emails
+                <span>Never click links in suspicious emails</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Verify sender identity before responding
+                <span>Verify sender identity before responding</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Be cautious of urgent requests
+                <span>Be cautious of urgent requests</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Report suspicious emails immediately
+                <span>Report suspicious emails immediately</span>
               </li>
             </ul>
           </div>
@@ -288,19 +290,19 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <ul className="text-sm text-gray-600 space-y-2">
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Implement email authentication (SPF, DKIM, DMARC)
+                <span>Implement email authentication (SPF, DKIM, DMARC)</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Use multi-factor authentication
+                <span>Use multi-factor authentication</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Regular security training sessions
+                <span>Regular security training sessions</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Keep software and systems updated
+                <span>Keep software and systems updated</span>
               </li>
             </ul>
           </div>
