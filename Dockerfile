@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy source code (including .env if it exists)
 COPY . .
@@ -40,7 +40,7 @@ WORKDIR /app
 
 # Copy package files and install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm prune --production
+RUN npm ci --ignore-scripts --only=production && npm prune --production
 
 # Copy built application from builder stage
 COPY --from=builder /app/build ./build
