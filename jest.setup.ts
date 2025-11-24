@@ -43,6 +43,45 @@ global.IntersectionObserver = class IntersectionObserver {
   }
 } as typeof IntersectionObserver;
 
+// Mock HTMLDialogElement methods (showModal, close) for JSDOM
+// JSDOM doesn't implement these methods natively
+Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+  writable: true,
+  value: jest.fn(function(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+    // Set aria-modal attribute to match browser behavior
+    this.setAttribute('aria-modal', 'true');
+    
+    // Add keyboard event listener to fire cancel event on Escape key
+    // This mimics browser behavior where Escape triggers cancel event
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && this.hasAttribute('open')) {
+        const cancelEvent = new Event('cancel', { bubbles: true, cancelable: true });
+        this.dispatchEvent(cancelEvent);
+      }
+    };
+    
+    // Store the handler so we can remove it later
+    (this as any)._dialogKeyHandler = handleKeyDown;
+    document.addEventListener('keydown', handleKeyDown);
+  }),
+});
+
+Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+  writable: true,
+  value: jest.fn(function(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+    // Remove aria-modal when closed
+    this.removeAttribute('aria-modal');
+    
+    // Remove keyboard event listener
+    if ((this as any)._dialogKeyHandler) {
+      document.removeEventListener('keydown', (this as any)._dialogKeyHandler);
+      delete (this as any)._dialogKeyHandler;
+    }
+  }),
+});
+
 // Mock fetch globally to prevent real API calls in tests
 // Individual tests can override this mock as needed
 const createDefaultFetchMock = () => {
