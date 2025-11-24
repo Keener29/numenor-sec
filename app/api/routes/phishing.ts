@@ -7,6 +7,7 @@ import { query } from '../../db/connection.js';
 import { securityLogger } from '../services/logger.js';
 import { phishingStatisticsQuerySchema, phishingPatternsQuerySchema } from '../schemas/phishing.js';
 import { z } from 'zod';
+import type { ThreatRow } from '../types/email.js';
 
 
 const router = Router();
@@ -46,8 +47,8 @@ router.post('/scan', authenticateToken, requireBusiness, validateBody(manualScan
       );
 
       if (emailResult.rows.length === 0) {
-        return res.status(404).json({ 
-          error: 'Email not found, access denied, or email is not connected via OAuth. Please connect the email first.' 
+        return res.status(404).json({
+          error: 'Email not found, access denied, or email is not connected via OAuth. Please connect the email first.'
         });
       }
 
@@ -172,10 +173,10 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
 
     // Calculate summary statistics (handle empty data gracefully)
     // Only count actual threats (critical, high, medium) - ignore low and safe
-    const threatStatsFiltered = threatStats?.filter((stat: { threat_level: string }) => 
+    const threatStatsFiltered = threatStats?.filter((stat: { threat_level: string }) =>
       ['critical', 'high', 'medium'].includes(stat.threat_level)
     ) || [];
-    
+
     const recentAlertsFiltered = recentAlerts.rows?.filter((alert) => {
       const typedAlert = alert as { threat_level: string };
       return ['critical', 'high', 'medium'].includes(typedAlert.threat_level);
@@ -313,10 +314,10 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
     securityLogger.info('Getting monitoring status', {
       operation: 'get-monitoring-status'
     });
-    
+
     let status = null;
     let stats = null;
-    
+
     try {
       status = emailMonitor.getMonitoringStatus();
     } catch (error) {
@@ -325,7 +326,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
       }, error as Error);
       status = { isMonitoring: false, interval: 30000 };
     }
-    
+
     try {
       stats = await emailMonitor.getMonitoringStats();
     } catch (error) {
@@ -440,134 +441,170 @@ router.post('/monitoring/stop', authenticateToken, async (req: AuthRequest, res,
  * @desc Get security recommendations based on threat patterns
  * @access Private (Business users only)
  */
-router.get('/recommendations', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
-  try {
-    const businessId = req.user!.business_id!;
+router.get(
+  "/recommendations",
+  authenticateToken,
+  requireBusiness,
+  async (req: AuthRequest, res, next) => {
+    try {
+      const businessId = req.user!.business_id!;
 
-    // Get recent threat patterns (will return empty array if no data)
-    const recentThreats = await query(
-      `SELECT 
-        pa.threat_level,
-        pa.alert_type,
-        pa.created_at,
-        me.email_address
-      FROM phishing_alerts pa
-      JOIN monitored_emails me ON pa.email_id = me.id
-      WHERE pa.business_id = $1 
-        AND pa.created_at >= NOW() - INTERVAL '30 days'
-      ORDER BY pa.created_at DESC`,
-      [businessId]
-    );
+      // Fetch recent threats
+      const { rows = [] } = await query(
+        `SELECT 
+          pa.threat_level, pa.alert_type, pa.created_at, me.email_address 
+        FROM phishing_alerts pa 
+        JOIN monitored_emails me ON pa.email_id = me.id 
+        WHERE pa.business_id = $1 
+          AND pa.created_at >= NOW() - INTERVAL '30 days' 
+        ORDER BY pa.created_at DESC`,
+        [businessId]
+      ) as { rows: ThreatRow[] };
+      const threats: ThreatRow[] = rows;
 
-    // Generate recommendations based on threat patterns
-    const recommendations = [];
 
-    // Handle empty data gracefully
-    const threats = recentThreats.rows || [];
-    const threatCounts = (threats as { threat_level: string }[]).reduce((acc: Record<string, number>, threat) => {
-      acc[threat.threat_level] = (acc[threat.threat_level] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+      // Tally counts
+      const threatCounts: Record<string, number> = {};
+      const patternCounts: Record<string, number> = {};
 
-    // High threat level recommendations
-    if (threatCounts.critical > 0) {
-      recommendations.push({
-        priority: 'critical',
-        title: 'Critical Threats Detected',
-        description: `${threatCounts.critical} critical threats detected in the last 30 days`,
-        action: 'Immediately review all critical alerts and implement additional security measures',
-        category: 'immediate_action'
-      });
-    }
+      for (const t of threats) {
+        threatCounts[t.threat_level] = (threatCounts[t.threat_level] || 0) + 1;
+        patternCounts[t.alert_type] = (patternCounts[t.alert_type] || 0) + 1;
+      }
 
-    if (threatCounts.high > 5) {
-      recommendations.push({
-        priority: 'high',
-        title: 'High Threat Volume',
-        description: `${threatCounts.high} high-level threats detected`,
-        action: 'Consider implementing additional email filtering and user training',
-        category: 'security_enhancement'
-      });
-    }
+      const recommendations = [];
 
-    // Pattern-based recommendations
-    const patternCounts = (threats as { alert_type: string }[]).reduce((acc: Record<string, number>, threat) => {
-      acc[threat.alert_type] = (acc[threat.alert_type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+      // -------------------------------
+      // RULESET: Threat-level triggers
+      // -------------------------------
+      const threatRules = [
+        {
+          condition: () => threatCounts.critical > 0,
+          rec: {
+            priority: "critical",
+            title: "Critical Threats Detected",
+            description: `${threatCounts.critical} critical threats detected in the last 30 days`,
+            action:
+              "Immediately review all critical alerts and implement additional security measures",
+            category: "immediate_action",
+          },
+        },
+        {
+          condition: () => threatCounts.high > 5,
+          rec: {
+            priority: "high",
+            title: "High Threat Volume",
+            description: `${threatCounts.high} high-level threats detected`,
+            action:
+              "Consider implementing additional email filtering and user training",
+            category: "security_enhancement",
+          },
+        },
+      ];
 
-    if (patternCounts.ceo_fraud > 0) {
-      recommendations.push({
-        priority: 'high',
-        title: 'CEO Fraud Attempts Detected',
-        description: 'Business Email Compromise (BEC) attempts detected',
-        action: 'Implement additional verification procedures for financial transactions',
-        category: 'bec_protection'
-      });
-    }
+      // -------------------------------
+      // RULESET: Pattern-based triggers
+      // -------------------------------
+      const patternRules = [
+        {
+          condition: () => patternCounts.ceo_fraud > 0,
+          rec: {
+            priority: "high",
+            title: "CEO Fraud Attempts Detected",
+            description: "Business Email Compromise (BEC) attempts detected",
+            action:
+              "Implement additional verification procedures for financial transactions",
+            category: "bec_protection",
+          },
+        },
+        {
+          condition: () => patternCounts.suspicious_attachments > 0,
+          rec: {
+            priority: "medium",
+            title: "Malicious Attachments Detected",
+            description: "Suspicious file attachments have been blocked",
+            action:
+              "Review and strengthen attachment filtering policies",
+            category: "attachment_security",
+          },
+        },
+      ];
 
-    if (patternCounts.suspicious_attachments > 0) {
-      recommendations.push({
-        priority: 'medium',
-        title: 'Malicious Attachments Detected',
-        description: 'Suspicious file attachments have been blocked',
-        action: 'Review and strengthen attachment filtering policies',
-        category: 'attachment_security'
-      });
-    }
+      // -------------------------------
+      // RULESET: Always-on recommendations
+      // -------------------------------
+      const baselineRecommendations = [
+        {
+          priority: "medium",
+          title: "Regular Security Training",
+          description: "Keep your team updated on the latest phishing techniques",
+          action: "Schedule regular security awareness training sessions",
+          category: "user_education",
+        },
+        {
+          priority: "low",
+          title: "Email Authentication",
+          description: "Implement email authentication protocols",
+          action: "Set up SPF, DKIM, and DMARC records for your domain",
+          category: "email_authentication",
+        },
+      ];
 
-    // General recommendations (always show these for new businesses)
-    recommendations.push({
-      priority: 'medium',
-      title: 'Regular Security Training',
-      description: 'Keep your team updated on the latest phishing techniques',
-      action: 'Schedule regular security awareness training sessions',
-      category: 'user_education'
-    });
+      // -------------------------------
+      // RULESET: New business onboarding
+      // -------------------------------
+      const onboardingRecommendations =
+        threats.length === 0
+          ? [
+            {
+              priority: "medium",
+              title: "Set Up Email Monitoring",
+              description:
+                "Add email addresses to start monitoring for phishing threats",
+              action:
+                "Go to the Email Monitoring section and add your business email addresses",
+              category: "onboarding",
+            },
+            {
+              priority: "low",
+              title: "Review Security Settings",
+              description:
+                "Configure your security preferences and notification settings",
+              action:
+                "Check your dashboard settings and customize alert preferences",
+              category: "onboarding",
+            },
+          ]
+          : [];
 
-    recommendations.push({
-      priority: 'low',
-      title: 'Email Authentication',
-      description: 'Implement email authentication protocols',
-      action: 'Set up SPF, DKIM, and DMARC records for your domain',
-      category: 'email_authentication'
-    });
+      // Apply rules
+      const applyRules = (rules: any[]) => {
+        for (const r of rules) {
+          if (r.condition()) recommendations.push(r.rec);
+        }
+      };
 
-    // Add onboarding recommendations for new businesses with no data
-    if (threats.length === 0) {
-      recommendations.push({
-        priority: 'medium',
-        title: 'Set Up Email Monitoring',
-        description: 'Add email addresses to start monitoring for phishing threats',
-        action: 'Go to the Email Monitoring section and add your business email addresses',
-        category: 'onboarding'
-      });
+      applyRules(threatRules);
+      applyRules(patternRules);
+      recommendations.push(...baselineRecommendations);
+      recommendations.push(...onboardingRecommendations);
 
-      recommendations.push({
-        priority: 'low',
-        title: 'Review Security Settings',
-        description: 'Configure your security preferences and notification settings',
-        action: 'Check your dashboard settings and customize alert preferences',
-        category: 'onboarding'
-      });
-    }
-
-    res.json({
-      success: true,
-      recommendations,
-      threatSummary: {
+      // Build summary
+      const threatSummary = {
         totalThreats: threats.length,
         threatLevels: threatCounts,
-        topPatterns: Object.entries(patternCounts as Record<string, number>)
-          .sort(([,a], [,b]) => b - a)
+        topPatterns: Object.entries(patternCounts)
+          .sort(([, a], [, b]) => b - a)
           .slice(0, 5)
-          .map(([pattern, count]) => ({ pattern, count }))
-      }
-    });
+          .map(([pattern, count]) => ({ pattern, count })),
+      };
 
-  } catch (error) {
-    next(error);
+      res.json({ success: true, recommendations, threatSummary });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
+
 
 export default router;

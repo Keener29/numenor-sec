@@ -7,7 +7,6 @@ import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.
 import { oauthLogger } from '../../services/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
-import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -34,9 +33,9 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
     // This allows the email approval flow to work without authentication
     if (businessId || approveToken) {
       if (!businessId) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'businessId is required when using approveToken' 
+        return res.status(400).json({
+          success: false,
+          error: 'businessId is required when using approveToken'
         });
       }
       targetBusinessId = businessId;
@@ -44,22 +43,27 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
       // Otherwise, require authentication (from dashboard)
       const authHeader = req.headers.authorization;
       if (!authHeader?.startsWith('Bearer ')) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Authentication required' 
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required'
         });
       }
-
+      const jwt = require('jsonwebtoken');
       try {
         const token = authHeader.substring(7);
-        const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { business_id: number };
         targetBusinessId = decoded.business_id;
-      } catch (authError) {
-        return res.status(401).json({ 
-          success: false, 
-          error: 'Invalid authentication token' 
-        });
+      } catch (err) {
+        // Only handle JWT-specific errors
+        if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
+          return res.status(401).json({
+            success: false,
+            error: "Invalid authentication token",
+          });
+        }
+
+        // Re-throw unexpected errors (env issue, library issue, etc.)
+        throw err;
       }
     }
 
@@ -76,7 +80,7 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
     // If this is from email approval flow, validate the approval token
     if (approveToken) {
       const emailId = (emailCheck.rows[0] as { id: number }).id;
-      
+
       // Validate the approval token
       const { tokenService } = await import('../../utils/tokenService.js');
       if (!tokenService.validateApprovalToken(approveToken, emailId, targetBusinessId)) {
@@ -97,8 +101,8 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
       );
     }
 
-    const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress as string);
-    
+    const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+
     // Redirect directly to Google OAuth instead of returning JSON
     res.redirect(authUrl);
 
@@ -118,32 +122,25 @@ router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (
  * @access Public (OAuth callback)
  */
 router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async (req, res, next) => {
+  const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
   try {
     const { code, state, error } = req.query;
-
     if (error) {
-      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
-      return res.redirect(`${frontendUrl}/success?oauth_error=${error}`);
+
+      const msg = error instanceof Error ? error.message : String(error);
+      return res.redirect(`${frontendUrl}/success?oauth_error=${msg}`);
     }
 
     if (!code || !state) {
-      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
       return res.redirect(`${frontendUrl}/success?oauth_error=missing_parameters`);
     }
 
-    let stateData;
-    try {
-      stateData = JSON.parse(state as string);
-    } catch (parseError) {
-      const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
-      return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
-    }
-
+    const stateData = JSON.parse(state as string);
     const { businessId, emailAddress } = stateData;
 
     // Exchange code for tokens
     const tokens = await gmailOAuthService.exchangeCodeForTokens(code as string);
-    
+
     // Store tokens in database
     await gmailOAuthService.storeTokens(businessId, emailAddress, tokens);
 
@@ -154,19 +151,13 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
     );
 
     // Redirect to success page (no login required)
-    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
-  } catch (error) {
-    oauthLogger.error('Error handling Gmail OAuth callback', {
-      operation: 'oauth-callback',
-      metadata: {
-        code: req.query.code as string,
-        state: req.query.state as string
-      }
-    }, error as Error);
-    const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
-    res.redirect(`${frontendUrl}/success?oauth_error=callback_failed`);
+  } catch (err) {
+    if (err instanceof SyntaxError || err instanceof TypeError || err instanceof Error) {
+      return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
+    }
+    throw err;
   }
 });
 
@@ -242,7 +233,7 @@ router.post('/test', authenticateToken, requireBusiness, validateBody(connectEma
     const { emailAddress } = req.body;
 
     const testResult = await gmailOAuthService.testConnection(businessId, emailAddress);
-    
+
     if (testResult.success) {
       res.json(testResult);
     } else {

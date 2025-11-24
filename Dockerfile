@@ -31,11 +31,9 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create app user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S numenor -u 1001
+RUN apk add --no-cache dumb-init && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S numenor -u 1001
 
 # Set working directory
 WORKDIR /app

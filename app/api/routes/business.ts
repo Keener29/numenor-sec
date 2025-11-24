@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { validateBody, validateParams } from '../middleware/validation.js';
+import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
-import { updateBusinessSchema, businessParamsSchema } from '../schemas/business.js';
+import { updateBusinessSchema } from '../schemas/business.js';
 import { query } from '../../db/connection.js';
 
 const router = Router();

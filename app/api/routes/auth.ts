@@ -156,7 +156,7 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
       businessId = business.id;
       user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
     } else if (!businessId) {
-    // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+      // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
       const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
       if (ownerBusiness.rows.length > 0) {
         const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
@@ -177,10 +177,10 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
     }
 
     // Generate token and set cookie (include business info if available)
-    const token = generateToken({ 
-      ...user!, 
+    const token = generateToken({
+      ...user,
       business_id: businessId,
-      business_name: user!.business_name 
+      business_name: user.business_name
     });
     res.cookie('authToken', token, {
       httpOnly: true,
@@ -192,11 +192,11 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
     return res.json({
       message: 'Google login successful',
       user: {
-        id: user!.id,
-        email: user!.email,
-        firstName: user!.first_name,
-        lastName: user!.last_name,
-        businessName: user!.business_name,
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        businessName: user.business_name,
         businessId: businessId
       },
       token
@@ -293,7 +293,7 @@ router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), a
       `INSERT INTO security_events (business_id, event_type, description)
        VALUES ($1, 'password_reset', 'User reset password')`,
       [null]
-    ).catch(() => {}); // non-fatal
+    ).catch(() => { }); // non-fatal
 
     return res.json({ message: 'Password has been reset successfully' });
   } catch (error) {

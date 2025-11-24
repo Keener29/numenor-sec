@@ -284,6 +284,14 @@ export interface ThreatAlertParams {
   readonly threatAssessment: ThreatAssessment;
 }
 
+export interface ThreatRow {
+  threat_level: string;
+  alert_type: string;
+  created_at: Date;
+  email_address: string;
+}
+
+
 export interface ThreatAssessment {
   readonly threatLevel: 'low' | 'medium' | 'high' | 'critical';
   readonly confidence: number;
