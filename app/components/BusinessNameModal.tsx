@@ -89,11 +89,8 @@ export default function BusinessNameModal({
     // Watch for 'open' attribute changes and reopen if closed unexpectedly
     const observer = new MutationObserver(() => {
       if (!dialog.hasAttribute('open') && isOpen) {
-        // Dialog was closed unexpectedly, reopen it
         setTimeout(() => {
-          if (isOpen && !dialog.hasAttribute('open')) {
-            dialog.showModal();
-          }
+          dialog.showModal();
         }, 0);
       }
     });
