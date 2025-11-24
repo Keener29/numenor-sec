@@ -280,20 +280,20 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
         ? `Adding ${bulkProgress.current}/${bulkProgress.total}...`
         : "Adding...";
     }
-  
+
     if (emailsLength >= MAX_EMAILS) {
       return "Limit Reached";
     }
-  
+
     if (isBulkMode) {
       const count = bulkEmailsCount;
       return `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
     }
-  
+
     return "Add Email";
   };
-  
-  
+
+
 
   // Only count emails that have Gmail OAuth connected
   const connectedEmails = emails.filter(email => {
@@ -526,8 +526,8 @@ email2@example.com, email3@example.com`}
 
                     {error && (
                       <div className="text-red-600 text-sm whitespace-pre-line">
-                        {error.split('\n').map((line, i) => (
-                          <div key={i}>{line}</div>
+                        {error.split('\n').map((line) => (
+                          <div key={crypto.randomUUID()}>{line}</div>
                         ))}
                       </div>
                     )}
