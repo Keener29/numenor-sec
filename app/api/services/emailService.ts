@@ -105,9 +105,13 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
 
   const apiUrl = process.env.API_URL || 'http://localhost:3001';
   const currentYear = new Date().getFullYear();
+  let subject = "Permission Request: Email Security Monitoring";
+  if (businessName) {
+    subject += ` - ${businessName}`;
+  }
 
   return {
-    subject: `Permission Request: Email Security Monitoring - ${businessName}`,
+    subject,
     html: `
       <!DOCTYPE html>
       <html>
