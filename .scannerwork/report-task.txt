@@ -1,6 +1,0 @@
-projectKey=numenor-security
-serverUrl=http://localhost:9000
-serverVersion=25.11.0.114957
-dashboardUrl=http://localhost:9000/dashboard?id=numenor-security
-ceTaskId=b65de47d-4bff-4d64-a018-b9d0fb546977
-ceTaskUrl=http://localhost:9000/api/ce/task?id=b65de47d-4bff-4d64-a018-b9d0fb546977
