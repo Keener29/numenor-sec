@@ -16,21 +16,54 @@ export default function BusinessNameModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Focus input when modal opens
+  // Open/close dialog using native API
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen) {
+      dialogRef.current?.showModal();
+      // Focus input when modal opens
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+    } else {
+      dialogRef.current?.close();
     }
   }, [isOpen]);
 
-  // Reset form when modal opens/closes
+  // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setBusinessName("");
       setError("");
     }
   }, [isOpen]);
+
+  // Handle native dialog cancel event (Escape key)
+  const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault(); // Prevent default close behavior
+    if (!isSubmitting) {
+      onClose();
+    }
+  };
+
+  // Handle backdrop clicks (attach via useEffect to avoid linter warnings)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isOpen) return;
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      // Check if click is on the dialog element itself (backdrop)
+      if (e.target === dialog && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => {
+      dialog.removeEventListener("click", handleBackdropClick);
+    };
+  }, [isOpen, isSubmitting, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,18 +93,16 @@ export default function BusinessNameModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={handleDialogCancel}
+      className="bg-transparent p-4 max-w-md w-full rounded-lg shadow-xl"
       aria-labelledby="business-name-modal-title"
       aria-describedby="business-name-modal-description"
     >
       <div
-        className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        className="relative bg-white rounded-lg w-full p-6"
       >
         {/* Modal Header */}
         <h2
@@ -163,7 +194,7 @@ export default function BusinessNameModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

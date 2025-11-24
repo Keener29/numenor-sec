@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { emailsAPI } from "../utils/api";
 
 interface Email {
@@ -32,20 +32,40 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const [error, setError] = useState("");
   const [bulkProgress, setBulkProgress] = useState<{ total: number; current: number; success: number; failed: number; errors: string[] } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: 'resend' | 'delete' | null }>({});
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Handle Escape key to close modal
+  // Open/close dialog using native API
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isModalOpen) {
+    if (isModalOpen) {
+      dialogRef.current?.showModal();
+    } else {
+      dialogRef.current?.close();
+    }
+  }, [isModalOpen]);
+
+  // Handle native dialog cancel event (Escape key)
+  const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault();
+    setIsModalOpen(false);
+  };
+
+  // Handle backdrop clicks (attach via useEffect to avoid linter warnings)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isModalOpen) return;
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      // Check if click is on the dialog element itself (backdrop)
+      if (e.target === dialog) {
         setIsModalOpen(false);
       }
     };
 
-    if (isModalOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isModalOpen]);
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => {
+      dialog.removeEventListener("click", handleBackdropClick);
+    };
+  }, [isModalOpen, setIsModalOpen]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -339,24 +359,23 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
         </div>
 
         {/* Modal */}
-        {isModalOpen && (
-          <div
-            className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsModalOpen(false);
-              }
-            }}
-          >
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <dialog
+          ref={dialogRef}
+          onCancel={handleDialogCancel}
+          className="bg-transparent w-11/12 md:w-3/4 lg:w-1/2 rounded-md shadow-lg"
+          aria-labelledby="email-modal-title"
+          aria-describedby="email-modal-description"
+        >
+          <div className="relative border rounded-md bg-white p-5">
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 id="email-modal-title" className="text-lg font-medium text-gray-900">
                   Email Monitoring Details
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+                  aria-label="Close dialog"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -365,7 +384,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
               </div>
 
               {/* Modal Content */}
-              <div className="space-y-4">
+              <div id="email-modal-description" className="space-y-4">
                 {emails.length > 0 ? (
                   emails.map((email) => (
                     <div key={email.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -542,9 +561,8 @@ email2@example.com, email3@example.com`}
                   </form>
                 </div>
               </div>
-            </div>
           </div>
-        )}
+        </dialog>
       </div>
     </div>
   );
