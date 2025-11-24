@@ -17,16 +17,20 @@ export default function BusinessNameModal({
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const allowCloseRef = useRef(false);
 
   // Open/close dialog using native API
   useEffect(() => {
     if (isOpen) {
+      allowCloseRef.current = false; // Reset allow close when opening
       dialogRef.current?.showModal();
       // Focus input when modal opens
       setTimeout(() => {
         inputRef.current?.focus();
       }, 0);
     } else {
+      // Allow closing when isOpen becomes false (explicit close from parent)
+      allowCloseRef.current = true;
       dialogRef.current?.close();
     }
   }, [isOpen]);
@@ -39,31 +43,83 @@ export default function BusinessNameModal({
     }
   }, [isOpen]);
 
-  // Handle native dialog cancel event (Escape key)
   const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
-    e.preventDefault(); // Prevent default close behavior
-    if (!isSubmitting) {
-      onClose();
-    }
+    e.preventDefault(); // Always prevent default close behavior
+    e.stopPropagation(); // Stop event propagation
+    // Modal should only close via explicit user action (Save button)
   };
 
-  // Handle backdrop clicks (attach via useEffect to avoid linter warnings)
+  // Prevent dialog from closing via Escape key or backdrop clicks
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog || !isOpen) return;
 
-    const handleBackdropClick = (e: MouseEvent) => {
-      // Check if click is on the dialog element itself (backdrop)
-      if (e.target === dialog && !isSubmitting) {
-        onClose();
+    // Store original close method
+    const originalClose = dialog.close.bind(dialog);
+    
+    // Override close method to prevent unauthorized closing
+    dialog.close = function() {
+      if (allowCloseRef.current) {
+        originalClose();
+        allowCloseRef.current = false; // Reset after closing
+      }
+      // Otherwise, ignore the close call
+    };
+
+    // Intercept Escape key presses at multiple levels
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && dialog.hasAttribute('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
       }
     };
 
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => {
-      dialog.removeEventListener("click", handleBackdropClick);
+    // Also intercept on the dialog element itself
+    const handleDialogKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
     };
-  }, [isOpen, isSubmitting, onClose]);
+
+    // Watch for 'open' attribute changes and reopen if closed unexpectedly
+    const observer = new MutationObserver(() => {
+      if (!dialog.hasAttribute('open') && isOpen) {
+        // Dialog was closed unexpectedly, reopen it
+        setTimeout(() => {
+          if (isOpen && !dialog.hasAttribute('open')) {
+            dialog.showModal();
+          }
+        }, 0);
+      }
+    });
+
+    observer.observe(dialog, {
+      attributes: true,
+      attributeFilter: ['open'],
+    });
+
+    // Add event listeners
+    document.addEventListener('keydown', handleKeyDown, true);
+    dialog.addEventListener('keydown', handleDialogKeyDown, true);
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }, true);
+
+    return () => {
+      // Restore original close method
+      dialog.close = originalClose;
+      document.removeEventListener('keydown', handleKeyDown, true);
+      dialog.removeEventListener('keydown', handleDialogKeyDown, true);
+      observer.disconnect();
+    };
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +135,8 @@ export default function BusinessNameModal({
 
       await businessAPI.updateBusiness({ name: businessName.trim() });
       
-      // Success - close modal and refresh dashboard
+      // Success - allow closing and close modal, then refresh dashboard
+      allowCloseRef.current = true;
       onSuccess();
       onClose();
     } catch (err) {
