@@ -96,7 +96,8 @@ const createDefaultFetchMock = () => {
     } else {
       urlString = url.url;
     }
-    const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
+    const domainRegex = /[?&](?:domain|domainName)=([^&]+)/;
+    const domainMatch = domainRegex.exec(urlString);
     const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
 
     const defaultResponse = {

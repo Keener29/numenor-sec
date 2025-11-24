@@ -257,7 +257,8 @@ class EmailMonitor {
 
       if (email.lastChecked) {
         // Use the more recent timestamp to avoid reprocessing emails from previous scans
-        timestampToUse = email.lastChecked > connectionTimestamp ? email.lastChecked : connectionTimestamp;
+        const timestampToUseNumber = Math.max(email.lastChecked.getTime(), connectionTimestamp.getTime());
+        timestampToUse = new Date(timestampToUseNumber);
 
         monitoringLogger.debug('Fetching emails after last check time', {
           operation: 'fetch-new-emails',
@@ -489,7 +490,7 @@ class EmailMonitor {
       reasonParts.push(`Authentication overall results: ${threatAssessment.authenticationResults.overall}`);
     }
     else if (threatAssessment.detectedPatterns.length > 0) {
-      reasonParts.push(threatAssessment.detectedPatterns.slice(0, 2).join(', ').replace(/_/g, ' '));
+      reasonParts.push(threatAssessment.detectedPatterns.slice(0, 2).join(', ').replaceAll(/_/g, ' '));
     }
     if (threatAssessment.riskFactors.length > 0 && reasonParts.length === 0) {
       reasonParts.push(threatAssessment.riskFactors[0]);
@@ -514,7 +515,7 @@ class EmailMonitor {
         critical: { background: '#ffecec', borderColor: '#ff3b30', textColor: '#6b0b0b' }
       };
       const style = riskStyles[threatAssessment.threatLevel as 'medium' | 'high' | 'critical'];
-      const sanitizedReason = reason.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const sanitizedReason = reason.replaceAll(/&/g, '&amp;').replaceAll(/</g, '&lt;').replaceAll(/>/g, '&gt;');
 
       const bannerHtml = `
         <div role="alert" style="background-color: ${style.background}; border-left: 4px solid ${style.borderColor}; color: ${style.textColor}; padding: 12px 16px; margin: 0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.5; max-width: 100%; box-sizing: border-box;">

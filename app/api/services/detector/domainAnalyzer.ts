@@ -9,6 +9,7 @@ const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 import { extractEmailAddress } from '../../utils/emailUtils.js';
+import { emailLogger, oauthLogger } from '../logger.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
@@ -167,11 +168,10 @@ function extractDomainName(domain: string): string {
   // If we have more than 2 parts (sub.domain.com), return the second-to-last part
   // This is the actual domain name (not the subdomain)
   if (parts.length > 2) {
-    return parts[parts.length - 2]; // Second-to-last part
+    return parts.at(-2) || '';
   }
   
-  // Fallback: if somehow only 1 part, return it
-  return parts[0] || '';
+  return parts.at(0) || '';
 }
 
 /**
@@ -357,6 +357,7 @@ export function extractDomain(input: string): string | null {
     
     return null;
   } catch (error) {
+    emailLogger.warn(`Failed to extract domain from input: ${input}`, { operation: 'domain-analysis' }, { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
@@ -366,13 +367,13 @@ export function extractDomain(input: string): string | null {
  */
 function normalizeNumberSubstitutions(text: string): string {
   return text
-    .replace(/1/g, 'l')  // 1 -> l
-    .replace(/0/g, 'o')  // 0 -> o
-    .replace(/3/g, 'e')  // 3 -> e
-    .replace(/4/g, 'a')  // 4 -> a
-    .replace(/5/g, 's')  // 5 -> s
-    .replace(/7/g, 't')  // 7 -> t
-    .replace(/8/g, 'b')  // 8 -> b
-    .replace(/9/g, 'g'); // 9 -> g
+    .replaceAll(/1/g, 'l')  // 1 -> l
+    .replaceAll(/0/g, 'o')  // 0 -> o
+    .replaceAll(/3/g, 'e')  // 3 -> e
+    .replaceAll(/4/g, 'a')  // 4 -> a
+    .replaceAll(/5/g, 's')  // 5 -> s
+    .replaceAll(/7/g, 't')  // 7 -> t
+    .replaceAll(/8/g, 'b')  // 8 -> b
+    .replaceAll(/9/g, 'g'); // 9 -> g
 }
 

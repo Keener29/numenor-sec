@@ -246,8 +246,8 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
     low: 'ℹ️'
   };
 
-  const color = threatLevelColors[threatAssessment.threatLevel as keyof typeof threatLevelColors] || '#6b7280';
-  const icon = threatLevelIcons[threatAssessment.threatLevel as keyof typeof threatLevelIcons] || '⚠️';
+  const color = threatLevelColors[threatAssessment.threatLevel] || '#6b7280';
+  const icon = threatLevelIcons[threatAssessment.threatLevel] || '⚠️';
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   const currentYear = new Date().getFullYear();
 
@@ -296,15 +296,15 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
           <h3>Suspicious Email Details</h3>
           <div class="threat-info">
             <p><strong>Subject:</strong> ${emailMessage.subject}</p>
-            <p><strong>From:</strong> ${emailMessage.sender}</p>
-            <p><strong>To:</strong> ${emailMessage.recipient}</p>
+            <p><strong>From:</strong> ${emailMessage.sender.address}</p>
+            <p><strong>To:</strong> ${emailMessage.recipient.address}</p>
             <p><strong>Received:</strong> ${new Date(emailMessage.timestamp).toLocaleString()}</p>
           </div>
           
           <h3>Detected Threat Patterns</h3>
           <div class="threat-info">
             <ul>
-              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replace(/_/g, ' ').toUpperCase()}</li>`).join('')}
+              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replaceAll(/_/g, ' ').toUpperCase()}</li>`).join('')}
             </ul>
           </div>
           
@@ -356,12 +356,12 @@ THREAT DETAILS:
 
 SUSPICIOUS EMAIL DETAILS:
 - Subject: ${emailMessage.subject}
-- From: ${emailMessage.sender}
-- To: ${emailMessage.recipient}
+- From: ${emailMessage.sender.address}
+- To: ${emailMessage.recipient.address}
 - Received: ${new Date(emailMessage.timestamp).toLocaleString()}
 
 DETECTED THREAT PATTERNS:
-${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replace(/_/g, ' ').toUpperCase()}`).join('\n')}
+${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replaceAll(/_/g, ' ').toUpperCase()}`).join('\n')}
 
 RISK FACTORS:
 ${threatAssessment.riskFactors.map((risk: string) => `- ${risk}`).join('\n')}
@@ -768,6 +768,3 @@ class EmailService {
 
 // Export singleton instance
 export const emailService = new EmailService();
-
-// Export types for external use
-export type { EmailConfig, EmailTemplate, EmailSendResult, PermissionRequestParams, ThreatAlertParams };

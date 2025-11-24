@@ -8,12 +8,11 @@ import {
   analyzeDomainAge,
   analyzeSenderDomainAge,
   clearDomainAgeCache,
-  getCacheStats,
-  type DomainAgeResult
+  getCacheStats
 } from '../domainAgeAnalyzer.js';
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe('Domain Age Analyzer', () => {
   beforeEach(() => {
@@ -31,7 +30,8 @@ describe('Domain Age Analyzer', () => {
       } else {
         urlString = url.url;
       }
-      const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
+      const domainRegex = /[?&](?:domain|domainName)=([^&]+)/;
+      const domainMatch = domainRegex.exec(urlString);
       const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
       const defaultResponse = {
         ok: true,
@@ -171,9 +171,9 @@ describe('Domain Age Analyzer', () => {
       ];
 
       // Set up mock responses for each test case
-      testCases.forEach(() => {
+      for (const _ of testCases) {
         mockFetch.mockResolvedValueOnce(mockResponse as Response);
-      });
+      }
 
       for (const testDomain of testCases) {
         const result = await analyzeDomainAge(testDomain);

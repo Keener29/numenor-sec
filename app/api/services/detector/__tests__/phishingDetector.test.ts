@@ -35,7 +35,7 @@ describe('PhishingDetector', () => {
       bodyScore: 0
     });
 
-    (linkAnalyzerService.analyzeLinks as any).mockResolvedValue({
+    (linkAnalyzerService.analyzeLinks).mockResolvedValue({
       totalLinks: 0,
       suspiciousLinks: [],
       risks: [],
@@ -48,19 +48,19 @@ describe('PhishingDetector', () => {
       score: 0
     });
 
-    (emailAuthenticationService.isDomainAllowListed as any).mockResolvedValue(false);
+    (emailAuthenticationService.isDomainAllowListed).mockResolvedValue(false);
     (emailAuthenticationService.analyzeEmailAuthentication as jest.Mock).mockReturnValue({
       spf: 'pass',
       dkim: 'pass',
       dmarc: 'pass'
     });
-    (emailAuthenticationService.getAuthenticationRiskScore as any).mockReturnValue({
+    (emailAuthenticationService.getAuthenticationRiskScore).mockReturnValue({
       risks: [],
       score: 0
     });
     (emailAuthenticationService.generateAuthenticationRecommendations as jest.Mock).mockReturnValue([]);
 
-    (headerAnalyzerService.analyzeHeaders as any).mockResolvedValue({
+    (headerAnalyzerService.analyzeHeaders).mockResolvedValue({
       risks: [],
       score: 0
     });
@@ -85,7 +85,7 @@ describe('PhishingDetector', () => {
         bodyScore: 10
       });
 
-      (linkAnalyzerService.analyzeLinks as any).mockResolvedValue({
+      (linkAnalyzerService.analyzeLinks).mockResolvedValue({
         totalLinks: 2,
         suspiciousLinks: ['http://suspicious.com'],
         risks: ['Suspicious domain detected'],
@@ -98,12 +98,12 @@ describe('PhishingDetector', () => {
         score: 0
       });
 
-      (emailAuthenticationService.getAuthenticationRiskScore as any).mockReturnValue({
+      (emailAuthenticationService.getAuthenticationRiskScore).mockReturnValue({
         risks: ['SPF check failed'],
         score: 15
       });
 
-      (headerAnalyzerService.analyzeHeaders as any).mockResolvedValue({
+      (headerAnalyzerService.analyzeHeaders).mockResolvedValue({
         risks: ['Missing security headers'],
         score: 10
       });
@@ -141,7 +141,7 @@ describe('PhishingDetector', () => {
 
     it('should handle missing headers as critical risk for non-allowlisted domains', async () => {
       const { emailAuthenticationService } = require('../emailAuthDetector.js');
-      (emailAuthenticationService.isDomainAllowListed as any).mockResolvedValue(false);
+      (emailAuthenticationService.isDomainAllowListed).mockResolvedValue(false);
 
       const emailData: EmailAnalysis = {
         subject: 'Normal email',
@@ -216,7 +216,7 @@ describe('PhishingDetector', () => {
         subjectScore: 30,
         bodyScore: 20
       });
-      (linkAnalyzerService.analyzeLinks as any).mockResolvedValue({
+      (linkAnalyzerService.analyzeLinks).mockResolvedValue({
         totalLinks: 1,
         suspiciousLinks: ['http://malicious.com'],
         risks: ['Malicious domain'],
@@ -241,18 +241,18 @@ describe('PhishingDetector', () => {
       const { emailAuthenticationService } = require('../emailAuthDetector.js');
       const { headerAnalyzerService } = require('../headerAnalyzer.js');
       
-      (linkAnalyzerService.analyzeLinks as any).mockResolvedValue({
+      (linkAnalyzerService.analyzeLinks).mockResolvedValue({
         totalLinks: 1,
         suspiciousLinks: [],
         risks: [],
         score: 10
       });
       (linkAnalyzerService.generateLinkRecommendations as jest.Mock).mockReturnValue([]);
-      (emailAuthenticationService.getAuthenticationRiskScore as any).mockReturnValue({
+      (emailAuthenticationService.getAuthenticationRiskScore).mockReturnValue({
         risks: [],
         score: 0
       });
-      (headerAnalyzerService.analyzeHeaders as any).mockResolvedValue({
+      (headerAnalyzerService.analyzeHeaders).mockResolvedValue({
         risks: [],
         score: 0
       });

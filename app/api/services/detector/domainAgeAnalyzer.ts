@@ -14,12 +14,14 @@ import { oauthLogger } from '../logger.js';
 import { query } from '../../../db/connection.js';
 import { parse } from "tldts";
 
+type RiskLevel = 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+
 export interface DomainAgeResult {
   isSuspicious: boolean;
   ageInDays: number | null;
   registrationDate: Date | null;
   riskScore: number;
-  riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  riskLevel: RiskLevel;
   error?: string;
 }
 
@@ -225,7 +227,7 @@ function calculateDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult {
   const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (ageInDays < 7) {
@@ -273,7 +275,7 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
     ];
 
     for (const format of formats) {
-      const match = dateString.match(format);
+      const match = format.exec(dateString);
       if (match) {
         const [, year, month, day] = match;
         const parsedDate = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day));
@@ -506,7 +508,7 @@ function adjustResultForSenderDomain(cachedResult: DomainAgeResult): DomainAgeRe
   }
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (cachedResult.ageInDays < 30) {
@@ -548,7 +550,7 @@ function calculateSenderDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult
   const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (ageInDays < 30) {

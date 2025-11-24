@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { linkAnalyzerService, type LinkAnalysis } from '../linkAnalyzer.js';
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 // Helper to build an email HTML body with CTA anchors for given links
 const makeEmailBody = (links: string[]): string => {
