@@ -1,4 +1,5 @@
 interface ChartData {
+  uuid: string;
   day: string;
   alerts: number;
 }
@@ -15,12 +16,12 @@ export default function PhishingAlertChart({ chartData }: PhishingAlertChartProp
           Phishing Alerts (Last 7 Days)
         </h3>
         <div className="h-64 flex justify-between space-x-4 items-end">
-          {chartData.length > 0 ? chartData.map((data, index) => {
+          {chartData.length > 0 ? chartData.map((data) => {
             const maxAlerts = Math.max(...chartData.map(d => d.alerts), 1);
             const height = (data.alerts / maxAlerts) * 200;
             
             return (
-              <div key={index} className="flex flex-col items-center flex-1">
+              <div key={data.uuid} className="flex flex-col items-center flex-1">
                 <div
                   className="bg-blue-500 w-full rounded-t mb-2"
                   style={{ height: `${height}px` }}

@@ -124,36 +124,6 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsMo
     }
   };
 
-  const handleStartMonitoring = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/phishing/monitoring/start', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        await loadDashboardData();
-      }
-    } catch (err) {
-      console.error("Error starting monitoring:", err);
-    }
-  };
-
-  const handleStopMonitoring = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/phishing/monitoring/stop', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        await loadDashboardData();
-      }
-    } catch (err) {
-      console.error("Error stopping monitoring:", err);
-    }
-  };
-
   const getThreatLevelColor = (level: string) => {
     switch (level) {
       case 'critical': return 'bg-red-100 text-red-800';
@@ -394,15 +364,15 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsMo
                   <ul className="text-sm text-gray-600 text-left max-w-md mx-auto space-y-2">
                     <li className="flex items-start">
                       <span className="text-green-500 mr-2">✓</span>
-                      Your email security is working well
+                      <span>Your email security is working well</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-blue-500 mr-2">ℹ️</span>
-                      You haven't added email addresses for monitoring yet
+                      <span>You haven't added email addresses for monitoring yet</span>
                     </li>
                     <li className="flex items-start">
                       <span className="text-blue-500 mr-2">ℹ️</span>
-                      The monitoring service is still being set up
+                      <span>The monitoring service is still being set up</span>
                     </li>
                   </ul>
                   <div className="mt-6">

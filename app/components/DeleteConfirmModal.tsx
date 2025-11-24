@@ -23,71 +23,46 @@ export default function DeleteConfirmModal({
   const [error, setError] = useState("");
   const [reasonError, setReasonError] = useState("");
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Focus management: focus Cancel button when modal opens
+  // Open/close dialog using native API
   useEffect(() => {
-    if (isOpen && cancelButtonRef.current) {
-      cancelButtonRef.current.focus();
+    if (isOpen) {
+      dialogRef.current?.showModal();
+      // Focus Cancel button when modal opens
+      setTimeout(() => {
+        cancelButtonRef.current?.focus();
+      }, 0);
+    } else {
+      dialogRef.current?.close();
     }
   }, [isOpen]);
 
-  // Keyboard handling: Escape key closes modal
+  // Handle native dialog cancel event (Escape key)
+  const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault(); // Prevent default close behavior
+    if (!isDeleting) {
+      onClose();
+    }
+  };
+
+  // Handle backdrop clicks (attach via useEffect to avoid linter warnings)
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !isDeleting) {
+    const dialog = dialogRef.current;
+    if (!dialog || !isOpen) return;
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      // Check if click is on the dialog element itself (backdrop)
+      if (e.target === dialog && !isDeleting) {
         onClose();
       }
     };
 
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      return () => document.removeEventListener("keydown", handleEscape);
-    }
-  }, [isOpen, isDeleting, onClose]);
-
-  // Focus trap: keep focus within modal
-  useEffect(() => {
-    if (!isOpen || !modalRef.current) return;
-
-    const modal = modalRef.current;
-    const focusableElements = modal.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement?.focus();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement?.focus();
-        }
-      }
-    };
-
-    modal.addEventListener("keydown", handleTab);
-    return () => modal.removeEventListener("keydown", handleTab);
-  }, [isOpen]);
-
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    dialog.addEventListener("click", handleBackdropClick);
     return () => {
-      document.body.style.overflow = "";
+      dialog.removeEventListener("click", handleBackdropClick);
     };
-  }, [isOpen]);
+  }, [isOpen, isDeleting, onClose]);
 
   const handleDelete = async () => {
     try {
@@ -120,25 +95,16 @@ export default function DeleteConfirmModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isDeleting) {
-          onClose();
-        }
-      }}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={handleDialogCancel}
+      className="bg-transparent p-4 max-w-md w-full rounded-lg shadow-xl"
       aria-labelledby="delete-modal-title"
       aria-describedby="delete-modal-description"
     >
       <div
-        ref={modalRef}
-        className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6"
-        onClick={(e) => e.stopPropagation()}
+        className="relative bg-white rounded-lg w-full p-6"
       >
         {/* Modal Header */}
         <h2
@@ -276,7 +242,7 @@ export default function DeleteConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

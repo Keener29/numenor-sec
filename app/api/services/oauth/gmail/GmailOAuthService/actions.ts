@@ -2,22 +2,15 @@ import { oauthLogger } from '../../../logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
 import type { EmailMessage, LogContext } from '../../base/types.js';
-import type { GmailMessage } from '../types.js';
-
-type GmailClient = any;
+import type { DraftContentOptions, FetchEmailsOptions, GmailMessage } from '../types.js';
+import { decodeHtmlEntities, stripHtmlTags } from '../../../../utils/emailUtils.js';
 
 export type SetCredentialsFn = (businessId: number, emailAddress: string) => Promise<void>;
 
 export async function fetchEmails(
-  setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
-  businessId: number,
-  emailAddress: string,
-  maxResults: number = 10,
-  searchQuery: string = '',
-  parseGmailMessage: (message: GmailMessage, emailAddress?: string) => EmailMessage,
-  connectionTimestamp?: Date
+  options: FetchEmailsOptions
 ): Promise<EmailMessage[]> {
+  const { setCredentials, gmail, businessId, emailAddress, maxResults, searchQuery, parseGmailMessage, connectionTimestamp } = options;
   const context: LogContext = {
     operation: 'fetch-emails',
     businessId,
@@ -53,7 +46,7 @@ export async function fetchEmails(
 
 export async function markAsRead(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   messageId: string
@@ -71,7 +64,7 @@ export async function markAsRead(
 
 export async function deleteEmail(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   messageId: string
@@ -89,7 +82,7 @@ export async function deleteEmail(
 
 export async function moveToTrash(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   messageId: string
@@ -107,7 +100,7 @@ export async function moveToTrash(
 
 export async function testConnection(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   fetchEmailsFn: typeof fetchEmails,
@@ -116,7 +109,7 @@ export async function testConnection(
   try {
     const tokenResult = await query('SELECT created_at FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3', [businessId, emailAddress, 'gmail']);
     const connectionTimestamp = tokenResult.rows.length > 0 ? (tokenResult.rows[0] as any).created_at : undefined;
-    const emails = await fetchEmailsFn(setCredentials, gmail, businessId, emailAddress, 5, '', parseGmailMessage, connectionTimestamp);
+    const emails = await fetchEmailsFn({ setCredentials, gmail, businessId, emailAddress, maxResults: 5, searchQuery: '', parseGmailMessage, connectionTimestamp });
     return { success: true, message: 'Gmail connection test successful', emailCount: emails.length, emails: emails.map(e => ({ id: e.id, subject: e.subject, sender: e.sender })) };
   } catch (error) {
     return { success: false, message: 'Gmail connection test failed', details: error instanceof Error ? error.message : 'Unknown error' };
@@ -148,7 +141,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
     if (message.payload.mimeType === 'text/html') {
       html = body;
       // Create plain text version by stripping HTML tags
-      plainText = body.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+      plainText = decodeHtmlEntities(stripHtmlTags(body)).trim();
     } else {
       plainText = body;
       html = body.replace(/\n/g, '<br>');
@@ -163,7 +156,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
   }
   // Fallback: if no plain text found but HTML exists, strip HTML tags
   if (!plainText && html) {
-    plainText = html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+    plainText = decodeHtmlEntities(stripHtmlTags(html)).trim();
   }
   
   return { html: html || '', plainText: plainText || '' };
@@ -174,16 +167,10 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
  */
 export async function createDraftWithContent(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
-  businessId: number,
-  emailAddress: string,
-  originalMessage: GmailMessage,
-  modifiedHtml: string,
-  modifiedPlainText: string,
-  subject: string,
-  from: string,
-  to: string
+  gmail: any,
+  options: DraftContentOptions
 ): Promise<string> {
+  const { businessId, emailAddress, originalMessage, modifiedHtml, modifiedPlainText, subject, from, to } = options;
   const context: LogContext = {
     operation: 'create-draft-with-content',
     businessId,

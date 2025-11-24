@@ -12,7 +12,7 @@ import type { OAuthProviderType } from './base/types.js';
 // import { yahooOAuthService } from './yahoo/YahooOAuthService.js';
 
 export class OAuthProviderFactory {
-  private static providers: Map<OAuthProviderType, OAuthProvider> = new Map([
+  private static readonly providers: Map<OAuthProviderType, OAuthProvider> = new Map([
     ['gmail', gmailOAuthService],
     // Add future providers here
     // ['outlook', outlookOAuthService],

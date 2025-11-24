@@ -142,8 +142,8 @@ describe('LinkAnalyzerService', () => {
       const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of homoglyph
-      expect(result.risks.some(risk => 
-        risk.includes('Homoglyph attack detected') || 
+      expect(result.risks.some(risk =>
+        risk.includes('Homoglyph attack detected') ||
         risk.includes('Typosquatting detected')
       )).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -159,8 +159,8 @@ describe('LinkAnalyzerService', () => {
       const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of suspicious pattern
-      expect(result.risks.some(risk => 
-        risk.includes('Suspicious domain pattern') || 
+      expect(result.risks.some(risk =>
+        risk.includes('Suspicious domain pattern') ||
         risk.includes('Typosquatting detected')
       )).toBe(true);
       expect(result.score).toBeGreaterThan(0);

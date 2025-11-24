@@ -128,9 +128,9 @@ export const emailsAPI = {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.connected !== undefined) queryParams.append('connected', params.connected.toString());
-    
-    const queryString = queryParams.toString();
-    return apiRequest(`/emails${queryString ? `?${queryString}` : ''}`);
+    const qs = queryParams.toString();
+    const url = qs ? `/emails?${qs}` : '/emails';
+    return apiRequest(url);    
   },
 
   // Add new email to monitor
@@ -196,8 +196,9 @@ export const alertsAPI = {
       }
     });
     
-    const queryString = queryParams.toString();
-    return apiRequest(`/alerts${queryString ? `?${queryString}` : ''}`);
+    const qs = queryParams.toString();
+    const url = qs ? `/alerts?${qs}` : '/alerts';
+    return apiRequest(url);
   },
 
   // Get specific alert

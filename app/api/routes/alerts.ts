@@ -58,7 +58,7 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySche
       queryParams
     );
 
-    const totalCount = parseInt((countResult.rows[0] as { count: string }).count);
+    const totalCount = Number.parseInt((countResult.rows[0] as { count: string }).count);
     const totalPages = Math.ceil(totalCount / limit);
 
     res.json({
@@ -154,23 +154,23 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
     );
 
     const statusCounts = statusResult.rows.reduce((acc: Record<string, number>, row) => {
-      acc[(row as { status: string }).status] = parseInt((row as { count: string }).count);
+      acc[(row as { status: string }).status] = Number.parseInt((row as { count: string }).count);
       return acc;
     }, {} as Record<string, number>);
 
     const threatLevelCounts = threatLevelResult.rows.reduce((acc: Record<string, number>, row) => {
-      acc[(row as { threat_level: string }).threat_level] = parseInt((row as { count: string }).count);
+      acc[(row as { threat_level: string }).threat_level] = Number.parseInt((row as { count: string }).count);
       return acc;
     }, {} as Record<string, number>);
 
     const stats = {
-      totalAlerts: parseInt((totalResult.rows[0] as { count: string }).count),
-      recentAlerts: parseInt((recentResult.rows[0] as { count: string }).count),
+      totalAlerts: Number.parseInt((totalResult.rows[0] as { count: string }).count),
+      recentAlerts: Number.parseInt((recentResult.rows[0] as { count: string }).count),
       statusCounts,
       threatLevelCounts,
       dailyAlerts: dailyResult.rows.map((row) => ({
         date: (row as { date: string }).date,
-        count: parseInt((row as { count: string }).count)
+        count: Number.parseInt((row as { count: string }).count)
       }))
     };
     
@@ -365,7 +365,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
       `INSERT INTO phishing_alerts (business_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description, raw_email_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at`,
-      [businessId, parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
+      [businessId, Number.parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
     );
 
     const alert = result.rows[0] as {

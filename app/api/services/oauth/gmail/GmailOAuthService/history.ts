@@ -2,8 +2,8 @@ import { oauthLogger } from '../../../logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import type { EmailMessage, LogContext } from '../../base/types.js';
 import type { GmailMessage } from '../types.js';
+import type { gmail_v1 } from 'googleapis';
 
-type GmailClient = any;
 export type SetCredentialsFn = (businessId: number, emailAddress: string) => Promise<void>;
 
 /**
@@ -34,7 +34,7 @@ export function parseGmailMessage(message: GmailMessage, emailAddress?: string):
   }
 
   // Lightweight URL extraction; not a full HTML parser by design
-  const linkRegex = /https?:\/\/[^\s<>":{}|\\^`\[\]]+/g;
+  const linkRegex = /https?:\/\/[^\s<>":{}|\\^`[\]]+/g;
   const links = body.match(linkRegex) || [];
 
   return {
@@ -43,76 +43,133 @@ export function parseGmailMessage(message: GmailMessage, emailAddress?: string):
     body: body || message.snippet,
     sender: headers.from || 'Unknown Sender',
     recipient: headers.to || emailAddress || 'Unknown Recipient',
-    timestamp: new Date(parseInt(message.internalDate)),
+    timestamp: new Date(Number.parseInt(message.internalDate)),
     links,
     headers,
     labels: message.labelIds || []
   };
 }
+async function fetchHistoryPages(
+  gmail: any,
+  startHistoryId: string
+): Promise<{ entries: gmail_v1.Schema$History[]; latestHistoryId: string }> {
+  const entries: gmail_v1.Schema$History[] = [];
+  let latestHistoryId = startHistoryId;
+  let pageToken: string | undefined;
+
+  do {
+    const res = await gmail.users.history.list({
+      userId: 'me',
+      startHistoryId,
+      historyTypes: ['messageAdded', 'labelAdded'],
+      maxResults: 100,
+      pageToken,
+    });
+
+    const history = res.data.history || [];
+    entries.push(...history);
+
+    for (const h of history) {
+      if (h.id) latestHistoryId = String(h.id);
+    }
+
+    pageToken = res.data.nextPageToken ?? undefined;
+  } while (pageToken);
+
+  return { entries, latestHistoryId };
+}
+
+function isCorrectInboxMessage(message: gmail_v1.Schema$Message | undefined): boolean {
+  if (!message?.id) return false;
+  const labelIds = message.labelIds || [];
+  return labelIds.includes('INBOX') &&
+    !labelIds.includes('SENT') &&
+    !labelIds.includes('TRASH') &&
+    !labelIds.includes('DRAFT');
+}
+
+function extractMessageIdFromHistoryEntry(entry: gmail_v1.Schema$HistoryMessageAdded[] | gmail_v1.Schema$HistoryLabelAdded[], ids: Set<string>): void {
+  for (const added of entry) {
+    const msg = added.message;
+    if (isCorrectInboxMessage(msg)) {
+      ids.add(msg!.id!);
+    }
+  }
+}
+
+function extractMessageIdsFromHistory(entries: gmail_v1.Schema$History[]): string[] {
+  const ids = new Set<string>();
+
+  for (const entry of entries) {
+    if (entry.messagesAdded) {
+      extractMessageIdFromHistoryEntry(entry.messagesAdded, ids);
+    }
+    if (entry.labelsAdded) {
+      extractMessageIdFromHistoryEntry(entry.labelsAdded, ids);
+    }
+  }
+
+  return Array.from(ids);
+}
+function normalizeGmailErrors(error: any, context: LogContext): Error {
+  const message = (error?.message || error?.errors?.[0]?.message || '').toLowerCase();
+
+  const isTooOld =
+    error?.code === 404 ||
+    (message.includes('history') && message.includes('old'));
+
+  if (isTooOld) {
+    const err = new Error('Gmail historyId too old');
+    (err as any).causeCode = 'HISTORY_TOO_OLD';
+    return err;
+  }
+
+  oauthLogger.error('Failed to list Gmail history', context, error as Error);
+  return ErrorFactory.oauthService(
+    ErrorCodes.GMAIL_API_ERROR,
+    'Failed to list Gmail history'
+  );
+}
+
 
 export async function listHistorySince(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   startHistoryId: string
 ): Promise<{ messageIds: string[]; latestHistoryId: string }> {
-  const context: LogContext = { operation: 'list-history-since', businessId, emailAddress, metadata: { startHistoryId } };
+  const context: LogContext = {
+    operation: 'list-history-since',
+    businessId,
+    emailAddress,
+    metadata: { startHistoryId }
+  };
+
   try {
-    // Ensure Gmail client is authorized for this mailbox before listing history
     await setCredentials(businessId, emailAddress);
-    // Collect unique messageIds that represent new inbox messages
-    const collectedIds = new Set<string>();
-    let latestHistoryId = startHistoryId;
-    let pageToken: string | undefined = undefined;
-    // Gmail returns history in pages; iterate until no nextPageToken
-    do {
-      const res = await gmail.users.history.list({ userId: 'me', startHistoryId, historyTypes: ['messageAdded', 'labelAdded'], maxResults: 100, pageToken });
-      const history = res.data.history || [];
-      for (const entry of history) {
-        // Track the most recent historyId observed to advance our anchor safely
-        if (entry.id) latestHistoryId = String(entry.id);
-        if (entry.messagesAdded) {
-          for (const added of entry.messagesAdded) {
-            const msg = added.message;
-            if (!msg || !msg.id) continue;
-            const labelIds: string[] = msg.labelIds || [];
-            // Only consider messages that landed in INBOX, and exclude sent/drafts to avoid self-sends
-            if (labelIds.includes('INBOX') && !labelIds.includes('SENT') && !labelIds.includes('TRASH') && !labelIds.includes('DRAFT')) {
-              collectedIds.add(msg.id);
-            }
-          }
-        }
-        if (entry.labelsAdded) {
-          for (const lab of entry.labelsAdded) {
-            const msg = lab.message;
-            if (!msg || !msg.id) continue;
-            const labelIds: string[] = (lab.labelIds as string[]) || [];
-            // Handle messages moved into INBOX after arrival (e.g., rule changes)
-            if (labelIds.includes('INBOX')) collectedIds.add(msg.id);
-          }
-        }
-      }
-      pageToken = res.data.nextPageToken as string | undefined;
-    } while (pageToken);
-    oauthLogger.debug('Gmail history listed successfully', { ...context, metadata: { ...context.metadata, messageCount: collectedIds.size, latestHistoryId } });
-    return { messageIds: Array.from(collectedIds), latestHistoryId };
-  } catch (error: any) {
-    // Gmail signals anchor invalidation when the history window expired (e.g., 404 or error text mentioning "history ... old")
-    const message = (error && (error.message || error.errors?.[0]?.message)) || '';
-    if (error?.code === 404 || (/history/i.test(message) && /old/i.test(message))) {
-      const err = new Error('Gmail historyId too old');
-      (err as any).causeCode = 'HISTORY_TOO_OLD';
-      throw err;
-    }
-    oauthLogger.error('Failed to list Gmail history', context, error as Error);
-    throw ErrorFactory.oauthService(ErrorCodes.GMAIL_API_ERROR, 'Failed to list Gmail history');
+
+    const { entries, latestHistoryId } = await fetchHistoryPages(
+      gmail,
+      startHistoryId
+    );
+
+    const messageIds = extractMessageIdsFromHistory(entries);
+
+    oauthLogger.debug('Gmail history listed successfully', {
+      ...context,
+      metadata: { ...context.metadata, messageCount: messageIds.length, latestHistoryId }
+    });
+
+    return { messageIds, latestHistoryId };
+  } catch (err: any) {
+    throw normalizeGmailErrors(err, context);
   }
 }
 
 export async function getCurrentHistoryId(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string
 ): Promise<string> {
@@ -132,7 +189,7 @@ export async function getCurrentHistoryId(
 
 export async function getMessagesByIds(
   setCredentials: SetCredentialsFn,
-  gmail: GmailClient,
+  gmail: any,
   businessId: number,
   emailAddress: string,
   messageIds: string[],

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { decodeHtmlEntities, stripHtmlTags } from '../utils/emailUtils';
 
 export const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -47,15 +48,7 @@ export const deleteAccountSchema = z.object({
         .max(2000, 'Reason must be 2000 characters or less')
         .transform((val) => {
           // Sanitize: strip HTML tags and trim
-          const sanitized = val
-            .replace(/<[^>]*>/g, '') // Strip HTML tags
-            .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-            .replace(/&amp;/g, '&') // Decode &amp;
-            .replace(/&lt;/g, '<') // Decode &lt;
-            .replace(/&gt;/g, '>') // Decode &gt;
-            .replace(/&quot;/g, '"') // Decode &quot;
-            .replace(/&#39;/g, "'") // Decode &#39;
-            .trim();
+          const sanitized = decodeHtmlEntities(stripHtmlTags(val)).trim();
           return sanitized || undefined; // Return undefined if empty after sanitization
         })
         .optional()

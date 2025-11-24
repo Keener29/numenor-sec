@@ -15,14 +15,12 @@ import type {
   OAuthState,
   OAuthConnectionStatus,
   EmailMessage,
-  LogContext
 } from '../base/types.js';
 import type {
-  GmailMessage,
-  GmailMessagePayload,
-  GmailHeader,
-  GmailBody
+  GmailMessage, DraftContentOptions,
+  FetchEmailsOptions
 } from './types.js';
+
 
 export class GmailOAuthService extends OAuthProvider {
   private oauth2Client: any;
@@ -39,8 +37,8 @@ export class GmailOAuthService extends OAuthProvider {
   private initializeOAuthClient(): void {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
-      (process.env.NODE_ENV === 'production' 
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
+      (process.env.NODE_ENV === 'production'
         ? 'https://numenorsecurity.com/api/oauth/gmail/callback'
         : 'http://localhost:3001/api/oauth/gmail/callback');
 
@@ -112,19 +110,20 @@ export class GmailOAuthService extends OAuthProvider {
     businessId: number,
     emailAddress: string,
     maxResults: number = 10,
-    query: string = '',
+    searchQuery: string = '',
     connectionTimestamp?: Date
   ): Promise<EmailMessage[]> {
-    return Actions.fetchEmails(
-      this.setCredentials.bind(this),
-      this.gmail,
+    const fetchEmailsOptions: FetchEmailsOptions = {
+      setCredentials: this.setCredentials.bind(this),
+      gmail: this.gmail,
       businessId,
       emailAddress,
       maxResults,
-      query,
-      History.parseGmailMessage,
+      searchQuery,
+      parseGmailMessage: History.parseGmailMessage,
       connectionTimestamp
-    );
+    };
+    return Actions.fetchEmails(fetchEmailsOptions);
   }
 
   /**
@@ -252,27 +251,11 @@ export class GmailOAuthService extends OAuthProvider {
   /**
    * Create a draft email with modified HTML and plain text content
    */
-  async createDraftWithContent(
-    businessId: number,
-    emailAddress: string,
-    originalMessage: GmailMessage,
-    modifiedHtml: string,
-    modifiedPlainText: string,
-    subject: string,
-    from: string,
-    to: string
-  ): Promise<string> {
+  async createDraftWithContent(options: DraftContentOptions): Promise<string> {
     return Actions.createDraftWithContent(
       this.setCredentials.bind(this),
       this.gmail,
-      businessId,
-      emailAddress,
-      originalMessage,
-      modifiedHtml,
-      modifiedPlainText,
-      subject,
-      from,
-      to
+      options
     );
   }
 

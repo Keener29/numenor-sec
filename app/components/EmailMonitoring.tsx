@@ -78,22 +78,23 @@ export default function EmailMonitoring({ emails, alerts, onMarkSafe, oauthStatu
             
             const oauthStatus = oauthStatuses[email.emailAddress];
             const isGmailConnected = oauthStatus?.isConnected || false;
+
+            let statusClass = 'bg-red-100 text-red-800';
+            let statusText = 'Not Connected';
+            if (isGmailConnected) {
+              statusClass = 'bg-green-100 text-green-800';
+              statusText = 'Gmail Connected';
+            } else if (email.isConnected) {
+              statusClass = 'bg-yellow-100 text-yellow-800';
+              statusText = 'Permission Pending';
+            }
             
             const headerContent = (
               <div className="flex flex-wrap items-center gap-2">
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  isGmailConnected 
-                    ? 'bg-green-100 text-green-800' 
-                    : email.isConnected 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                }`}>
-                  {isGmailConnected 
-                    ? 'Gmail Connected' 
-                    : email.isConnected 
-                      ? 'Permission Pending' 
-                      : 'Not Connected'
-                  }
+                <span
+                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusClass}`}
+                >
+                  {statusText}
                 </span>
                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                   {pendingAlerts.length} Pending

@@ -5,7 +5,7 @@ import { authLimiter } from '../middleware/rateLimit.js';
 import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
 import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
 import { OAuth2Client } from 'google-auth-library';
 
@@ -129,7 +129,7 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
       audience: clientId
     });
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
+    if (!payload?.email) {
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
 
@@ -155,26 +155,24 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
       const business = businessResult.rows[0] as { id: number; business_name: string | null };
       businessId = business.id;
       user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
-    } else {
-      // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
-      if (!businessId) {
-        const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
-        if (ownerBusiness.rows.length > 0) {
-          const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
-          businessId = business.id;
-          user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
-        } else {
-          // User exists but has no business - create one for them with NULL name
-          // This handles edge case where user was created without a business
-          const businessResult = await query(
-            `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
-            [null, user.id]
-          );
-          const business = businessResult.rows[0] as { id: number; business_name: string | null };
-          businessId = business.id;
-          // Update user object with business info (normally comes from JOIN)
-          user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
-        }
+    } else if (!businessId) {
+    // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+      const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+      if (ownerBusiness.rows.length > 0) {
+        const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+      } else {
+        // User exists but has no business - create one for them with NULL name
+        // This handles edge case where user was created without a business
+        const businessResult = await query(
+          `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+          [null, user.id]
+        );
+        const business = businessResult.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        // Update user object with business info (normally comes from JOIN)
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
       }
     }
 

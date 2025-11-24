@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { emailsAPI } from "../utils/api";
 
 interface Email {
@@ -22,6 +22,7 @@ interface ConnectedEmailsDropdownProps {
 }
 
 const MAX_EMAILS = 5;
+const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);
@@ -31,20 +32,40 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const [error, setError] = useState("");
   const [bulkProgress, setBulkProgress] = useState<{ total: number; current: number; success: number; failed: number; errors: string[] } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: 'resend' | 'delete' | null }>({});
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Handle Escape key to close modal
+  // Open/close dialog using native API
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isModalOpen) {
+    if (isModalOpen) {
+      dialogRef.current?.showModal();
+    } else {
+      dialogRef.current?.close();
+    }
+  }, [isModalOpen]);
+
+  // Handle native dialog cancel event (Escape key)
+  const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault();
+    setIsModalOpen(false);
+  };
+
+  // Handle backdrop clicks (attach via useEffect to avoid linter warnings)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isModalOpen) return;
+
+    const handleBackdropClick = (e: MouseEvent) => {
+      // Check if click is on the dialog element itself (backdrop)
+      if (e.target === dialog) {
         setIsModalOpen(false);
       }
     };
 
-    if (isModalOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isModalOpen]);
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => {
+      dialog.removeEventListener("click", handleBackdropClick);
+    };
+  }, [isModalOpen, setIsModalOpen]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -61,58 +82,53 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   // Note: Basic client-side validation for UX only. Backend does comprehensive validation.
   const parseBulkEmails = (input: string): string[] => {
     const MAX_INPUT_SIZE = 10000; // Limit bulk input size to prevent DoS
-    
+
     // Limit input size to prevent DoS attacks
     if (input.length > MAX_INPUT_SIZE) {
       return [];
     }
-    
-    // Basic email format check (simple regex for UX feedback only)
-    // Backend does comprehensive RFC 5322 validation
-    const basicEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     const emails: string[] = [];
-    
+
     // Split by both commas and newlines, then filter and validate
     const parts = input
       .split(/[,\n]/)
       .map(part => part.trim())
       .filter(part => part.length > 0 && part.length <= 320); // Basic length check
-    
+
     for (const part of parts) {
       const normalized = part.toLowerCase().trim();
       // Basic format check - backend will do comprehensive validation
-      if (basicEmailRegex.test(normalized)) {
+      if (BASIC_EMAIL_REGEX.test(normalized)) {
         emails.push(normalized);
       }
     }
-    
+
     return [...new Set(emails)]; // Remove duplicates
   };
 
   const handleAddEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (isBulkMode) {
       await handleAddBulkEmails();
       return;
     }
-    
+
     // Check email limit
     if (emails.length >= MAX_EMAILS) {
       setError(`Maximum of ${MAX_EMAILS} emails allowed. Please remove an email before adding a new one.`);
       return;
     }
-    
+
     if (!newEmail.trim()) {
       setError("Email address is required");
       return;
     }
 
     // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail.trim())) {
+    if (!BASIC_EMAIL_REGEX.test(newEmail.trim())) {
       setError("Please enter a valid email address");
       return;
     }
@@ -120,11 +136,11 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     try {
       setIsAddingEmail(true);
       setError("");
-      
+
       console.log("Attempting to add email:", newEmail.trim());
       const result = await emailsAPI.addEmail({ emailAddress: newEmail.trim() });
       console.log("Add email result:", result);
-      
+
       setNewEmail("");
       onEmailsUpdate(); // Refresh the emails list
       setIsModalOpen(false); // Close modal after successful addition
@@ -136,6 +152,59 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     }
   };
 
+  const hasReachedEmailLimit = (parsedEmails: string[]) => {
+    // Check if adding these emails would exceed the limit
+    const currentCount = parsedEmails.length;
+    const availableSlots = MAX_EMAILS - emails.length;
+
+    if (availableSlots > 0 && currentCount > availableSlots) {
+      setError(`You can only add ${availableSlots} more ${availableSlots === 1 ? 'email' : 'emails'}. You have ${parsedEmails.length} ${parsedEmails.length === 1 ? 'email' : 'emails'} in your input.`);
+      return false;
+    } else if (availableSlots <= 0) {
+      setError(`You have reached the maximum number of emails allowed. You can only add ${MAX_EMAILS} emails.`);
+      return false;
+    }
+    return true;
+  };
+
+  const buildMessageForEmailLimit = (successCount: number, failedCount: number, warnings: string[], duplicates: string[]) => {
+    const messages: string[] = [];
+    if (successCount > 0) {
+      messages.push(`Successfully added ${successCount} ${successCount === 1 ? 'email' : 'emails'}.`);
+    }
+    if (duplicates.length > 0) {
+      messages.push(`Skipped ${duplicates.length} duplicate(s): ${duplicates.join(', ')}`);
+    }
+    if (failedCount > 0) {
+      messages.push(`Failed to send permission emails to ${failedCount} ${failedCount === 1 ? 'address' : 'addresses'}.`);
+    }
+    if (warnings.length > 0) {
+      messages.push(...warnings);
+    }
+
+    if (messages.length > 0) {
+      setError(messages.join('\n'));
+    }
+  };
+
+  const buildErrorMessage = (err: any) => {
+    const errorMessage = err?.message || "Failed to add emails";
+    const errorData = err?.errorData || {};
+
+    // Build detailed error message
+    let fullError = errorMessage;
+    if (errorData.duplicates && errorData.duplicates.length > 0) {
+      fullError += `\nDuplicates: ${errorData.duplicates.join(', ')}`;
+    }
+    if (errorData.availableSlots !== undefined) {
+      fullError += `\nAvailable slots: ${errorData.availableSlots}`;
+    }
+
+    setError(fullError);
+    setBulkProgress(null);
+    console.error("Bulk add email error:", err);
+  };
+
   const handleAddBulkEmails = async () => {
     if (!bulkEmails.trim()) {
       setError("Please enter at least one email address");
@@ -143,24 +212,14 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
     }
 
     const parsedEmails = parseBulkEmails(bulkEmails);
-    
+
     if (parsedEmails.length === 0) {
       setError("No valid email addresses found. Please check your input.");
       return;
     }
-
-    // Check if adding these emails would exceed the limit
-    const currentCount = parsedEmails.length;
-    const availableSlots = MAX_EMAILS - emails.length;
-    
-    if (availableSlots > 0 && currentCount > availableSlots) {
-      setError(`You can only add ${availableSlots} more ${availableSlots === 1 ? 'email' : 'emails'}. You have ${parsedEmails.length} ${parsedEmails.length === 1 ? 'email' : 'emails'} in your input.`);
-      return;
-    } else if (availableSlots <= 0) {
-      setError(`You have reached the maximum number of emails allowed. You can only add ${MAX_EMAILS} emails.`);
+    if (!hasReachedEmailLimit(parsedEmails)) {
       return;
     }
-
     try {
       setIsAddingEmail(true);
       setError("");
@@ -168,40 +227,23 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
 
       // Use the bulk API endpoint
       const result = await emailsAPI.addBulkEmails({ emailAddresses: parsedEmails });
-      
+
       const successCount = result.summary?.added || 0;
       const failedCount = result.summary?.permissionEmailsFailed || 0;
+      const warnings = result.warnings || [];
       const duplicates = result.duplicates || [];
-      
-      setBulkProgress({ 
-        total: parsedEmails.length, 
-        current: parsedEmails.length, 
-        success: successCount, 
-        failed: failedCount, 
+      buildMessageForEmailLimit(successCount, failedCount, warnings, duplicates);
+
+      setBulkProgress({
+        total: parsedEmails.length,
+        current: parsedEmails.length,
+        success: successCount,
+        failed: failedCount,
         errors: result.permissionEmailResults?.filter((r: { success: boolean }) => !r.success).map((r: { email: string; error?: string }) => `${r.email}: ${r.error || 'Failed to send permission email'}`) || []
       });
 
       if (successCount > 0) {
         onEmailsUpdate(); // Refresh the emails list
-      }
-
-      // Build success/error message
-      const messages: string[] = [];
-      if (successCount > 0) {
-        messages.push(`Successfully added ${successCount} ${successCount === 1 ? 'email' : 'emails'}.`);
-      }
-      if (duplicates.length > 0) {
-        messages.push(`Skipped ${duplicates.length} duplicate(s): ${duplicates.join(', ')}`);
-      }
-      if (failedCount > 0) {
-        messages.push(`Failed to send permission emails to ${failedCount} ${failedCount === 1 ? 'address' : 'addresses'}.`);
-      }
-      if (result.warnings && result.warnings.length > 0) {
-        messages.push(...result.warnings);
-      }
-
-      if (messages.length > 0) {
-        setError(messages.join('\n'));
       }
 
       if (successCount === parsedEmails.length && failedCount === 0) {
@@ -212,21 +254,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
         }, 2000);
       }
     } catch (err: any) {
-      const errorMessage = err?.message || "Failed to add emails";
-      const errorData = err?.errorData || {};
-      
-      // Build detailed error message
-      let fullError = errorMessage;
-      if (errorData.duplicates && errorData.duplicates.length > 0) {
-        fullError += `\nDuplicates: ${errorData.duplicates.join(', ')}`;
-      }
-      if (errorData.availableSlots !== undefined) {
-        fullError += `\nAvailable slots: ${errorData.availableSlots}`;
-      }
-      
-      setError(fullError);
-      setBulkProgress(null);
-      console.error("Bulk add email error:", err);
+      buildErrorMessage(err);
     } finally {
       setIsAddingEmail(false);
       setTimeout(() => setBulkProgress(null), 5000); // Clear progress after 5 seconds
@@ -236,7 +264,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const handleResendEmail = async (emailId: number, emailAddress: string) => {
     try {
       setActionLoading(prev => ({ ...prev, [emailId]: 'resend' }));
-      
+
       await emailsAPI.resendPermissionEmail(emailId);
       setError(""); // Clear any previous errors
     } catch (err) {
@@ -254,7 +282,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
 
     try {
       setActionLoading(prev => ({ ...prev, [emailId]: 'delete' }));
-      
+
       await emailsAPI.removeEmail(emailId);
       onEmailsUpdate(); // Refresh the emails list
       setError(""); // Clear any previous errors
@@ -265,6 +293,27 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       setActionLoading(prev => ({ ...prev, [emailId]: null }));
     }
   };
+  const getButtonText = (bulkEmailsCount: number = 0) => {
+    const emailsLength = emails.length;
+    if (isAddingEmail) {
+      return isBulkMode && bulkProgress
+        ? `Adding ${bulkProgress.current}/${bulkProgress.total}...`
+        : "Adding...";
+    }
+
+    if (emailsLength >= MAX_EMAILS) {
+      return "Limit Reached";
+    }
+
+    if (isBulkMode) {
+      const count = bulkEmailsCount;
+      return `Add ${count} ${count === 1 ? "Email" : "Emails"}`;
+    }
+
+    return "Add Email";
+  };
+
+
 
   // Only count emails that have Gmail OAuth connected
   const connectedEmails = emails.filter(email => {
@@ -273,6 +322,13 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   });
   const totalEmails = emails.length;
   const bulkEmailsCount = parseBulkEmails(bulkEmails).length;
+  const isDisabled =
+    isAddingEmail ||
+    emails.length >= MAX_EMAILS ||
+    (isBulkMode ? !bulkEmails.trim() : !newEmail.trim());
+
+  const buttonText = getButtonText(bulkEmailsCount);
+
   return (
     <div className="bg-white overflow-hidden shadow rounded-lg">
       <div className="p-5">
@@ -303,24 +359,23 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
         </div>
 
         {/* Modal */}
-        {isModalOpen && (
-          <div 
-            className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                setIsModalOpen(false);
-              }
-            }}
-          >
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <dialog
+          ref={dialogRef}
+          onCancel={handleDialogCancel}
+          className="bg-transparent w-11/12 md:w-3/4 lg:w-1/2 rounded-md shadow-lg"
+          aria-labelledby="email-modal-title"
+          aria-describedby="email-modal-description"
+        >
+          <div className="relative border rounded-md bg-white p-5">
               {/* Modal Header */}
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 id="email-modal-title" className="text-lg font-medium text-gray-900">
                   Email Monitoring Details
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+                  aria-label="Close dialog"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -329,7 +384,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
               </div>
 
               {/* Modal Content */}
-              <div className="space-y-4">
+              <div id="email-modal-description" className="space-y-4">
                 {emails.length > 0 ? (
                   emails.map((email) => (
                     <div key={email.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -341,7 +396,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                           {(() => {
                             const oauthStatus = oauthStatuses[email.emailAddress];
                             const isGmailConnected = oauthStatus?.isConnected || false;
-                            
+
                             if (isGmailConnected) {
                               return (
                                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -371,7 +426,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                         {(() => {
                           const oauthStatus = oauthStatuses[email.emailAddress];
                           const isGmailConnected = oauthStatus?.isConnected || false;
-                          
+
                           // Only show resend button if Gmail is not connected
                           if (!isGmailConnected) {
                             return (
@@ -487,36 +542,27 @@ email2@example.com, email3@example.com`}
                         )}
                       </div>
                     )}
-                    
+
                     {error && (
                       <div className="text-red-600 text-sm whitespace-pre-line">
-                        {error.split('\n').map((line, i) => (
-                          <div key={i}>{line}</div>
+                        {error.split('\n').map((line) => (
+                          <div key={crypto.randomUUID()}>{line}</div>
                         ))}
                       </div>
                     )}
-                    
+
                     <button
                       type="submit"
-                      disabled={isAddingEmail || emails.length >= MAX_EMAILS || (isBulkMode ? !bulkEmails.trim() : !newEmail.trim())}
+                      disabled={isDisabled}
                       className="w-full bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isAddingEmail 
-                        ? (isBulkMode && bulkProgress 
-                            ? `Adding ${bulkProgress.current}/${bulkProgress.total}...` 
-                            : "Adding...") 
-                        : emails.length >= MAX_EMAILS 
-                          ? "Limit Reached" 
-                          : isBulkMode 
-                            ? `Add ${bulkEmails.trim() ? bulkEmailsCount : 0} ${bulkEmailsCount === 1 ? 'Email' : 'Emails'}` 
-                            : "Add Email"}
+                      {buttonText}
                     </button>
                   </form>
                 </div>
               </div>
-            </div>
           </div>
-        )}
+        </dialog>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@
  */
 
 // Import authentication types from email auth detector
-import type { 
+import type {
   AuthenticationResults,
   SPFResult,
   DKIMResult,
@@ -22,7 +22,7 @@ import type { LinkAnalysis } from '../services/detector/linkAnalyzer.js';
 import type { AttachmentAnalysis } from '../services/detector/attachmentAnalyzer.js';
 
 // Re-export authentication types
-export type { 
+export type {
   AuthenticationResults,
   SPFResult,
   DKIMResult,
@@ -161,7 +161,7 @@ export interface SecurityEvent {
   readonly timestamp: Date;
 }
 
-export type SecurityEventType = 
+export type SecurityEventType =
   | 'email_approved'
   | 'email_declined'
   | 'permission_email_sent'
@@ -272,10 +272,8 @@ export interface PermissionRequestParams {
   readonly businessName: string;
   readonly emailAddress: string;
   readonly businessEmail: string;
-  readonly emailId: number;
   readonly businessId: number;
   readonly approvalToken: string;
-  readonly declineToken: string;
 }
 
 export interface ThreatAlertParams {

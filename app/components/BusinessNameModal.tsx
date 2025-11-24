@@ -16,20 +16,106 @@ export default function BusinessNameModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const allowCloseRef = useRef(false);
 
-  // Focus input when modal opens
+  // Open/close dialog using native API
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+    if (isOpen) {
+      allowCloseRef.current = false; // Reset allow close when opening
+      dialogRef.current?.showModal();
+      // Focus input when modal opens
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 0);
+    } else {
+      // Allow closing when isOpen becomes false (explicit close from parent)
+      allowCloseRef.current = true;
+      dialogRef.current?.close();
     }
   }, [isOpen]);
 
-  // Reset form when modal opens/closes
+  // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       setBusinessName("");
       setError("");
     }
+  }, [isOpen]);
+
+  const handleDialogCancel = (e: React.SyntheticEvent<HTMLDialogElement>) => {
+    e.preventDefault(); // Always prevent default close behavior
+    e.stopPropagation(); // Stop event propagation
+    // Modal should only close via explicit user action (Save button)
+  };
+
+  // Prevent dialog from closing via Escape key or backdrop clicks
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isOpen) return;
+
+    // Store original close method
+    const originalClose = dialog.close.bind(dialog);
+    
+    // Override close method to prevent unauthorized closing
+    dialog.close = function() {
+      if (allowCloseRef.current) {
+        originalClose();
+        allowCloseRef.current = false; // Reset after closing
+      }
+      // Otherwise, ignore the close call
+    };
+
+    // Intercept Escape key presses at multiple levels
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && dialog.hasAttribute('open')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    };
+
+    // Also intercept on the dialog element itself
+    const handleDialogKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    };
+
+    // Watch for 'open' attribute changes and reopen if closed unexpectedly
+    const observer = new MutationObserver(() => {
+      if (!dialog.hasAttribute('open') && isOpen) {
+        setTimeout(() => {
+          dialog.showModal();
+        }, 0);
+      }
+    });
+
+    observer.observe(dialog, {
+      attributes: true,
+      attributeFilter: ['open'],
+    });
+
+    // Add event listeners
+    document.addEventListener('keydown', handleKeyDown, true);
+    dialog.addEventListener('keydown', handleDialogKeyDown, true);
+    dialog.addEventListener('cancel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }, true);
+
+    return () => {
+      // Restore original close method
+      dialog.close = originalClose;
+      document.removeEventListener('keydown', handleKeyDown, true);
+      dialog.removeEventListener('keydown', handleDialogKeyDown, true);
+      observer.disconnect();
+    };
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -46,7 +132,8 @@ export default function BusinessNameModal({
 
       await businessAPI.updateBusiness({ name: businessName.trim() });
       
-      // Success - close modal and refresh dashboard
+      // Success - allow closing and close modal, then refresh dashboard
+      allowCloseRef.current = true;
       onSuccess();
       onClose();
     } catch (err) {
@@ -60,18 +147,16 @@ export default function BusinessNameModal({
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={handleDialogCancel}
+      className="bg-transparent p-4 max-w-md w-full rounded-lg shadow-xl"
       aria-labelledby="business-name-modal-title"
       aria-describedby="business-name-modal-description"
     >
       <div
-        className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        className="relative bg-white rounded-lg w-full p-6"
       >
         {/* Modal Header */}
         <h2
@@ -163,7 +248,7 @@ export default function BusinessNameModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 

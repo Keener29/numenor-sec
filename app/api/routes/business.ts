@@ -179,11 +179,11 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
 
     res.json({
       stats: {
-        totalEmails: parseInt((emailsResult.rows[0] as { count: string }).count),
-        connectedEmails: parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
-        totalAlerts: parseInt((alertsResult.rows[0] as { count: string }).count),
-        pendingAlerts: parseInt((pendingAlertsResult.rows[0] as { count: string }).count),
-        recentAlerts: parseInt((recentAlertsResult.rows[0] as { count: string }).count)
+        totalEmails: Number.parseInt((emailsResult.rows[0] as { count: string }).count),
+        connectedEmails: Number.parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
+        totalAlerts: Number.parseInt((alertsResult.rows[0] as { count: string }).count),
+        pendingAlerts: Number.parseInt((pendingAlertsResult.rows[0] as { count: string }).count),
+        recentAlerts: Number.parseInt((recentAlertsResult.rows[0] as { count: string }).count)
       }
     });
   } catch (error) {

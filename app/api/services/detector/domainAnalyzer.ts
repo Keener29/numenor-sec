@@ -8,6 +8,7 @@ import fastLevenshtein from 'fast-levenshtein';
 const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
+import { extractEmailAddress } from '../../utils/emailUtils.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
@@ -37,7 +38,7 @@ export const KNOWN_BRAND_DOMAINS = [
   // Tech Companies
   'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com', 'twitter.com',
   'linkedin.com', 'instagram.com', 'youtube.com', 'youtu.be', 'netflix.com', 'spotify.com',
-  'fitbit.com',
+  'fitbit.com', 'mailsuite.com',
   
   // Financial Services
   'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com', 'chase.com',
@@ -206,7 +207,7 @@ export function detectTyposquatting(domain: string): TyposquattingResult {
     // Early exits
     if (!distance || distance > 2) continue;
     if (Math.abs(domainName.length - brandName.length) > 2) continue;
-    if (domainName[0] !== brandName[0]) continue; // must start similarly
+    if (!domainName.startsWith(brandName[0])) continue; // must start similarly
     if (ratio >= 0.34) continue; // normalized distance too big
 
     return {
@@ -303,7 +304,7 @@ export function isIPAddress(hostname: string): boolean {
   // Validate that each octet is between 0-255
   const octets = hostname.split('.');
   for (const octet of octets) {
-    const num = parseInt(octet, 10);
+    const num = Number.parseInt(octet, 10);
     if (num < 0 || num > 255) {
       return false;
     }
@@ -320,17 +321,27 @@ export function extractDomain(input: string): string | null {
     return null;
   }
   
+  // Prevent DoS by limiting input size (email headers can be long but 2KB should be sufficient)
+  const MAX_INPUT_LENGTH = 2048;
+  if (input.length > MAX_INPUT_LENGTH) {
+    return null;
+  }
+  
   try {
     // If it's an email address
     if (input.includes('@')) {
-      const emailMatch = input.match(/<([^>]+)>/) || [input];
-      const email = emailMatch[1] || emailMatch[0];
-      const parts = email.split('@');
-      if (parts.length !== 2 || !parts[1]) {
+      const emailAddress = extractEmailAddress(input);
+      if (!emailAddress) {
         return null;
       }
-      const domain = parts[1];
-      return domain ? domain.toLowerCase() : null;
+      const parts = emailAddress.split('@');
+      if (parts.length !== 2) {
+        return null;
+      }
+      if(parts[1].trim() === '') {
+        return null;
+      }
+      return parts[1].toLowerCase().trim();
     }
     
     // If it's a URL

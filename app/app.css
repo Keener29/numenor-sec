@@ -95,4 +95,9 @@ body {
   .badge-pending {
     @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800;
   }
+
+  /* Dialog backdrop styling */
+  dialog::backdrop {
+    background-color: rgba(75, 85, 99, 0.5); /* gray-600 with 50% opacity */
+  }
 }

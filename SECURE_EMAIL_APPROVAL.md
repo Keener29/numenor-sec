@@ -45,6 +45,7 @@ The Numenor Security platform implements a secure email approval/decline system 
 ## Security Features
 
 ### 1. Email Input Security
+
 - **RFC 5322 Validation**: Comprehensive email format validation
 - **Input Sanitization**: Dangerous characters blocked (XSS protection)
 - **Length Limits**: Max 320 characters per email (RFC 5321)
@@ -55,6 +56,7 @@ The Numenor Security platform implements a secure email approval/decline system 
 ### 2. Cryptographic Token System
 
 #### Token Generation
+
 ```typescript
 generateApprovalToken(emailId: number, businessId: number): string {
   const payload = `approve_${emailId}_${businessId}_${Date.now()}`;
@@ -65,6 +67,7 @@ generateApprovalToken(emailId: number, businessId: number): string {
 ```
 
 #### Token Structure
+
 - **Action**: `approve` or `decline`
 - **Email ID**: Unique identifier for the monitored email
 - **Business ID**: Business requesting monitoring
@@ -72,6 +75,7 @@ generateApprovalToken(emailId: number, businessId: number): string {
 - **HMAC Hash**: Cryptographic signature for integrity
 
 #### Token Validation
+
 - **Expiration**: Tokens expire after 24 hours
 - **Integrity**: HMAC-SHA256 hash verification
 - **Ownership**: Validates email belongs to business
@@ -80,15 +84,21 @@ generateApprovalToken(emailId: number, businessId: number): string {
 ### 2. Form-Based Security
 
 #### HTML Form Implementation
+
 ```html
 <form method="POST" action="/api/emails/123/approve">
-  <input type="hidden" name="businessId" value="456">
-  <input type="hidden" name="token" value="approve_123_456_1234567890_abc123...">
+  <input type="hidden" name="businessId" value="456" />
+  <input
+    type="hidden"
+    name="token"
+    value="approve_123_456_1234567890_abc123..."
+  />
   <button type="submit">✅ Grant Permission</button>
 </form>
 ```
 
 #### Security Benefits
+
 - **CSRF Protection**: Hidden tokens prevent cross-site attacks
 - **POST Requests**: Prevents URL-based exploitation
 - **Server Validation**: All tokens validated server-side
@@ -98,20 +108,25 @@ generateApprovalToken(emailId: number, businessId: number): string {
 ### 3. Duplicate Action Prevention
 
 #### Protection Against Multiple Actions
+
 The system prevents duplicate or conflicting actions by checking the current state before processing:
 
 **Approval Protection:**
+
 - ✅ **First Approval**: Processes normally, sets `is_connected = true`
 - ❌ **Duplicate Approval**: Shows "Already Approved" message, logs attempt
 - ❌ **Approval After Decline**: Shows "Already Declined" message, logs attempt
 
 **Decline Protection:**
+
 - ✅ **First Decline**: Processes normally, removes email from monitoring
 - ❌ **Duplicate Decline**: Shows "Already Declined" message, logs attempt
 - ❌ **Decline After Approval**: Shows "Cannot Decline" message, logs attempt
 
 #### Security Event Logging
+
 All duplicate action attempts are logged for security monitoring:
+
 ```sql
 -- Duplicate approval attempt
 INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
@@ -129,13 +144,14 @@ VALUES ($1, 'decline_after_approval_attempt', $2, $3, $4);
 ### 4. Database Security
 
 #### Approval Process
+
 ```sql
 -- Verify email ownership
-SELECT id, email_address FROM monitored_emails 
+SELECT id, email_address FROM monitored_emails
 WHERE id = $1 AND business_id = $2;
 
 -- Update connection status
-UPDATE monitored_emails 
+UPDATE monitored_emails
 SET is_connected = true, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND business_id = $2;
 
@@ -145,13 +161,14 @@ VALUES ($1, 'email_approved', $2, $3, $4);
 ```
 
 #### Decline Process
+
 ```sql
 -- Get email info for logging
-SELECT id, email_address FROM monitored_emails 
+SELECT id, email_address FROM monitored_emails
 WHERE id = $1 AND business_id = $2;
 
 -- Remove from monitoring
-DELETE FROM monitored_emails 
+DELETE FROM monitored_emails
 WHERE id = $1 AND business_id = $2;
 
 -- Log security event
@@ -209,6 +226,7 @@ User Action → Token Validation → Business Verification → Database Update �
 **Purpose**: Approve email monitoring request
 
 **Request Body**:
+
 ```json
 {
   "businessId": 123,
@@ -217,6 +235,7 @@ User Action → Token Validation → Business Verification → Database Update �
 ```
 
 **Response**:
+
 ```json
 {
   "message": "Email monitoring approved successfully",
@@ -225,6 +244,7 @@ User Action → Token Validation → Business Verification → Database Update �
 ```
 
 **Security Checks**:
+
 - Token format validation
 - HMAC signature verification
 - Expiration time checking
@@ -236,6 +256,7 @@ User Action → Token Validation → Business Verification → Database Update �
 **Purpose**: Decline email monitoring request
 
 **Request Body**:
+
 ```json
 {
   "businessId": 123,
@@ -244,6 +265,7 @@ User Action → Token Validation → Business Verification → Database Update �
 ```
 
 **Response**:
+
 ```json
 {
   "message": "Email monitoring declined successfully",
@@ -252,26 +274,48 @@ User Action → Token Validation → Business Verification → Database Update �
 ```
 
 **Security Checks**:
+
 - Same validation as approve endpoint
 - Additional confirmation for deletion
 
 ## Email Template
 
 ### HTML Version
+
 ```html
 <div style="text-align: center; margin: 30px 0;">
-  <form method="POST" action="https://api.numenorsecurity.com/api/emails/123/approve">
-    <input type="hidden" name="businessId" value="456">
-    <input type="hidden" name="token" value="approve_123_456_1234567890_abc123...">
-    <button type="submit" style="background-color: #10b981; color: white; padding: 12px 24px; border-radius: 6px;">
+  <form
+    method="POST"
+    action="https://api.numenorsecurity.com/api/emails/123/approve"
+  >
+    <input type="hidden" name="businessId" value="456" />
+    <input
+      type="hidden"
+      name="token"
+      value="approve_123_456_1234567890_abc123..."
+    />
+    <button
+      type="submit"
+      style="background-color: #10b981; color: white; padding: 12px 24px; border-radius: 6px;"
+    >
       ✅ Grant Permission
     </button>
   </form>
-  
-  <form method="POST" action="https://api.numenorsecurity.com/api/emails/123/decline">
-    <input type="hidden" name="businessId" value="456">
-    <input type="hidden" name="token" value="decline_123_456_1234567890_def456...">
-    <button type="submit" style="background-color: #dc2626; color: white; padding: 12px 24px; border-radius: 6px;">
+
+  <form
+    method="POST"
+    action="https://api.numenorsecurity.com/api/emails/123/decline"
+  >
+    <input type="hidden" name="businessId" value="456" />
+    <input
+      type="hidden"
+      name="token"
+      value="decline_123_456_1234567890_def456..."
+    />
+    <button
+      type="submit"
+      style="background-color: #dc2626; color: white; padding: 12px 24px; border-radius: 6px;"
+    >
       ❌ Deny Permission
     </button>
   </form>
@@ -279,11 +323,12 @@ User Action → Token Validation → Business Verification → Database Update �
 ```
 
 ### Text Version
+
 ```
 To respond, please visit one of these secure links:
-- Grant Permission: https://api.numenorsecurity.com/api/emails/123/approve 
+- Grant Permission: https://api.numenorsecurity.com/api/emails/123/approve
   (POST with businessId: 456, token: approve_123_456_1234567890_abc123...)
-- Deny Permission: https://api.numenorsecurity.com/api/emails/123/decline 
+- Deny Permission: https://api.numenorsecurity.com/api/emails/123/decline
   (POST with businessId: 456, token: decline_123_456_1234567890_def456...)
 ```
 
@@ -292,18 +337,21 @@ To respond, please visit one of these secure links:
 ### 1. Token Security
 
 **Strengths**:
+
 - HMAC-SHA256 cryptographic signatures
 - Time-based expiration (24 hours)
 - Unique per request
 - Server-side validation only
 
 **Protections**:
+
 - Prevents token forgery
 - Limits exposure window
 - Prevents replay attacks
 - Ensures server control
 
 **24-Hour Expiration Rationale**:
+
 - **Security**: Minimizes attack window if email is compromised
 - **Business Context**: Covers standard business hours + overnight
 - **User Experience**: Provides reasonable time for decision-making
@@ -313,31 +361,41 @@ To respond, please visit one of these secure links:
 ### 2. Input Validation
 
 **Parameter Validation**:
+
 ```typescript
 if (!businessId || !token) {
-  return res.status(400).json({ error: 'Missing required parameters' });
+  return res.status(400).json({ error: "Missing required parameters" });
 }
 
-if (!tokenService.validateApprovalToken(token, parseInt(emailId), businessId)) {
-  return res.status(403).json({ error: 'Invalid or expired approval token' });
+if (
+  !tokenService.validateApprovalToken(
+    token,
+    Number.parseInt(emailId),
+    businessId
+  )
+) {
+  return res.status(403).json({ error: "Invalid or expired approval token" });
 }
 ```
 
 **Database Validation**:
+
 ```sql
-SELECT id, email_address FROM monitored_emails 
+SELECT id, email_address FROM monitored_emails
 WHERE id = $1 AND business_id = $2;
 ```
 
 ### 3. Audit Logging
 
 **Security Events**:
+
 - `email_approved`: Successful approval
 - `email_declined`: Successful decline
 - `permission_email_sent`: Email sent
 - `permission_email_resent`: Email resent
 
 **Logged Information**:
+
 - Business ID
 - Email address
 - IP address
@@ -376,6 +434,7 @@ openssl rand -hex 32
 ### Common Error Responses
 
 **Invalid Token**:
+
 ```json
 {
   "error": "Invalid or expired approval token"
@@ -383,6 +442,7 @@ openssl rand -hex 32
 ```
 
 **Missing Parameters**:
+
 ```json
 {
   "error": "Missing required parameters"
@@ -390,6 +450,7 @@ openssl rand -hex 32
 ```
 
 **Email Not Found**:
+
 ```json
 {
   "error": "Email not found"
@@ -397,6 +458,7 @@ openssl rand -hex 32
 ```
 
 **Business Not Found**:
+
 ```json
 {
   "error": "Business not found"
@@ -406,24 +468,28 @@ openssl rand -hex 32
 ## Best Practices
 
 ### 1. Token Management
+
 - Use strong, random TOKEN_SECRET
 - Rotate secrets regularly
 - Monitor token usage patterns
 - Implement rate limiting
 
 ### 2. Email Security
+
 - Use HTTPS for all communications
 - Implement SPF, DKIM, DMARC
 - Monitor email delivery rates
 - Handle bounce notifications
 
 ### 3. Database Security
+
 - Use parameterized queries
 - Implement connection pooling
 - Regular security audits
 - Backup and recovery procedures
 
 ### 4. Monitoring
+
 - Log all security events
 - Monitor failed token validations
 - Track approval/decline rates
@@ -434,17 +500,20 @@ openssl rand -hex 32
 ### Common Issues
 
 **Token Expired**:
+
 - Check system time synchronization
 - Verify TOKEN_SECRET consistency
 - Review token generation timestamp
 
 **Email Not Delivered**:
+
 - Verify SMTP configuration
 - Check spam filters
 - Validate email addresses
 - Monitor delivery logs
 
 **Database Errors**:
+
 - Check connection strings
 - Verify table permissions
 - Review query syntax
@@ -453,6 +522,7 @@ openssl rand -hex 32
 ### Debug Mode
 
 Enable debug logging by setting:
+
 ```bash
 NODE_ENV=development
 DEBUG=numenor:email:*
@@ -480,6 +550,7 @@ DEBUG=numenor:email:*
 The secure email approval/decline system provides a robust, cryptographically secure method for managing email monitoring permissions. By implementing HMAC-SHA256 tokens, form-based security, and comprehensive validation, the system ensures that only authorized individuals can approve monitoring requests while maintaining strong security controls and audit trails.
 
 The system is designed to be:
+
 - **Secure**: Cryptographic token validation
 - **User-Friendly**: Simple one-click approval/decline
 - **Auditable**: Comprehensive logging

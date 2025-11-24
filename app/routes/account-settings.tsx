@@ -5,7 +5,7 @@ import { authAPI } from "../utils/api";
 import DeleteAccountCard from "../components/DeleteAccountCard";
 import { googleLogout } from "@react-oauth/google";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Account Settings - Numenor Security" },
     { name: "description", content: "Manage your account settings" },

@@ -13,7 +13,7 @@ import DeleteAccountCard from "../components/DeleteAccountCard";
 import BusinessNameModal from "../components/BusinessNameModal";
 import { googleLogout } from "@react-oauth/google";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   // return metadata for the dashboard
   return [
     { title: "Dashboard - Numenor Security" },
@@ -53,6 +53,7 @@ const processChartData = (dailyAlerts: any[]) => {
     console.log(`Date: ${dateString}, Day: ${dayName}, Alerts: ${alertCount}`);
     
     chartData.push({
+      uuid: crypto.randomUUID(),
       day: dayName,
       alerts: alertCount
     });
@@ -62,7 +63,6 @@ const processChartData = (dailyAlerts: any[]) => {
 };
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
-  const navigate = useNavigate();
   const [emails, setEmails] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
@@ -76,7 +76,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user;
 
   // Use the OAuth statuses hook
-  const { oauthStatuses, isLoading: oauthLoading, error: oauthError, refreshOAuthStatuses } = useOAuthStatuses(emails);
+  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails);
 
   // Load dashboard data on component mount
   useEffect(() => {

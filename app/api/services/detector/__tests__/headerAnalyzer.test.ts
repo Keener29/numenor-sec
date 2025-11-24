@@ -33,9 +33,8 @@ describe('HeaderAnalyzerService', () => {
         'date': 'Mon, 1 Jan 2024 12:00:00 GMT'
         // Missing: from, return-path, message-id, received
       };
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external-domain.com',
         1
       );
@@ -61,9 +60,8 @@ describe('HeaderAnalyzerService', () => {
         rows: [{ count: '1' }],
         rowCount: 1
       });
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@company.com',
         1
       );
@@ -83,8 +81,8 @@ describe('HeaderAnalyzerService', () => {
         // Missing headers
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'user@localhost',
         1
       );
@@ -98,9 +96,8 @@ describe('HeaderAnalyzerService', () => {
         'subject': 'Test Email'
         // Missing headers
       };
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'user@127.0.0.1',
         1
       );
@@ -119,8 +116,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'legitimate@company.com',
         1
       );
@@ -139,8 +136,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'john@company.com',
         1
       );
@@ -159,8 +156,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'user@localhost',
         1
       );
@@ -180,8 +177,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'legitimate@company.com',
         1
       );
@@ -201,8 +198,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'user@localhost',
         1
       );
@@ -228,9 +225,8 @@ describe('HeaderAnalyzerService', () => {
         rows: [{ count: '1' }],
         rowCount: 1
       });
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@company.com',
         1
       );
@@ -253,8 +249,8 @@ describe('HeaderAnalyzerService', () => {
         // Missing user-agent
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -289,8 +285,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -326,8 +322,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -350,8 +346,8 @@ describe('HeaderAnalyzerService', () => {
         rowCount: 1
       });
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@company.com',
         1
       );
@@ -374,9 +370,8 @@ describe('HeaderAnalyzerService', () => {
         rows: [{ count: '0' }],
         rowCount: 1
       });
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -392,9 +387,9 @@ describe('HeaderAnalyzerService', () => {
 
       // Mock database error
       mockQuery.mockRejectedValueOnce(new Error('Database connection failed'));
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@company.com',
         1
       );
@@ -409,8 +404,8 @@ describe('HeaderAnalyzerService', () => {
         'subject': 'Test Email'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'invalid-email',
         1
       );
@@ -515,9 +510,8 @@ describe('HeaderAnalyzerService', () => {
   describe('edge cases', () => {
     it('should handle empty headers object', async () => {
       const headers = {};
-
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -536,9 +530,9 @@ describe('HeaderAnalyzerService', () => {
         'message-id': '',
         'return-path': '   ' // whitespace only
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -558,9 +552,9 @@ describe('HeaderAnalyzerService', () => {
         'RETURN-PATH': '<sender@external.com>',
         'RECEIVED': 'from external.com'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com',
         1
       );
@@ -577,8 +571,8 @@ describe('HeaderAnalyzerService', () => {
         'subject': 'Test Email'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@external.com'
         // No businessId provided
       );
@@ -598,9 +592,9 @@ describe('HeaderAnalyzerService', () => {
         'received': 'from microsfft.com',
         'user-agent': 'Mozilla/5.0'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@microsfft.com',
         1
       );
@@ -617,9 +611,9 @@ describe('HeaderAnalyzerService', () => {
         'return-path': '<sender@microsfot.com>',
         'received': 'from microsfot.com'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@microsfot.com',
         1
       );
@@ -636,9 +630,9 @@ describe('HeaderAnalyzerService', () => {
         'return-path': '<sender@аpple.com>',
         'received': 'from аpple.com'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@аpple.com',
         1
       );
@@ -659,9 +653,9 @@ describe('HeaderAnalyzerService', () => {
         'return-path': '<sender@gοοgle.com>',
         'received': 'from gοοgle.com'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@gοοgle.com',
         1
       );
@@ -682,9 +676,9 @@ describe('HeaderAnalyzerService', () => {
         'return-path': '<sender@paypa1.com>',
         'received': 'from paypa1.com'
       };
+      headerAnalyzerService.headers = headers;
 
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@paypa1.com',
         1
       );
@@ -707,8 +701,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@micr0s0ft.com',
         1
       );
@@ -728,8 +722,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@legitimate-company.com',
         1
       );
@@ -748,8 +742,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@temp-mail.com',
         1
       );
@@ -768,8 +762,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@disposable-email.com',
         1
       );
@@ -788,8 +782,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
+      headerAnalyzerService.headers = headers;
       const result = await headerAnalyzerService.analyzeHeaders(
-        headers,
         'sender@completely-different.com',
         1
       );
@@ -835,7 +829,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
-      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+      headerAnalyzerService.headers = headers;
+      const analysis = await headerAnalyzerService.analyzeHeaders('noreply@officepoolstop.com', 1);
 
       // Should detect the domain mismatch but with low risk for legitimate service
       expect(analysis.risks).toContain('From (officepoolstop.com) != Return-Path (us-east-2.amazonses.com) - sent via trusted mail service');
@@ -851,7 +846,8 @@ describe('HeaderAnalyzerService', () => {
         'user-agent': 'Mozilla/5.0'
       };
 
-      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'support@mybusiness.com');
+      headerAnalyzerService.headers = headers;
+      const analysis = await headerAnalyzerService.analyzeHeaders('support@mybusiness.com', 1);
 
       expect(analysis.risks).toContain('From (mybusiness.com) != Return-Path (sendgrid.net) - sent via trusted mail service');
       expect(analysis.score).toBeLessThan(20);
@@ -866,7 +862,8 @@ describe('HeaderAnalyzerService', () => {
         // No User-Agent header
       };
 
-      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+      headerAnalyzerService.headers = headers;
+      const analysis = await headerAnalyzerService.analyzeHeaders('noreply@officepoolstop.com', 1);
 
       expect(analysis.risks).toContain('User-Agent header missing - common for email services');
       expect(analysis.score).toBeLessThanOrEqual(15); // Lower penalty than normal (15 vs 30+ for non-legitimate services)
@@ -880,7 +877,8 @@ describe('HeaderAnalyzerService', () => {
         'received': 'from mail-server.example.com'
       };
 
-      const analysis = await headerAnalyzerService.analyzeHeaders(headers, 'noreply@officepoolstop.com');
+      headerAnalyzerService.headers = headers;
+      const analysis = await headerAnalyzerService.analyzeHeaders('noreply@officepoolstop.com', 1);
       const recommendations = headerAnalyzerService.generateHeaderRecommendations(analysis);
 
       expect(recommendations).toContain('From and Return-Path domains differ - this is normal when using legitimate email services like Amazon SES, SendGrid, etc.');

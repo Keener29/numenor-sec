@@ -27,12 +27,12 @@ const router = Router();
  */
 router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema), async (req: AuthRequest, res, next) => {
   try {
-    const accountId = parseInt(req.params.accountId, 10);
+    const accountId = Number.parseInt(req.params.accountId, 10);
     const currentUserId = req.user!.id;
     const { reason } = req.body as { reason?: string };
 
     // Validate accountId
-    if (isNaN(accountId)) {
+    if (Number.isNaN(accountId)) {
       return res.status(400).json({ error: 'Invalid account ID' });
     }
 
@@ -64,7 +64,7 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
        WHERE u.id = $1`,
       [accountId]
     );
-    
+
     const userDetails = userDetailsResult.rows[0] as {
       email: string;
       first_name: string;
@@ -72,7 +72,7 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
       business_name: string | null;
     } | undefined;
 
-    if (reason && reason.trim() && userDetails) {
+    if (reason?.trim() && userDetails) {
       await query(
         `INSERT INTO account_deletions (user_email, user_name, business_name, reason, deleted_at)
          VALUES ($1, $2, $3, $4, NOW())`,

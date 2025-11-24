@@ -3,8 +3,9 @@ import { phishingDetector, type EmailAnalysis } from './detector/phishingDetecto
 import { emailService } from './emailService.js';
 import { gmailOAuthService } from './oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from './logger.js';
-import { isFromOwnService } from '../utils/emailUtils.js';
+import { extractEmailAddress, isFromOwnService } from '../utils/emailUtils.js';
 import type { ThreatAssessment } from '../types/email.js';
+import type { DraftContentOptions } from './oauth/gmail/types.js';
 
 interface MonitoredEmail {
   id: number;
@@ -116,7 +117,7 @@ class EmailMonitor {
   private async performEmailScan(): Promise<void> {
     try {
       const connectedEmails = await this.getConnectedEmails();
-      
+
       if (connectedEmails.length === 0) {
         monitoringLogger.info('No connected emails to monitor', {
           operation: 'email-scan'
@@ -139,7 +140,7 @@ class EmailMonitor {
 
       // Log scan completion
       await this.logScanCompletion(connectedEmails.length);
-      
+
     } catch (error) {
       monitoringLogger.error('Error during email scan', {
         operation: 'email-scan'
@@ -253,11 +254,11 @@ class EmailMonitor {
       // Use the most recent timestamp: either last check or OAuth connection
       // This creates a time window to avoid reprocessing the same emails
       let timestampToUse = connectionTimestamp;
-      
+
       if (email.lastChecked) {
         // Use the more recent timestamp to avoid reprocessing emails from previous scans
         timestampToUse = email.lastChecked > connectionTimestamp ? email.lastChecked : connectionTimestamp;
-        
+
         monitoringLogger.debug('Fetching emails after last check time', {
           operation: 'fetch-new-emails',
           emailAddress: email.emailAddress,
@@ -335,7 +336,7 @@ class EmailMonitor {
         operation: 'fetch-new-emails',
         emailAddress: email.emailAddress
       }, error instanceof Error ? error : new Error(String(error)));
-      
+
       // If OAuth fails, return empty results
       monitoringLogger.warn('OAuth failed, returning empty results', {
         operation: 'fetch-new-emails',
@@ -350,7 +351,7 @@ class EmailMonitor {
    * Process a single email message for phishing detection
    */
   private async processEmailMessage(
-    monitoredEmail: MonitoredEmail, 
+    monitoredEmail: MonitoredEmail,
     emailMessage: EmailMessage
   ): Promise<void> {
     try {
@@ -362,9 +363,9 @@ class EmailMonitor {
           sender: emailMessage.sender
         }
       });
-
+      const emailAddress = extractEmailAddress(emailMessage.sender);
       // Skip analysis for emails from our own service (localhost, 127.0.0.1, etc.)
-      if (isFromOwnService(emailMessage.sender)) {
+      if (isFromOwnService(emailAddress)) {
         monitoringLogger.debug('Skipping analysis for email from own service', {
           operation: 'process-email-message',
           emailAddress: monitoredEmail.emailAddress,
@@ -380,7 +381,7 @@ class EmailMonitor {
       const emailData: EmailAnalysis = {
         subject: emailMessage.subject,
         body: emailMessage.body,
-        sender: emailMessage.sender,
+        sender: emailAddress || '',
         recipient: emailMessage.recipient,
         attachments: emailMessage.attachments,
         links: emailMessage.links,
@@ -401,7 +402,7 @@ class EmailMonitor {
         }
       });
 
-      if (['medium', 'high', 'critical'].includes(threatAssessment.threatLevel)) {
+      if (['high', 'critical'].includes(threatAssessment.threatLevel)) {
         await this.injectPhishingBannerIntoEmail(monitoredEmail, emailMessage, threatAssessment);
 
         // Store threat assessment for high/critical threats
@@ -493,8 +494,8 @@ class EmailMonitor {
     if (threatAssessment.riskFactors.length > 0 && reasonParts.length === 0) {
       reasonParts.push(threatAssessment.riskFactors[0]);
     }
-    const reason = reasonParts.length > 0 
-      ? reasonParts.join('; ') 
+    const reason = reasonParts.length > 0
+      ? reasonParts.join('; ')
       : `${threatAssessment.threatLevel} threat level detected`;
 
     try {
@@ -504,7 +505,7 @@ class EmailMonitor {
         monitoredEmail.emailAddress,
         emailMessage.id
       );
-      
+
       // Generate banner HTML
       const riskLabel = threatAssessment.threatLevel.charAt(0).toUpperCase() + threatAssessment.threatLevel.slice(1);
       const riskStyles = {
@@ -514,7 +515,7 @@ class EmailMonitor {
       };
       const style = riskStyles[threatAssessment.threatLevel as 'medium' | 'high' | 'critical'];
       const sanitizedReason = reason.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      
+
       const bannerHtml = `
         <div role="alert" style="background-color: ${style.background}; border-left: 4px solid ${style.borderColor}; color: ${style.textColor}; padding: 12px 16px; margin: 0 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.5; max-width: 100%; box-sizing: border-box;">
           <div style="font-weight: bold; margin-bottom: 8px; font-size: 15px;">
@@ -528,22 +529,33 @@ class EmailMonitor {
           </div>
         </div>
       `;
-      
-      // Generate plain-text warning
-      const plainWarning = `WARNING [${riskLabel.toUpperCase()} RISK]  -  ${reason}${threatAssessment.confidence !== null && threatAssessment.confidence !== undefined ? `. Score: ${threatAssessment.confidence}` : ''}\n\n`;
 
+      // Generate plain-text warning
+      let scoreText = "";
+      if (threatAssessment.confidence != null) {
+        scoreText = `. Score: ${threatAssessment.confidence}`;
+      }
+
+      const plainWarning =
+        "WARNING [" +
+        riskLabel.toUpperCase() +
+        " RISK]  -  " +
+        reason +
+        scoreText +
+        "\n\n";
       // Create draft email with banner
-      const draftId = await gmailOAuthService.createDraftWithContent(
-        monitoredEmail.businessId,
-        monitoredEmail.emailAddress,
-        fullGmailMessage,
-        bannerHtml,
-        plainWarning,
-        `Fwd: ${emailMessage.subject}`,
-        monitoredEmail.emailAddress,
-        emailMessage.sender
-      );
-      
+      const draftContentOptions: DraftContentOptions = {
+        businessId: monitoredEmail.businessId,
+        emailAddress: monitoredEmail.emailAddress,
+        originalMessage: fullGmailMessage,
+        modifiedHtml: bannerHtml,
+        modifiedPlainText: plainWarning,
+        subject: `Fwd: ${emailMessage.subject}`,
+        from: monitoredEmail.emailAddress,
+        to: emailMessage.sender
+      };
+      const draftId = await gmailOAuthService.createDraftWithContent(draftContentOptions);
+
       monitoringLogger.info('Draft created with phishing banner', {
         operation: 'inject-phishing-banner',
         emailAddress: monitoredEmail.emailAddress,
@@ -650,7 +662,7 @@ class EmailMonitor {
 
   private getProcessedRetentionHours(): number {
     const raw = process.env.PROCESSED_EMAIL_RETENTION_HOURS;
-    const parsed = raw ? parseInt(raw, 10) : NaN;
+    const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
     if (Number.isFinite(parsed) && parsed >= 24 && parsed <= 48) {
       return parsed;
     }

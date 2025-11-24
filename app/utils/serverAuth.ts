@@ -22,10 +22,6 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
   try {
     // Get the token from cookies (SSR) if available
     const cookieHeader = request.headers.get('cookie');
-    let token = cookieHeader
-      ?.split('; ')
-      .find(row => row.startsWith('authToken='))
-      ?.split('=')[1];
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
     const apiUrl = process.env.API_URL || 'http://localhost:3001';
