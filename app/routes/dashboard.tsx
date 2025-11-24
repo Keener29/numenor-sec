@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
 import { requireServerAuth } from "../utils/serverAuth";
@@ -9,7 +9,6 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
-import DeleteAccountCard from "../components/DeleteAccountCard";
 import BusinessNameModal from "../components/BusinessNameModal";
 import { googleLogout } from "@react-oauth/google";
 
@@ -34,11 +33,11 @@ const processChartData = (dailyAlerts: any[]) => {
   
   // Create a map of date to count for quick lookup
   const alertsMap = new Map();
-  dailyAlerts.forEach(alert => {
+  for (const alert of dailyAlerts) {
     // Convert ISO date to YYYY-MM-DD format for consistent lookup
     const dateString = new Date(alert.date).toISOString().split('T')[0];
     alertsMap.set(dateString, alert.count);
-  });
+  }
     
   // Generate chart data for the last 7 days
   const chartData = [];
@@ -140,14 +139,14 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       setAlerts(alertsResponse.alerts || []);
       setStats((prev: any) => ({
         ...prev,
-        ...(alertStats?.stats || {})
+        ...(alertStats?.stats)
       }));
       // Update chart with latest daily alerts
       const dailyAlerts = alertStats?.stats?.dailyAlerts || [];
       setChartData(processChartData(dailyAlerts));
       // Notify other dashboard components to refresh (e.g., PhishingDetectionDashboard)
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
+      if (globalThis.window !== undefined) {
+        globalThis.window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
       }
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
@@ -165,11 +164,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       googleLogout();
       await authAPI.logout();
       // Use full page reload to trigger server-side authentication check
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     } catch (err) {
       console.error("Logout error:", err);
       // Still navigate to login even if logout API fails
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     }
   };
 

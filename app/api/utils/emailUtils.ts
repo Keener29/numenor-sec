@@ -21,17 +21,17 @@ export function stripHtmlTags(text: string, maxLength: number = 10 * 1024 * 1024
   
   // Use /<[^>]+>/g instead of /<[^>]*>/g to avoid catastrophic backtracking
   // The + quantifier requires at least one character, reducing backtracking potential
-  return text.replace(/<[^>]+>/g, '');
+  return text.replaceAll(/<[^>]+>/g, '');
 }
 
 // Simple safe HTML-entity decoder
 export function decodeHtmlEntities(text: string): string {
   return text
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"');
 }
 
 export function extractEmailAddress(senderEmail: string): string | null {

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import type { Route } from "./+types/signup";
 import { authAPI } from "../utils/api";
 import { loginWithGoogle } from "~/utils/googleAuth";
 import { GoogleLogin } from "@react-oauth/google";

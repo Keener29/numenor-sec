@@ -304,7 +304,7 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
           <h3>Detected Threat Patterns</h3>
           <div class="threat-info">
             <ul>
-              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replaceAll(/_/g, ' ').toUpperCase()}</li>`).join('')}
+              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replaceAll('_', ' ').toUpperCase()}</li>`).join('')}
             </ul>
           </div>
           
@@ -361,7 +361,7 @@ SUSPICIOUS EMAIL DETAILS:
 - Received: ${new Date(emailMessage.timestamp).toLocaleString()}
 
 DETECTED THREAT PATTERNS:
-${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replaceAll(/_/g, ' ').toUpperCase()}`).join('\n')}
+${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replaceAll('_', ' ').toUpperCase()}`).join('\n')}
 
 RISK FACTORS:
 ${threatAssessment.riskFactors.map((risk: string) => `- ${risk}`).join('\n')}

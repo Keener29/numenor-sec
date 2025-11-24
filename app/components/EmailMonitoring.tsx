@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Dropdown from "./Dropdown";
 
 interface Alert {
@@ -25,10 +25,10 @@ interface OAuthStatus {
 }
 
 interface EmailMonitoringProps {
-  emails: Email[];
-  alerts: Alert[];
-  onMarkSafe: (alertId: number) => void;
-  oauthStatuses: Record<string, OAuthStatus>;
+  readonly emails: Email[];
+  readonly alerts: Alert[];
+  readonly onMarkSafe: (alertId: number) => void;
+  readonly oauthStatuses: Record<string, OAuthStatus>;
 }
 
 export default function EmailMonitoring({ emails, alerts, onMarkSafe, oauthStatuses }: EmailMonitoringProps) {
@@ -101,7 +101,7 @@ export default function EmailMonitoring({ emails, alerts, onMarkSafe, oauthStatu
                 </span>
                 {emailAlerts.length > 0 && (
                   <span className="text-xs text-gray-500">
-                    {emailAlerts.length} alert{emailAlerts.length !== 1 ? 's' : ''}
+                    {emailAlerts.length} alert{emailAlerts.length === 1 ? '' : 's'}
                   </span>
                 )}
               </div>
@@ -111,7 +111,9 @@ export default function EmailMonitoring({ emails, alerts, onMarkSafe, oauthStatu
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  pendingAlerts.forEach(alert => onMarkSafe(alert.id));
+                  for (const alert of pendingAlerts) {
+                    onMarkSafe(alert.id);
+                  }
                 }}
                 className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 cursor-pointer whitespace-nowrap"
               >

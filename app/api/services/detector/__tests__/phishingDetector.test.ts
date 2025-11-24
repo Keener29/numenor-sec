@@ -161,7 +161,7 @@ describe('PhishingDetector', () => {
 
     it('should reduce penalty for missing headers when domain is allowlisted', async () => {
       const { emailAuthenticationService } = require('../emailAuthDetector.js');
-      (emailAuthenticationService.isDomainAllowListed as any).mockResolvedValue(true);
+      (emailAuthenticationService.isDomainAllowListed).mockResolvedValue(true);
 
       const emailData: EmailAnalysis = {
         subject: 'Normal email',
@@ -282,7 +282,7 @@ describe('PhishingDetector', () => {
         bodyScore: 10
       });
       // Mock allowlisted domain to avoid critical penalty for missing headers
-      (emailAuthenticationService.isDomainAllowListed as any).mockResolvedValue(true);
+      (emailAuthenticationService.isDomainAllowListed).mockResolvedValue(true);
 
       const mediumEmail: EmailAnalysis = {
         subject: 'Normal',

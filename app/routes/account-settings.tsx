@@ -25,10 +25,10 @@ export default function AccountSettings({ loaderData }: Route.ComponentProps) {
     try {
       googleLogout();
       await authAPI.logout();
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     } catch (err) {
       console.error("Logout error:", err);
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     }
   };
 

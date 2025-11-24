@@ -586,8 +586,7 @@ router.get(
 
       applyRules(threatRules);
       applyRules(patternRules);
-      recommendations.push(...baselineRecommendations);
-      recommendations.push(...onboardingRecommendations);
+      recommendations.push(...baselineRecommendations, ...onboardingRecommendations);
 
       // Build summary
       const threatSummary = {

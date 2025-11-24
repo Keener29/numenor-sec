@@ -7,114 +7,129 @@ import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.
 import { oauthLogger } from '../../services/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
+import type { Request, Response } from 'express';
 
 const router = Router();
 
 const connectEmailSchema = z.object({
   emailAddress: z.string().email('Valid email address is required')
 });
+// utils/oauthHelpers.ts
+
+export async function getTargetBusinessId(
+  req: Request,
+  res: Response,
+  businessId?: number,
+  approveToken?: string
+): Promise<number | null> {
+  if (businessId || approveToken) {
+    if (!businessId) {
+      res.status(400).json({ success: false, error: 'businessId is required when using approveToken' });
+      return null;
+    }
+    return businessId;
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    res.status(401).json({ success: false, error: 'Authentication required' });
+    return null;
+  }
+
+  const jwt = require('jsonwebtoken');
+  try {
+    const decoded = jwt.verify(authHeader.substring(7), process.env.JWT_SECRET!) as { business_id: number };
+    return decoded.business_id;
+  } catch (err) {
+    if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ success: false, error: 'Invalid authentication token' });
+      return null;
+    }
+    throw err; // unexpected
+  }
+}
+
+export async function handleApprovalToken(
+  req: Request,
+  emailId: number,
+  businessId: number,
+  approveToken: string
+): Promise<boolean> {
+  const { tokenService } = await import('../../utils/tokenService.js');
+
+  if (!tokenService.validateApprovalToken(approveToken, emailId, businessId)) {
+    return false;
+  }
+
+  // Mark email as approved
+  await query('UPDATE monitored_emails SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [emailId]);
+
+  // Log the approval event
+  const emailAddress = req.query.emailAddress;
+
+  if (typeof emailAddress !== 'string') {
+    throw new TypeError('Invalid emailAddress parameter, expected string');
+  }
+  
+  await query(
+    `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+     VALUES ($1, 'email_approved', $2, $3, $4)`,
+    [businessId, `Email monitoring approved for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+  );
+
+  return true;
+}
+
 
 /**
  * @route GET /api/oauth/gmail/auth-url
  * @desc Generate Gmail OAuth authorization URL
- * @access Public (for email approval flow) or Private (for dashboard)
+ * @access Public (email approval flow) or Private (dashboard)
  */
-router.get('/auth-url', oauthLimiter, validateQuery(oauthAuthUrlSchema), async (req, res, next) => {
-  try {
-    // After Zod validation, req.query is validated and typed
-    // businessId is already transformed to a number (if provided)
+router.get(
+  '/auth-url',
+  oauthLimiter,
+  validateQuery(oauthAuthUrlSchema),
+  async (req, res, next) => {
     const emailAddress = req.query.emailAddress as string;
     const businessId = req.query.businessId as number | undefined;
     const approveToken = req.query.approveToken as string | undefined;
 
-    let targetBusinessId: number;
+    try {
+      const targetBusinessId = await getTargetBusinessId(req, res, businessId, approveToken);
+      if (!targetBusinessId) return; // already responded inside helper
 
-    // If businessId OR approveToken is provided (from email approval flow), use businessId
-    // This allows the email approval flow to work without authentication
-    if (businessId || approveToken) {
-      if (!businessId) {
-        return res.status(400).json({
-          success: false,
-          error: 'businessId is required when using approveToken'
-        });
-      }
-      targetBusinessId = businessId;
-    } else {
-      // Otherwise, require authentication (from dashboard)
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith('Bearer ')) {
-        return res.status(401).json({
-          success: false,
-          error: 'Authentication required'
-        });
-      }
-      const jwt = require('jsonwebtoken');
-      try {
-        const token = authHeader.substring(7);
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { business_id: number };
-        targetBusinessId = decoded.business_id;
-      } catch (err) {
-        // Only handle JWT-specific errors
-        if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
-          return res.status(401).json({
-            success: false,
-            error: "Invalid authentication token",
-          });
-        }
-
-        // Re-throw unexpected errors (env issue, library issue, etc.)
-        throw err;
-      }
-    }
-
-    // Check if email is already monitored by this business
-    const emailCheck = await query(
-      'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2',
-      [emailAddress, targetBusinessId]
-    );
-
-    if (emailCheck.rows.length === 0) {
-      return res.status(404).send('Email address not found in monitored emails. Please add it first.');
-    }
-
-    // If this is from email approval flow, validate the approval token
-    if (approveToken) {
-      const emailId = (emailCheck.rows[0] as { id: number }).id;
-
-      // Validate the approval token
-      const { tokenService } = await import('../../utils/tokenService.js');
-      if (!tokenService.validateApprovalToken(approveToken, emailId, targetBusinessId)) {
-        return res.status(403).send('Invalid or expired approval token');
-      }
-
-      // Mark email as approved (permission granted)
-      await query(
-        'UPDATE monitored_emails SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-        [emailId]
+      // Verify email exists
+      const { rows: emailRows } = await query(
+        'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2',
+        [emailAddress, targetBusinessId]
       );
+      if (!emailRows.length) {
+        return res.status(404).send('Email address not found in monitored emails. Please add it first.');
+      }
+      const emailId = (emailRows[0] as { id: number }).id;
 
-      // Log the approval event
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'email_approved', $2, $3, $4)`,
-        [targetBusinessId, `Email monitoring approved for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+      // Handle approval token if present
+      if (approveToken) {
+        const valid = await handleApprovalToken(req, emailId, targetBusinessId, approveToken);
+        if (!valid) return res.status(403).send('Invalid or expired approval token');
+      }
+
+      // Generate OAuth URL and redirect
+      const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+      res.redirect(authUrl);
+
+    } catch (error) {
+      oauthLogger.error(
+        'Error generating Gmail OAuth URL',
+        { operation: 'generate-auth-url', emailAddress, businessId },
+        error as Error
       );
+      next(error);
     }
-
-    const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
-
-    // Redirect directly to Google OAuth instead of returning JSON
-    res.redirect(authUrl);
-
-  } catch (error) {
-    oauthLogger.error('Error generating Gmail OAuth URL', {
-      operation: 'generate-auth-url',
-      emailAddress: req.query.emailAddress as string,
-      businessId: req.query.businessId as number | undefined
-    }, error as Error);
-    next(error);
   }
-});
+);
+
 
 /**
  * @route GET /api/oauth/gmail/callback
@@ -127,7 +142,15 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
     const { code, state, error } = req.query;
     if (error) {
 
-      const msg = error instanceof Error ? error.message : String(error);
+      let msg: string;
+
+      if (error instanceof Error) {
+        msg = error.message;
+      } else if (typeof error === 'string') {
+        msg = error;
+      } else {
+        msg = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      }
       return res.redirect(`${frontendUrl}/success?oauth_error=${msg}`);
     }
 

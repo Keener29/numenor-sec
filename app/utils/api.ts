@@ -190,11 +190,11 @@ export const alertsAPI = {
     endDate?: string;
   }) => {
     const queryParams = new URLSearchParams();
-    Object.entries(params || {}).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(params || {})) {
       if (value !== undefined) {
         queryParams.append(key, value.toString());
       }
-    });
+    }
     
     const qs = queryParams.toString();
     const url = qs ? `/alerts?${qs}` : '/alerts';

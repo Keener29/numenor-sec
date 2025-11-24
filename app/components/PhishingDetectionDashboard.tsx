@@ -46,7 +46,7 @@ interface MonitoringStatus {
   interval: number;
 }
 
-export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsModalOpen: (isModalOpen: boolean) => void }) {
+export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonly setIsModalOpen: (isModalOpen: boolean) => void }) {
   const [statistics, setStatistics] = useState<ThreatStatistics | null>(null);
   const [monitoringStatus, setMonitoringStatus] = useState<MonitoringStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,12 +59,12 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { setIsMo
     const onStatsUpdated = () => {
       loadDashboardData();
     };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('phishing:statsUpdated', onStatsUpdated);
+    if (globalThis.window !== undefined) {
+      globalThis.window.addEventListener('phishing:statsUpdated', onStatsUpdated);
     }
     return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('phishing:statsUpdated', onStatsUpdated);
+      if (globalThis.window !== undefined) {
+        globalThis.window.removeEventListener('phishing:statsUpdated', onStatsUpdated);
       }
     };
   }, []);

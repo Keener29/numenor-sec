@@ -14,11 +14,11 @@ interface OAuthStatus {
 }
 
 interface ConnectedEmailsDropdownProps {
-  isModalOpen: boolean;
-  setIsModalOpen: (isModalOpen: boolean) => void;
-  emails: Email[];
-  onEmailsUpdate: () => void;
-  oauthStatuses: Record<string, OAuthStatus>;
+  readonly isModalOpen: boolean;
+  readonly setIsModalOpen: (isModalOpen: boolean) => void;
+  readonly emails: Email[];
+  readonly onEmailsUpdate: () => void;
+  readonly oauthStatuses: Record<string, OAuthStatus>;
 }
 
 const MAX_EMAILS = 5;

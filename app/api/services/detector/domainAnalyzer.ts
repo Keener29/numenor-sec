@@ -9,7 +9,7 @@ const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 import { extractEmailAddress } from '../../utils/emailUtils.js';
-import { emailLogger, oauthLogger } from '../logger.js';
+import { emailLogger } from '../logger.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;
@@ -367,13 +367,13 @@ export function extractDomain(input: string): string | null {
  */
 function normalizeNumberSubstitutions(text: string): string {
   return text
-    .replaceAll(/1/g, 'l')  // 1 -> l
-    .replaceAll(/0/g, 'o')  // 0 -> o
-    .replaceAll(/3/g, 'e')  // 3 -> e
-    .replaceAll(/4/g, 'a')  // 4 -> a
-    .replaceAll(/5/g, 's')  // 5 -> s
-    .replaceAll(/7/g, 't')  // 7 -> t
-    .replaceAll(/8/g, 'b')  // 8 -> b
-    .replaceAll(/9/g, 'g'); // 9 -> g
+    .replaceAll('1', 'l')  // 1 -> l
+    .replaceAll('0', 'o')  // 0 -> o
+    .replaceAll('3', 'e')  // 3 -> e
+    .replaceAll('4', 'a')  // 4 -> a
+    .replaceAll('5', 's')  // 5 -> s
+    .replaceAll('7', 't')  // 7 -> t
+    .replaceAll('8', 'b')  // 8 -> b
+    .replaceAll('9', 'g'); // 9 -> g
 }
 

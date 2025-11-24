@@ -7,9 +7,9 @@ import { authAPI } from "../utils/api";
 const MAX_REASON_LENGTH = 2000;
 
 interface DeleteConfirmModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  accountId: number;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly accountId: number;
 }
 
 export default function DeleteConfirmModal({

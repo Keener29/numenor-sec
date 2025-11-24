@@ -49,10 +49,10 @@ function extractInnerText(inner: string): string {
   const clipped = inner.slice(0, MAX_INNER_LENGTH);
 
   try {
-    return stripHtmlTags(clipped).replace(/\s+/g, ' ').trim();
+    return stripHtmlTags(clipped).replaceAll(/\s+/g, ' ').trim();
   } catch {
     // Fallback
-    return clipped.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return clipped.replaceAll(/<[^>]+>/g, ' ').replaceAll(/\s+/g, ' ').trim();
   }
 }
 function extractAttributes(attrsRaw: string): Record<string, string> {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import DeleteConfirmModal from "./DeleteConfirmModal";
 
 interface DeleteAccountCardProps {
-  accountId: number;
+  readonly accountId: number;
 }
 
 export default function DeleteAccountCard({ accountId }: DeleteAccountCardProps) {
