@@ -334,7 +334,7 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     await client.query('ROLLBACK');
     next(error);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
