@@ -4,7 +4,7 @@
  */
 
 import { query } from '../../../db/connection.js';
-import { oauthLogger } from '../logger.js';
+import { emailLogger } from '../logger.js';
 
 // Authentication result types
 export type SPFResult = 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
@@ -70,7 +70,8 @@ export class EmailAuthenticationService {
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     if (authResults) {
       const normalized = this.normalizeHeaderValue(authResults);
-      const spfMatch = normalized.match(/spf=([a-z]+)/i);
+      const spfRegex = /spf=([a-z]+)/i;
+      const spfMatch = spfRegex.exec(normalized);
       if (spfMatch) {
         const result = spfMatch[1].toLowerCase();
         if (isValidSPFResult(result)) {
@@ -83,7 +84,8 @@ export class EmailAuthenticationService {
     const receivedSPF = headers['received-spf'];
     if (receivedSPF) {
       const normalized = this.normalizeHeaderValue(receivedSPF);
-      const spfMatch = normalized.match(/^([a-z]+)\s*\(/i);
+      const spfRegex = /^([a-z]+)\s*\(/i;
+      const spfMatch = spfRegex.exec(normalized);
       if (spfMatch) {
         const result = spfMatch[1].toLowerCase();
         if (isValidSPFResult(result)) {
@@ -101,7 +103,7 @@ export class EmailAuthenticationService {
    */
   private normalizeHeaderValue(headerValue: string): string {
     // Replace newlines and carriage returns with spaces, then normalize multiple spaces to single space
-    return headerValue.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return headerValue.replaceAll(/[\r\n]+/g, ' ').replaceAll(/\s+/g, ' ').trim();
   }
 
   /**
@@ -114,14 +116,15 @@ export class EmailAuthenticationService {
     
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
-    const resultArc = normalizedArcAuthResults?.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    const dkimRegex = /dkim=([a-z]+)/i;
+    const resultArc = dkimRegex.exec(normalizedArcAuthResults)?.[1].toLowerCase();
     if (resultArc === 'pass' && isValidDKIMResult(resultArc)) {
       return resultArc;
     }
 
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
-    const resultAuth = normalizedAuthResults?.match(/dkim=([a-z]+)/i)?.[1].toLowerCase();
+    const resultAuth = dkimRegex.exec(normalizedAuthResults)?.[1].toLowerCase();
     if (resultAuth && isValidDKIMResult(resultAuth)) {
       return resultAuth;
     }
@@ -144,14 +147,15 @@ export class EmailAuthenticationService {
   private analyzeDMARC(headers: Record<string, string>): DMARCResult {
     const arcAuthResults = headers['ARC-Authentication-Results'] ?? headers['arc-authentication-results'];
     const normalizedArcAuthResults = arcAuthResults && this.normalizeHeaderValue(arcAuthResults);
-    const resultArc = normalizedArcAuthResults?.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    const dmarcRegex = /dmarc=([a-z]+)/i;
+    const resultArc = dmarcRegex.exec(normalizedArcAuthResults)?.[1].toLowerCase();
     if (resultArc === 'pass' && isValidDMARCResult(resultArc)) {
       return resultArc;
     }
 
     const authResults = headers['Authentication-Results'] ?? headers['authentication-results'];
     const normalizedAuthResults = authResults && this.normalizeHeaderValue(authResults);
-    const resultAuth = normalizedAuthResults?.match(/dmarc=([a-z]+)/i)?.[1].toLowerCase();
+    const resultAuth = dmarcRegex.exec(normalizedAuthResults)?.[1].toLowerCase();
     if (resultAuth && isValidDMARCResult(resultAuth)) {
       return resultAuth;
     }
@@ -304,6 +308,7 @@ export class EmailAuthenticationService {
       return count > 0;
     } catch (error) {
       // If there's an error checking the database, default to not allow-listed
+      emailLogger.warn(`Error checking if sender domain is allow-listed: ${error}`, { operation: 'email-authentication' }, { error: error instanceof Error ? error.message : String(error) });
       return false;
     }
   }

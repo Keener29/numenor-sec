@@ -11,7 +11,8 @@ const handleDollarQuote = (trimmedLine: string, inDollarQuote: boolean, dollarQu
   if (trimmedLine.includes('$$')) {
     if (!inDollarQuote) {
       // Start of dollar quote
-      const match = trimmedLine.match(/\$([^$]*)\$/);
+      const regex = /\$([^$]*)\$/;
+      const match = regex.exec(trimmedLine);
       if (match) {
         dollarQuoteTag = match[0];
         inDollarQuote = true;

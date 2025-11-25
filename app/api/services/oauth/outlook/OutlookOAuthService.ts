@@ -172,27 +172,43 @@ export class OutlookOAuthService extends OAuthProvider {
    * Validate OAuth state parameter
    */
   validateState(state: string): OAuthState {
+    let stateData: any;
+  
+    // Only catch parsing errors
     try {
-      const stateData = JSON.parse(state);
-      
-      if (!stateData.businessId || !stateData.emailAddress || !stateData.nonce || !stateData.timestamp) {
-        throw new Error('Invalid state structure');
-      }
-
-      // Check if state is not older than 10 minutes
-      const stateAge = Date.now() - stateData.timestamp;
-      if (stateAge > 10 * 60 * 1000) {
-        throw new Error('State parameter expired');
-      }
-
-      return stateData as OAuthState;
-    } catch (error) {
+      stateData = JSON.parse(state);
+    } catch {
       throw ErrorFactory.oauthService(
         ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
         'Invalid or expired OAuth state parameter'
       );
     }
+  
+    // Validate structure
+    if (
+      !stateData.businessId ||
+      !stateData.emailAddress ||
+      !stateData.nonce ||
+      !stateData.timestamp
+    ) {
+      throw ErrorFactory.oauthService(
+        ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+        'Invalid or expired OAuth state parameter'
+      );
+    }
+  
+    // Check if state is not older than 10 minutes
+    const stateAge = Date.now() - stateData.timestamp;
+    if (stateAge > 10 * 60 * 1000) {
+      throw ErrorFactory.oauthService(
+        ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+        'Invalid or expired OAuth state parameter'
+      );
+    }
+  
+    return stateData as OAuthState;
   }
+  
 
   /**
    * Test OAuth connection

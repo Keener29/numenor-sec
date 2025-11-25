@@ -16,7 +16,7 @@ interface ThreatSummary {
 }
 
 interface PhishingPreventionProps {
-  businessId?: number;
+  readonly businessId?: number;
 }
 
 export default function PhishingPrevention({ businessId }: PhishingPreventionProps) {
@@ -203,7 +203,7 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
                     key={pattern.uuid}
                     className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
                   >
-                    {pattern.pattern.replace(/_/g, ' ')} ({pattern.count})
+                    {pattern.pattern.replaceAll('_', ' ')} ({pattern.count})
                   </span>
                 ))}
               </div>

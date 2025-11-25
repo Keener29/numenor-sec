@@ -4,11 +4,11 @@ import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'node:util';
 
 // Polyfill TextEncoder/TextDecoder for jsdom
-global.TextEncoder = TextEncoder as typeof global.TextEncoder;
-global.TextDecoder = TextDecoder as typeof global.TextDecoder;
+globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
+globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(globalThis.window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
     matches: false,
@@ -23,12 +23,11 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+globalThis.IntersectionObserver = class IntersectionObserver {
   root = null;
   rootMargin = '';
   thresholds = [];
-
-  constructor() { }
+  
   disconnect() {
     // noop for testing
   }
@@ -96,7 +95,8 @@ const createDefaultFetchMock = () => {
     } else {
       urlString = url.url;
     }
-    const domainMatch = urlString.match(/[?&](?:domain|domainName)=([^&]+)/);
+    const domainRegex = /[?&](?:domain|domainName)=([^&]+)/;
+    const domainMatch = domainRegex.exec(urlString);
     const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
 
     const defaultResponse = {
@@ -113,7 +113,7 @@ const createDefaultFetchMock = () => {
 };
 
 // Set up default fetch mock if not already set
-if (typeof global.fetch === 'undefined' || !jest.isMockFunction(global.fetch)) {
-  global.fetch = createDefaultFetchMock();
+if (globalThis.fetch === undefined || !jest.isMockFunction(globalThis.fetch)) {
+  globalThis.fetch = createDefaultFetchMock();
 }
 

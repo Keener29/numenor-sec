@@ -53,12 +53,12 @@ export function useOAuthStatuses(emails: Email[]): UseOAuthStatusesReturn {
       const results = await Promise.all(statusPromises);
       const statusMap: Record<string, OAuthStatus> = {};
       
-      results.forEach(({ emailAddress, status }) => {
+      for (const { emailAddress, status } of results) {
         statusMap[emailAddress] = {
           isConnected: status.isConnected,
           connectedAt: status.connectedAt
         };
-      });
+      }
 
       setOauthStatuses(statusMap);
     } catch (err) {

@@ -7,7 +7,7 @@ interface Alert {
 }
 
 interface RecentActivityProps {
-  alerts: Alert[];
+  readonly alerts: Alert[];
 }
 
 export default function RecentActivity({ alerts }: RecentActivityProps) {

@@ -105,9 +105,16 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
 
   const apiUrl = process.env.API_URL || 'http://localhost:3001';
   const currentYear = new Date().getFullYear();
+  let subject = "Permission Request: Email Security Monitoring";
+  let businessNameDisplay = businessName;
+  if (businessName) {
+    subject += ` - ${businessName}`;
+  } else {
+    businessNameDisplay = 'the business';
+  }
 
   return {
-    subject: `Permission Request: Email Security Monitoring - ${businessName}`,
+    subject,
     html: `
       <!DOCTYPE html>
       <html>
@@ -137,7 +144,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           
           <p>Dear Email Account Holder,</p>
           
-          <p><strong>${businessName}</strong> has requested permission to monitor the email address <strong>${emailAddress}</strong> for security threats and phishing attempts using the Numenor Security platform.</p>
+          <p><strong>${businessNameDisplay}</strong> has requested permission to monitor the email address <strong>${emailAddress}</strong> for security threats and phishing attempts using the Numenor Security platform.</p>
           
           <div class="warning">
             <strong>⚠️ Important:</strong> This request is for legitimate business security purposes only. We will only monitor emails for potential security threats and will not access personal or confidential content.
@@ -146,9 +153,9 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           <h3>What This Means:</h3>
           <ul>
             <li><strong>Security Monitoring:</strong> We will scan incoming emails for phishing attempts, malware, and other security threats</li>
-            <li><strong>Threat Detection:</strong> Suspicious emails will be flagged and reported to ${businessName}'s team</li>
+            <li><strong>Threat Detection:</strong> Suspicious emails will be flagged and reported to ${businessNameDisplay}'s team</li>
             <li><strong>Privacy Protection:</strong> We do not read, store, or access the content of your emails beyond security scanning</li>
-            <li><strong>Business Protection:</strong> This helps protect ${businessName} from cyber attacks and data breaches</li>
+            <li><strong>Business Protection:</strong> This helps protect ${businessNameDisplay} from cyber attacks and data breaches</li>
           </ul>
           
           <h3>Your Options:</h3>
@@ -156,7 +163,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           <ul>
             <li><strong>Grant Permission:</strong> Allow monitoring for security purposes</li>
             <li><strong>Deny Permission:</strong> Decline the monitoring request</li>
-            <li><strong>Contact for Questions:</strong> Reach out to ${businessName} for more information</li>
+            <li><strong>Contact for Questions:</strong> Reach out to ${businessNameDisplay} for more information</li>
           </ul>
           
           <div style="text-align: center; margin: 30px 0;">
@@ -169,7 +176,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
           <h3>Questions or Concerns?</h3>
           <p>If you have any questions about this request or need more information, please contact:</p>
           <ul>
-            <li><strong>Business:</strong> ${businessName}</li>
+            <li><strong>Business:</strong> ${businessNameDisplay}</li>
             <li><strong>Email:</strong> ${businessEmail}</li>
           </ul>
           
@@ -183,7 +190,7 @@ function generatePermissionRequestTemplate(params: PermissionRequestParams): Ema
         </div>
         
         <div class="footer">
-          <p>This email was sent by Numenor Security on behalf of ${businessName}</p>
+          <p>This email was sent by Numenor Security on behalf of ${businessNameDisplay}</p>
           <p>© ${currentYear} Numenor Security. All rights reserved.</p>
         </div>
       </body>
@@ -200,27 +207,27 @@ IMPORTANT: This request is for legitimate business security purposes only. We wi
 
 What This Means:
 - Security Monitoring: We will scan incoming emails for phishing attempts, malware, and other security threats
-- Threat Detection: Suspicious emails will be flagged and reported to ${businessName}'s team
+- Threat Detection: Suspicious emails will be flagged and reported to ${businessNameDisplay}'s team
 - Privacy Protection: We do not read, store, or access the content of your emails beyond security scanning
-- Business Protection: This helps protect ${businessName} from cyber attacks and data breaches
+- Business Protection: This helps protect ${businessNameDisplay} from cyber attacks and data breaches
 
 Your Options:
 You can choose to:
 - Grant Permission: Allow monitoring for security purposes
 - Deny Permission: Decline the monitoring request
-- Contact for Questions: Reach out to ${businessName} for more information
+- Contact for Questions: Reach out to ${businessNameDisplay} for more information
 
 To accept, please visit the secure link:
 - Grant Permission: ${apiUrl}/api/oauth/gmail/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}
 
 Questions or Concerns?
 If you have any questions about this request or need more information, please contact:
-- Business: ${businessName}
+- Business: ${businessNameDisplay}
 - Email: ${businessEmail}
 
 Legal Notice: This email monitoring request is made in accordance with applicable privacy laws and regulations. By granting permission, you acknowledge that your email may be monitored for security purposes only. You may revoke this permission at any time by contacting the business directly.
 
-This email was sent by Numenor Security on behalf of ${businessName}
+This email was sent by Numenor Security on behalf of ${businessNameDisplay}
 © ${currentYear} Numenor Security. All rights reserved.
     `
   };
@@ -246,8 +253,8 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
     low: 'ℹ️'
   };
 
-  const color = threatLevelColors[threatAssessment.threatLevel as keyof typeof threatLevelColors] || '#6b7280';
-  const icon = threatLevelIcons[threatAssessment.threatLevel as keyof typeof threatLevelIcons] || '⚠️';
+  const color = threatLevelColors[threatAssessment.threatLevel] || '#6b7280';
+  const icon = threatLevelIcons[threatAssessment.threatLevel] || '⚠️';
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   const currentYear = new Date().getFullYear();
 
@@ -296,15 +303,15 @@ function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTemplate {
           <h3>Suspicious Email Details</h3>
           <div class="threat-info">
             <p><strong>Subject:</strong> ${emailMessage.subject}</p>
-            <p><strong>From:</strong> ${emailMessage.sender}</p>
-            <p><strong>To:</strong> ${emailMessage.recipient}</p>
+            <p><strong>From:</strong> ${emailMessage.sender.address}</p>
+            <p><strong>To:</strong> ${emailMessage.recipient.address}</p>
             <p><strong>Received:</strong> ${new Date(emailMessage.timestamp).toLocaleString()}</p>
           </div>
           
           <h3>Detected Threat Patterns</h3>
           <div class="threat-info">
             <ul>
-              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replace(/_/g, ' ').toUpperCase()}</li>`).join('')}
+              ${threatAssessment.detectedPatterns.map((pattern: string) => `<li>${pattern.replaceAll('_', ' ').toUpperCase()}</li>`).join('')}
             </ul>
           </div>
           
@@ -356,12 +363,12 @@ THREAT DETAILS:
 
 SUSPICIOUS EMAIL DETAILS:
 - Subject: ${emailMessage.subject}
-- From: ${emailMessage.sender}
-- To: ${emailMessage.recipient}
+- From: ${emailMessage.sender.address}
+- To: ${emailMessage.recipient.address}
 - Received: ${new Date(emailMessage.timestamp).toLocaleString()}
 
 DETECTED THREAT PATTERNS:
-${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replace(/_/g, ' ').toUpperCase()}`).join('\n')}
+${threatAssessment.detectedPatterns.map((pattern: string) => `- ${pattern.replaceAll('_', ' ').toUpperCase()}`).join('\n')}
 
 RISK FACTORS:
 ${threatAssessment.riskFactors.map((risk: string) => `- ${risk}`).join('\n')}
@@ -768,6 +775,3 @@ class EmailService {
 
 // Export singleton instance
 export const emailService = new EmailService();
-
-// Export types for external use
-export type { EmailConfig, EmailTemplate, EmailSendResult, PermissionRequestParams, ThreatAlertParams };

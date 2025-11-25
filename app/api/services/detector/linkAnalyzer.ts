@@ -352,7 +352,7 @@ export class LinkAnalyzerService {
     const isKnownSafeHttp =
       url.protocol === "http:" &&
       url.hostname !== undefined &&
-      KNOWN_SAFE_HTTP_DOMAINS.some(d => url.hostname!.endsWith(d));
+      KNOWN_SAFE_HTTP_DOMAINS.some(d => url.hostname.endsWith(d));
 
     if (url.protocol === "http:") {
       if (isKnownSafeHttp && this.isImageLink(link)) {
@@ -425,11 +425,11 @@ export class LinkAnalyzerService {
       score += 3;
 
       // If domain is not recognized as legit, increase penalty
-      if (!trustedDomain) {
+      if (trustedDomain) {
+        this.linkRisks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
+      } else {
         score += 50;
         this.linkRisks.push(`Credential-like params on untrusted domain: ${url.search}`);
-      } else {
-        this.linkRisks.push(`Suspicious query parameters on trusted domain: ${url.search}`);
       }
     }
 
@@ -470,7 +470,7 @@ export class LinkAnalyzerService {
         this.linkRisks.push(`Suspicious leading/trailing hyphen in label: ${label}`);
         score += 10;
       }
-      if (/^[0-9]+$/.test(label)) {
+      if (/^\d+$/.test(label)) {
         // numeric-only label
         score += 2;
       }

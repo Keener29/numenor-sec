@@ -34,7 +34,7 @@ export const getPool = (): Pool => {
     pool.on('error', (err) => {
       logger.error('Unexpected error on idle client', {
         operation: 'database-pool-error'
-      }, err as Error);
+      }, err);
       process.exit(-1);
     });
   }

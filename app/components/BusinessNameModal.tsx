@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { businessAPI } from "../utils/api";
 
 interface BusinessNameModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onSuccess: () => void;
 }
 
 export default function BusinessNameModal({

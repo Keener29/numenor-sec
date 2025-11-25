@@ -5,11 +5,7 @@
 
 // Import authentication types from email auth detector
 import type {
-  AuthenticationResults,
-  SPFResult,
-  DKIMResult,
-  DMARCResult,
-  OverallAuthResult
+  AuthenticationResults
 } from '../services/detector/emailAuthDetector.js';
 
 // Import header analysis types
@@ -20,15 +16,6 @@ import type { LinkAnalysis } from '../services/detector/linkAnalyzer.js';
 
 // Import attachment analysis types
 import type { AttachmentAnalysis } from '../services/detector/attachmentAnalyzer.js';
-
-// Re-export authentication types
-export type {
-  AuthenticationResults,
-  SPFResult,
-  DKIMResult,
-  DMARCResult,
-  OverallAuthResult
-};
 
 // =============================================================================
 // CORE EMAIL TYPES
@@ -283,6 +270,14 @@ export interface ThreatAlertParams {
   readonly emailMessage: EmailMessage;
   readonly threatAssessment: ThreatAssessment;
 }
+
+export interface ThreatRow {
+  threat_level: string;
+  alert_type: string;
+  created_at: Date;
+  email_address: string;
+}
+
 
 export interface ThreatAssessment {
   readonly threatLevel: 'low' | 'medium' | 'high' | 'critical';

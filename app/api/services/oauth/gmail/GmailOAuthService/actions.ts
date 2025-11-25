@@ -21,7 +21,7 @@ export async function fetchEmails(
     await setCredentials(businessId, emailAddress);
     let gmailQuery = searchQuery;
     if (connectionTimestamp) {
-      const connectionDate = connectionTimestamp.toISOString().split('T')[0].replace(/-/g, '/');
+      const connectionDate = connectionTimestamp.toISOString().split('T')[0].replaceAll('-', '/');
       gmailQuery = searchQuery.trim() ? `${searchQuery} after:${connectionDate}` : `after:${connectionDate}`;
       oauthLogger.debug('Fetching emails from Gmail after connection time', { ...context, metadata: { ...context.metadata, connectionTimestamp: connectionTimestamp.toISOString(), gmailQuery } });
     } else {
@@ -144,7 +144,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
       plainText = decodeHtmlEntities(stripHtmlTags(body)).trim();
     } else {
       plainText = body;
-      html = body.replace(/\n/g, '<br>');
+      html = body.replaceAll('\n', '<br>');
     }
   } else if (message.payload.parts) {
     extractFromParts(message.payload.parts);
@@ -152,7 +152,7 @@ export function extractHtmlAndPlainText(message: GmailMessage): { html: string; 
   
   // Fallback: if no HTML found but plain text exists, use plain text for both
   if (!html && plainText) {
-    html = plainText.replace(/\n/g, '<br>');
+    html = plainText.replaceAll('\n', '<br>');
   }
   // Fallback: if no plain text found but HTML exists, strip HTML tags
   if (!plainText && html) {
@@ -207,7 +207,7 @@ export async function createDraftWithContent(
     ];
     
     const rawMessage = messageParts.join('\r\n');
-    const encodedMessage = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const encodedMessage = Buffer.from(rawMessage).toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
     
     const response = await gmail.users.drafts.create({
       userId: 'me',

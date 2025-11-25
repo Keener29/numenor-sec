@@ -1,5 +1,4 @@
 import { Link } from "react-router";
-import type { Route } from "./+types/contact";
 
 export function meta() {
   return [

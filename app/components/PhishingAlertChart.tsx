@@ -5,7 +5,7 @@ interface ChartData {
 }
 
 interface PhishingAlertChartProps {
-  chartData: ChartData[];
+  readonly chartData: ChartData[];
 }
 
 export default function PhishingAlertChart({ chartData }: PhishingAlertChartProps) {
