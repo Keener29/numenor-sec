@@ -75,8 +75,9 @@ services:
       # WHOIS API Configuration (from .env file)
       WHOIS_JSON_API_KEY: ${WHOIS_JSON_API_KEY}
       WHOIS_XML_API_KEY: ${WHOIS_XML_API_KEY}
-    ports:
-      - "3000:3000"
+    # Ports: Not exposed directly - nginx handles external traffic
+    # ports:
+    #   - "3000:3000"
     volumes:
       - ./logs:/app/logs
       - ./backups:/app/backups

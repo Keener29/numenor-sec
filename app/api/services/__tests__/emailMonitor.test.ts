@@ -3,7 +3,7 @@
  * Tests the email monitoring functionality including own service filtering
  */
 import { describe, expect, it } from '@jest/globals';
-import { isFromOwnService } from '../../utils/emailUtils.js';
+import { extractEmailAddress, isFromOwnService } from '../../utils/emailUtils.js';
 
 describe('EmailMonitor', () => {
   describe('isFromOwnService', () => {
@@ -32,8 +32,10 @@ describe('EmailMonitor', () => {
     });
 
     it('should handle display name format correctly', () => {
-      expect(isFromOwnService('Dylan Keen <dylan.keen@numenorsecurity.com>')).toBe(true);
-      expect(isFromOwnService('Admin <admin@localhost>')).toBe(true);
+      const emailAddress = extractEmailAddress('Dylan Keen <dylan.keen@numenorsecurity.com>');
+      expect(isFromOwnService(emailAddress)).toBe(true);
+      const localAddress = extractEmailAddress('Admin <admin@localhost>');
+      expect(isFromOwnService(localAddress)).toBe(true);
     });
 
     it('should reject domain spoofing attempts', () => {

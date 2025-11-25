@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 
 interface SecurityRecommendation {
+  uuid: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   title: string;
   description: string;
@@ -11,11 +12,11 @@ interface SecurityRecommendation {
 interface ThreatSummary {
   totalThreats: number;
   threatLevels: Record<string, number>;
-  topPatterns: Array<{ pattern: string; count: number }>;
+  topPatterns: Array<{ uuid: string; pattern: string; count: number }>;
 }
 
 interface PhishingPreventionProps {
-  businessId?: number;
+  readonly businessId?: number;
 }
 
 export default function PhishingPrevention({ businessId }: PhishingPreventionProps) {
@@ -25,36 +26,72 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
   const [error, setError] = useState("");
 
   useEffect(() => {
-    loadRecommendations();
+    loadData();
   }, [businessId]);
 
-  const loadRecommendations = async () => {
+  const loadData = async () => {
     try {
       setIsLoading(true);
       setError("");
 
-      const response = await fetch('http://localhost:3001/api/phishing/recommendations', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const [recommendationsResponse, statisticsResponse] = await Promise.all([
+        fetch('http://localhost:3001/api/phishing/recommendations', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch('http://localhost:3001/api/phishing/statistics', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+      ]);
 
-      if (!response.ok) {
+      if (!recommendationsResponse.ok) {
         throw new Error('Failed to load security recommendations');
       }
 
-      const data = await response.json();
-      setRecommendations(data.recommendations || []);
-      setThreatSummary(data.threatSummary || {
-        totalThreats: 0,
-        threatLevels: {},
-        topPatterns: []
+      if (!statisticsResponse.ok) {
+        throw new Error('Failed to load threat statistics');
+      }
+
+      const recommendationsData = await recommendationsResponse.json();
+      const statisticsData = await statisticsResponse.json();
+      recommendationsData.recommendations = recommendationsData.recommendations.map((recommendation: SecurityRecommendation) => ({ ...recommendation, uuid: crypto.randomUUID() }));
+
+      setRecommendations(recommendationsData.recommendations || []);
+
+      const stats = statisticsData.statistics?.summary || {};
+      const recentAlerts = statisticsData.statistics?.recentAlerts || [];
+      
+      const patternCounts = recentAlerts.reduce((acc: Record<string, number>, alert: { alert_type?: string }) => {
+        const alertType = alert.alert_type || 'unknown';
+        acc[alertType] = (acc[alertType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const topPatterns = Object.entries(patternCounts)
+        .map(([pattern, count]) => ({ uuid: crypto.randomUUID(), pattern, count: count as number }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      setThreatSummary({
+        totalThreats: stats.totalAlerts || 0,
+        threatLevels: {
+          critical: stats.criticalAlerts || 0,
+          high: stats.highAlerts || 0,
+          medium: stats.mediumAlerts || 0,
+          low: 0
+        },
+        topPatterns
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load recommendations");
-      console.error("Error loading recommendations:", err);
+      setError(err instanceof Error ? err.message : "Failed to load data");
+      console.error("Error loading data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -121,7 +158,7 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             </p>
           </div>
           <button
-            onClick={loadRecommendations}
+            onClick={loadData}
             className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 cursor-pointer"
           >
             Refresh
@@ -161,12 +198,12 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <div className="mt-4">
               <h5 className="text-sm font-medium text-gray-700 mb-2">Top Threat Patterns:</h5>
               <div className="flex flex-wrap gap-2">
-                {threatSummary.topPatterns.map((pattern, index) => (
+                {threatSummary.topPatterns.map((pattern) => (
                   <span
-                    key={index}
+                    key={pattern.uuid}
                     className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
                   >
-                    {pattern.pattern.replace(/_/g, ' ')} ({pattern.count})
+                    {pattern.pattern.replaceAll('_', ' ')} ({pattern.count})
                   </span>
                 ))}
               </div>
@@ -188,9 +225,9 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
           </div>
         ) : (
           <div className="space-y-4">
-            {recommendations.map((recommendation, index) => (
+            {recommendations.map((recommendation) => (
               <div
-                key={index}
+                key={recommendation.uuid}
                 className={`border rounded-lg p-4 ${getPriorityColor(recommendation.priority)}`}
               >
                 <div className="flex items-start">
@@ -232,19 +269,19 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <ul className="text-sm text-gray-600 space-y-2">
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Never click links in suspicious emails
+                <span>Never click links in suspicious emails</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Verify sender identity before responding
+                <span>Verify sender identity before responding</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Be cautious of urgent requests
+                <span>Be cautious of urgent requests</span>
               </li>
               <li className="flex items-start">
                 <span className="text-green-500 mr-2">✓</span>
-                Report suspicious emails immediately
+                <span>Report suspicious emails immediately</span>
               </li>
             </ul>
           </div>
@@ -253,19 +290,19 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
             <ul className="text-sm text-gray-600 space-y-2">
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Implement email authentication (SPF, DKIM, DMARC)
+                <span>Implement email authentication (SPF, DKIM, DMARC)</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Use multi-factor authentication
+                <span>Use multi-factor authentication</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Regular security training sessions
+                <span>Regular security training sessions</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-500 mr-2">🔧</span>
-                Keep software and systems updated
+                <span>Keep software and systems updated</span>
               </li>
             </ul>
           </div>

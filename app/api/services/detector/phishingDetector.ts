@@ -1,7 +1,7 @@
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../logger.js';
 import type { ThreatAssessment } from '../../types/email.js';
-import { emailAuthenticationService, type AuthenticationResults } from './emailAuthDetector.js';
+import { emailAuthenticationService } from './emailAuthDetector.js';
 import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
 import { linkAnalyzerService, type LinkAnalysis } from './linkAnalyzer.js';
 import { attachmentAnalyzerService, type AttachmentAnalysis } from './attachmentAnalyzer.js';
@@ -41,7 +41,7 @@ class PhishingDetector {
       sender: emailData.sender,
       recipient: emailData.recipient
     };
-    
+
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     detectedPatterns.push(...textAnalysis.patterns);
     threatScore += textAnalysis.score;
@@ -80,27 +80,25 @@ class PhishingDetector {
     let authenticationResults;
     let headerAnalysis: HeaderAnalysis | undefined;
     if (emailData.headers && Object.keys(emailData.headers).length > 0) {
-      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);      
+      authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);
       const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
       riskFactors.push(...authAnalysis.risks);
       threatScore += authAnalysis.score;
 
       // Analyze missing headers
-      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.headers, emailData.sender, businessId);
+      headerAnalyzerService.headers = emailData.headers;
+      headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.sender, businessId);
       riskFactors.push(...headerAnalysis.risks);
       threatScore += headerAnalysis.score;
+    } else if (isAllowListed) {
+      // No headers available - this is a CRITICAL risk factor    
+      riskFactors.push('No email headers available - sender domain is allow-listed');
+      threatScore += 20; // Reduced penalty for allow-listed domains
+      recommendations.push('Email headers missing - sender domain is trusted');
     } else {
-      // No headers available - this is a CRITICAL risk factor
-      
-      if (isAllowListed) {
-        riskFactors.push('No email headers available - sender domain is allow-listed');
-        threatScore += 20; // Reduced penalty for allow-listed domains
-        recommendations.push('Email headers missing - sender domain is trusted');
-      } else {
-        riskFactors.push('No email headers available for authentication analysis');
-        threatScore += 100; // Critical - cannot verify email authenticity at all
-        recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
-      }
+      riskFactors.push('No email headers available for authentication analysis');
+      threatScore += 100; // Critical - cannot verify email authenticity at all
+      recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
     }
 
     // Determine threat level
@@ -156,7 +154,7 @@ class PhishingDetector {
       sender: emailData.sender,
       recipient: emailData.recipient
     };
-    
+
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     if (textAnalysis.patterns.includes('ceo_fraud')) {
       indicators.push('Executive impersonation detected');
@@ -184,40 +182,59 @@ class PhishingDetector {
     return 'low';
   }
   private generateRecommendations(
-    threatLevel: string, 
-    patterns: string[], 
+    threatLevel: string,
+    patterns: string[],
     risks: string[]
   ): string[] {
     const recommendations: string[] = [];
-
-    if (threatLevel === 'critical') {
-      recommendations.push('IMMEDIATE ACTION REQUIRED: Do not click any links or download attachments');
-      recommendations.push('Notify your manager immediately');
-      recommendations.push('Verify sender identity through alternative communication');
+  
+    // Rule-based mapping keeps condition logic clean and scalable
+    const rules: { condition: boolean; messages: string[] }[] = [
+      {
+        condition: threatLevel === 'critical',
+        messages: [
+          'IMMEDIATE ACTION REQUIRED: Do not click any links or download attachments',
+          'Notify your manager immediately',
+          'Verify sender identity through alternative communication',
+        ]
+      },
+      {
+        condition: patterns.includes('personal_info_request'),
+        messages: [
+          'Never provide personal information via email',
+          'Contact the organization directly through official channels',
+        ]
+      },
+      {
+        condition: patterns.includes('urgent_action_required'),
+        messages: [
+          'Be cautious of urgent requests - legitimate organizations rarely require immediate action',
+        ]
+      },
+      {
+        condition: risks.some(risk => risk.includes('No email headers available')),
+        messages: [
+          'CRITICAL: Email headers missing - this email cannot be verified and should be treated as highly suspicious',
+        ]
+      }
+    ];
+  
+    // Apply all matching rules
+    for (const rule of rules) {
+      if (rule.condition) {
+        recommendations.push(...rule.messages);
+      }
     }
-
-    if (patterns.includes('personal_info_request')) {
-      recommendations.push('Never provide personal information via email');
-      recommendations.push('Contact the organization directly through official channels');
-    }
-
-    if (patterns.includes('urgent_action_required')) {
-      recommendations.push('Be cautious of urgent requests - legitimate organizations rarely require immediate action');
-    }
-
-
-
-    // Authentication-specific recommendations
-    const authRecommendations = emailAuthenticationService.generateAuthenticationRecommendations(risks);
+  
+    // Existing email authentication recommendations
+    const authRecommendations =
+      emailAuthenticationService.generateAuthenticationRecommendations(risks);
+  
     recommendations.push(...authRecommendations);
-    
-    if (risks.some(risk => risk.includes('No email headers available'))) {
-      recommendations.push('CRITICAL: Email headers missing - this email cannot be verified and should be treated as highly suspicious');
-    }
-
+  
     return recommendations;
   }
-
+  
   // Helper methods
 
   /**

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { linkAnalyzerService, type LinkAnalysis } from '../linkAnalyzer.js';
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 // Helper to build an email HTML body with CTA anchors for given links
 const makeEmailBody = (links: string[]): string => {
@@ -142,8 +142,8 @@ describe('LinkAnalyzerService', () => {
       const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of homoglyph
-      expect(result.risks.some(risk => 
-        risk.includes('Homoglyph attack detected') || 
+      expect(result.risks.some(risk =>
+        risk.includes('Homoglyph attack detected') ||
         risk.includes('Typosquatting detected')
       )).toBe(true);
       expect(result.score).toBeGreaterThan(0);
@@ -159,8 +159,8 @@ describe('LinkAnalyzerService', () => {
       const result = await linkAnalyzerService.analyzeLinks(links, undefined, makeEmailBody(links));
 
       // These might be detected as typosquatting instead of suspicious pattern
-      expect(result.risks.some(risk => 
-        risk.includes('Suspicious domain pattern') || 
+      expect(result.risks.some(risk =>
+        risk.includes('Suspicious domain pattern') ||
         risk.includes('Typosquatting detected')
       )).toBe(true);
       expect(result.score).toBeGreaterThan(0);

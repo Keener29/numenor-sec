@@ -13,8 +13,11 @@
     "verbatimModuleSyntax": false
   },
   "include": [
+    "jest.d.ts",
     "app/**/*.ts",
-    "app/**/*.test.ts"
+    "app/**/*.tsx",
+    "app/**/*.test.ts",
+    "app/**/*.test.tsx"
   ],
   "exclude": [
     "node_modules",

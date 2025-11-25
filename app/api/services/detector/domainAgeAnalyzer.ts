@@ -14,12 +14,14 @@ import { oauthLogger } from '../logger.js';
 import { query } from '../../../db/connection.js';
 import { parse } from "tldts";
 
+type RiskLevel = 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+
 export interface DomainAgeResult {
   isSuspicious: boolean;
   ageInDays: number | null;
   registrationDate: Date | null;
   riskScore: number;
-  riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  riskLevel: RiskLevel;
   error?: string;
 }
 
@@ -127,7 +129,8 @@ async function performWhoisLookup(domain: string): Promise<WhoisResponse | null>
   for (const apiConfig of WHOIS_APIS) {
     try {
       const queryParam = apiConfig.queryParam;
-      const apiKey = apiConfig.apiKeyEnv ? process.env[apiConfig.apiKeyEnv] : null;
+      const apiKey = process.env[apiConfig.apiKeyEnv];
+      if (!apiKey) continue;
       
       let url = `${apiConfig.url}?${queryParam}=${encodeURIComponent(domain)}`;
       
@@ -137,9 +140,9 @@ async function performWhoisLookup(domain: string): Promise<WhoisResponse | null>
       };
       
       // Add API key to headers for WHOIS JSON API
-      if (apiKey && apiConfig.url.includes('whoisjson.com')) {
+      if (apiConfig.url.includes('whoisjson.com')) {
         headers['Authorization'] = `TOKEN=${apiKey}`;
-      } else if (apiKey) {
+      } else {
         // For WHOIS XML API, add as query parameter and request JSON format
         url += `&apiKey=${encodeURIComponent(apiKey)}&outputFormat=JSON`;
       }
@@ -156,47 +159,50 @@ async function performWhoisLookup(domain: string): Promise<WhoisResponse | null>
       }
 
       const data = await response.json();
-      
-      // Handle different API response formats
-      let createdDate: string | undefined;
-      let updatedDate: string | undefined;
-      let expiresDate: string | undefined;
-      let registrar: string | undefined;
-      let status: string | undefined;
-      
-      if (data && data.WhoisRecord) {
-        // WHOIS XML API format
-        const whoisRecord = data.WhoisRecord;
-        createdDate = whoisRecord.createdDate;
-        updatedDate = whoisRecord.updatedDate;
-        expiresDate = whoisRecord.expiresDate;
-        registrar = whoisRecord.registrar?.name;
-        status = whoisRecord.status;
-      } else if (data && (data.created_date || data.creation_date || data.registered_date)) {
-        // WHOIS JSON API format
-        createdDate = data.created_date || data.creation_date || data.registered_date;
-        updatedDate = data.updated_date || data.last_updated;
-        expiresDate = data.expires_date || data.expiration_date;
-        registrar = data.registrar;
-        status = data.status;
-      }
-      
-      if (createdDate) {
-        return {
-          domain: data.domain || domain,
-          created_date: createdDate,
-          updated_date: updatedDate,
-          expires_date: expiresDate,
-          registrar: registrar,
-          status: status
-        };
-      }
+      return formatWhoisDataResponse(data, domain);
     } catch (error) {
-      oauthLogger.warn(`WHOIS API ${apiConfig.url} failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: error instanceof Error ? error.message : String(error) });
+      oauthLogger.warn(`WHOIS API ${apiConfig.url} failed for ${domain}`, { operation: 'domain-age-analysis', emailAddress: domain }, { error: (error as Error).message });
       continue;
     }
   }
+  return null;
+}
 
+function formatWhoisDataResponse(data: any, domain: string): WhoisResponse | null {
+  // Handle different API response formats
+  let createdDate: string | undefined;
+  let updatedDate: string | undefined;
+  let expiresDate: string | undefined;
+  let registrar: string | undefined;
+  let status: string | undefined;
+  
+  if (data?.WhoisRecord) {
+    // WHOIS XML API format
+    const whoisRecord = data.WhoisRecord;
+    createdDate = whoisRecord.createdDate;
+    updatedDate = whoisRecord.updatedDate;
+    expiresDate = whoisRecord.expiresDate;
+    registrar = whoisRecord.registrar?.name;
+    status = whoisRecord.status;
+  } else if (data && (data.created_date || data.creation_date || data.registered_date)) {
+    // WHOIS JSON API format
+    createdDate = data.created_date || data.creation_date || data.registered_date;
+    updatedDate = data.updated_date || data.last_updated;
+    expiresDate = data.expires_date || data.expiration_date;
+    registrar = data.registrar;
+    status = data.status;
+  }
+  
+  if (createdDate) {
+    return {
+      domain: data.domain || domain,
+      created_date: createdDate,
+      updated_date: updatedDate,
+      expires_date: expiresDate,
+      registrar: registrar,
+      status: status
+    };
+  }
   return null;
 }
 
@@ -221,7 +227,7 @@ function calculateDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult {
   const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (ageInDays < 7) {
@@ -256,7 +262,7 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
   try {
     // Try parsing as ISO date
     const date = new Date(dateString);
-    if (!isNaN(date.getTime())) {
+    if (!Number.isNaN(date.getTime())) {
       return date;
     }
 
@@ -269,11 +275,11 @@ function parseRegistrationDate(dateString: string | undefined): Date | null {
     ];
 
     for (const format of formats) {
-      const match = dateString.match(format);
+      const match = format.exec(dateString);
       if (match) {
         const [, year, month, day] = match;
-        const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        if (!isNaN(parsedDate.getTime())) {
+        const parsedDate = new Date(Number.parseInt(year), Number.parseInt(month) - 1, Number.parseInt(day));
+        if (!Number.isNaN(parsedDate.getTime())) {
           return parsedDate;
         }
       }
@@ -314,7 +320,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     // Major tech companies
     'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
     'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 
-    'youtu.be', 'grammarly.com',
+    'youtu.be', 'grammarly.com', 'mailsuite.com',
     'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
     'tiktok.com', 'spotify.com', 'shopify.com', 'fitbit.com',
     
@@ -363,7 +369,7 @@ export async function isTrustedDomain(domain: string, businessId?: number): Prom
         [businessId, domain]
       );
 
-      const count = parseInt((result.rows[0] as { count: string }).count);
+      const count = Number.parseInt((result.rows[0] as { count: string }).count);
       return count > 0;
     } catch (error) {
       oauthLogger.error('Failed to check monitored email domains for domain age analysis', {
@@ -502,7 +508,7 @@ function adjustResultForSenderDomain(cachedResult: DomainAgeResult): DomainAgeRe
   }
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (cachedResult.ageInDays < 30) {
@@ -544,7 +550,7 @@ function calculateSenderDomainAgeRisk(whoisData: WhoisResponse): DomainAgeResult
   const ageInDays = Math.floor((now.getTime() - registrationDate.getTime()) / (1000 * 60 * 60 * 24));
 
   let riskScore: number;
-  let riskLevel: 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
+  let riskLevel: RiskLevel;
   let isSuspicious: boolean;
 
   if (ageInDays < 30) {

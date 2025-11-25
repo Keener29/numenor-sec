@@ -23,7 +23,7 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout({ children }: { readonly children: React.ReactNode }) {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   
   if (!googleClientId) {

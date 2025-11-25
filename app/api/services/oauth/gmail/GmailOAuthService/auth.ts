@@ -3,10 +3,8 @@ import { oauthLogger } from '../../../logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../../base/types.js';
 
-type OAuth2Client = any;
-
 export function generateAuthUrl(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): string {
@@ -55,7 +53,7 @@ export function generateAuthUrl(
   }
 }
 
-export async function exchangeCodeForTokens(oauth2Client: OAuth2Client, code: string): Promise<OAuthTokens> {
+export async function exchangeCodeForTokens(oauth2Client: any, code: string): Promise<OAuthTokens> {
   const context: LogContext = { operation: 'exchange-code-for-tokens' };
   try {
     oauthLogger.info('Exchanging authorization code for Gmail tokens', context);
@@ -140,7 +138,7 @@ export async function getTokens(businessId: number, emailAddress: string): Promi
 }
 
 export async function refreshTokenIfNeeded(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): Promise<OAuthTokens> {
@@ -175,7 +173,7 @@ export async function refreshTokenIfNeeded(
 }
 
 export async function setCredentials(
-  oauth2Client: OAuth2Client,
+  oauth2Client: any,
   businessId: number,
   emailAddress: string
 ): Promise<void> {
@@ -227,20 +225,42 @@ export async function disconnect(businessId: number, emailAddress: string): Prom
 }
 
 export function validateState(state: string): OAuthState {
+  let stateData: any;
+
+  // Only catch JSON parsing errors here
   try {
-    const stateData = JSON.parse(state);
-    if (!stateData.businessId || !stateData.emailAddress || !stateData.nonce || !stateData.timestamp) {
-      throw new Error('Invalid state structure');
-    }
-    const stateAge = Date.now() - stateData.timestamp;
-    if (stateAge > 10 * 60 * 1000) {
-      throw new Error('State parameter expired');
-    }
-    return stateData as OAuthState;
-  } catch (error) {
-    throw ErrorFactory.oauthService(ErrorCodes.OAUTH_STATE_VALIDATION_FAILED, 'Invalid or expired OAuth state parameter');
+    stateData = JSON.parse(state);
+  } catch {
+    throw ErrorFactory.oauthService(
+      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+      'Invalid or expired OAuth state parameter'
+    );
   }
+
+  // Now validate structure (these should NOT be inside the try/catch)
+  if (
+    !stateData.businessId ||
+    !stateData.emailAddress ||
+    !stateData.nonce ||
+    !stateData.timestamp
+  ) {
+    throw ErrorFactory.oauthService(
+      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+      'Invalid or expired OAuth state parameter'
+    );
+  }
+
+  const stateAge = Date.now() - stateData.timestamp;
+  if (stateAge > 10 * 60 * 1000) {
+    throw ErrorFactory.oauthService(
+      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+      'Invalid or expired OAuth state parameter'
+    );
+  }
+
+  return stateData as OAuthState;
 }
+
 
 function generateNonce(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);

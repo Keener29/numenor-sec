@@ -5,23 +5,61 @@
 import { getDomain, parse } from "tldts";
 
 /**
+ * Safely strip HTML tags from text to prevent ReDoS attacks
+ * Uses /<[^>]+>/g instead of /<[^>]*>/g to avoid catastrophic backtracking
+ * @param text - Text that may contain HTML tags
+ * @param maxLength - Maximum input length to prevent DoS (default: 10MB)
+ * @returns Text with HTML tags removed
+ */
+export function stripHtmlTags(text: string, maxLength: number = 10 * 1024 * 1024): string {
+  if (!text) return '';
+  
+  // Prevent DoS by limiting input size
+  if (text.length > maxLength) {
+    throw new Error(`Input text exceeds maximum length of ${maxLength} characters`);
+  }
+  
+  // Use /<[^>]+>/g instead of /<[^>]*>/g to avoid catastrophic backtracking
+  // The + quantifier requires at least one character, reducing backtracking potential
+  return text.replaceAll(/<[^>]+>/g, '');
+}
+
+// Simple safe HTML-entity decoder
+export function decodeHtmlEntities(text: string): string {
+  return text
+    .replaceAll('&nbsp;', ' ')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"');
+}
+
+export function extractEmailAddress(senderEmail: string): string | null {
+  if (!senderEmail || senderEmail.length > 512) return null;
+  
+  let extracted = senderEmail.trim();
+  const start = extracted.indexOf("<");
+  const end = extracted.indexOf(">");
+  if (start !== -1 && end !== -1 && end > start + 1) {
+    extracted = extracted.slice(start + 1, end);
+  }
+  return extracted.trim();
+}
+
+/**
  * Check if an email is from our own service (should be excluded from analysis)
- * @param senderEmail - The sender's email address
+ * @param emailAddress - The email address to check
  * @returns true if the email is from our own service domains
  */
-export function isFromOwnService(senderEmail: string): boolean {
-  if (!senderEmail) return false;
+export function isFromOwnService(emailAddress: string | null): boolean {
 
-  // Prevent DoS or malformed input
-  if (senderEmail.length > 512) return false;
+  if (!emailAddress) return false;
 
-  // Extract email address from header format: "Name <email@domain.com>"
-  const emailMatch = senderEmail.match(/<?([\w.%+-]+@[^\s<>]{1,254})>?/);
-  if (!emailMatch) return false;
-
-  const emailAddress = emailMatch[1].trim().toLowerCase();
-  const [_, domain = ""] = emailAddress.split("@");
-  if (!domain) return false;
+  const parts = emailAddress.split("@");
+  if (parts.length !== 2) return false;
+  const domain = parts[1];
+  const local = parts[0];
+  if (!domain || !local) return false;
 
   // Known legitimate local/service domains
   const ownServiceDomains = [

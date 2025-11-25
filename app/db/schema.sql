@@ -5,13 +5,13 @@
 -- CREATE DATABASE numenor_security;
 
 -- Users table for business owners and administrators
+-- Note: business relationship is via businesses.owner_id (single source of truth)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    business_name VARCHAR(255) NOT NULL,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Businesss table for business information
 CREATE TABLE IF NOT EXISTS businesses (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
+    business_name VARCHAR(255) NULL,
     owner_id INTEGER,
     address TEXT,
     phone VARCHAR(20),
@@ -98,13 +98,6 @@ CREATE TABLE IF NOT EXISTS oauth_tokens (
     expiry_date TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- Foreign key constraint
-    CONSTRAINT fk_oauth_tokens_business_id 
-        FOREIGN KEY (business_id) 
-        REFERENCES businesses(id) 
-        ON DELETE CASCADE,
-    
     -- Unique constraint to prevent duplicate tokens for same business/email/provider
     CONSTRAINT unique_oauth_tokens_business_email_provider 
         UNIQUE (business_id, email_address, provider)
@@ -125,6 +118,15 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     message_id TEXT NOT NULL,
     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (business_id, email_address, message_id)
+);
+
+CREATE TABLE IF NOT EXISTS account_deletions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255) NOT NULL,
+    business_name VARCHAR(255) NULL,
+    reason TEXT,
+    deleted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Password reset tokens (single-use)
@@ -165,17 +167,111 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add foreign key constraints after all tables are created
-ALTER TABLE businesses ADD CONSTRAINT fk_businesses_owner_id FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE monitored_emails ADD CONSTRAINT fk_monitored_emails_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_email_id FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
-ALTER TABLE security_events ADD CONSTRAINT fk_security_events_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
-ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_email_id FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+-- Use DO blocks to check if constraints exist before adding them (idempotent)
+DO $$
+BEGIN
+    -- businesses.owner_id -> users.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_businesses_owner_id'
+    ) THEN
+        ALTER TABLE businesses ADD CONSTRAINT fk_businesses_owner_id 
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE;
+    END IF;
 
--- Apply updated_at triggers
+    -- monitored_emails.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_monitored_emails_business_id'
+    ) THEN
+        ALTER TABLE monitored_emails ADD CONSTRAINT fk_monitored_emails_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- phishing_alerts.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_phishing_alerts_business_id'
+    ) THEN
+        ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- phishing_alerts.email_id -> monitored_emails.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_phishing_alerts_email_id'
+    ) THEN
+        ALTER TABLE phishing_alerts ADD CONSTRAINT fk_phishing_alerts_email_id 
+            FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+    END IF;
+
+    -- security_events.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_security_events_business_id'
+    ) THEN
+        ALTER TABLE security_events ADD CONSTRAINT fk_security_events_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_scans.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_scans_business_id'
+    ) THEN
+        ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_scans.email_id -> monitored_emails.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_scans_email_id'
+    ) THEN
+        ALTER TABLE email_scans ADD CONSTRAINT fk_email_scans_email_id 
+            FOREIGN KEY (email_id) REFERENCES monitored_emails(id) ON DELETE CASCADE;
+    END IF;
+
+    -- email_offsets.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_email_offsets_business_id'
+    ) THEN
+        ALTER TABLE email_offsets ADD CONSTRAINT fk_email_offsets_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- processed_emails.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_processed_emails_business_id'
+    ) THEN
+        ALTER TABLE processed_emails ADD CONSTRAINT fk_processed_emails_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+
+    -- oauth_tokens.business_id -> businesses.id
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_oauth_tokens_business_id'
+    ) THEN
+        ALTER TABLE oauth_tokens ADD CONSTRAINT fk_oauth_tokens_business_id 
+            FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE;
+    END IF;
+END $$;
+
+-- Create indexes for new foreign keys
+CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
+CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(business_id);
+
+-- Indexes for account_deletions (for analytics queries)
+CREATE INDEX IF NOT EXISTS idx_account_deletions_user_email ON account_deletions(user_email);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_deleted_at ON account_deletions(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_account_deletions_business_name ON account_deletions(business_name);
+
+-- Apply updated_at triggers (idempotent - drop and recreate if exists)
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_businesses_updated_at ON businesses;
 CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_monitored_emails_updated_at ON monitored_emails;
 CREATE TRIGGER update_monitored_emails_updated_at BEFORE UPDATE ON monitored_emails FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_phishing_alerts_updated_at ON phishing_alerts;
 CREATE TRIGGER update_phishing_alerts_updated_at BEFORE UPDATE ON phishing_alerts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_oauth_tokens_updated_at ON oauth_tokens;
 CREATE TRIGGER update_oauth_tokens_updated_at BEFORE UPDATE ON oauth_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

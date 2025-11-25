@@ -4,9 +4,9 @@ services:
     image: postgres:15-alpine
     container_name: numenor-postgres
     environment:
-      POSTGRES_DB: numenor_security
-      POSTGRES_USER: numenor_user
-      POSTGRES_PASSWORD: numenor_password
+      POSTGRES_DB: ${DB_NAME:-numenor_security}
+      POSTGRES_USER: ${DB_USER:-numenor_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-}  # Require DB_PASSWORD env var (no default)
     ports:
       - "5432:5432"
     volumes:

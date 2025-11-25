@@ -1,17 +1,18 @@
 import { Router } from 'express';
 import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
-import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema } from '../schemas/user.js';
+import { authLimiter } from '../middleware/rateLimit.js';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
 import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
 import { OAuth2Client } from 'google-auth-library';
 
 const router = Router();
 
 // Register new user
-router.post('/register', validateBody(registerSchema), async (req, res, next) => {
+router.post('/register', authLimiter, validateBody(registerSchema), async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, businessName } = req.body;
 
@@ -22,26 +23,35 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
     }
 
     // Check if business name already exists
-    const existingBusiness = await query('SELECT id FROM businesses WHERE name = $1', [businessName]);
+    const existingBusiness = await query('SELECT id FROM businesses WHERE business_name = $1', [businessName]);
     if (existingBusiness.rows.length > 0) {
       return res.status(409).json({ error: 'A business with this name already exists' });
     }
 
-    // Create user
-    const user = await createUser(email, password, firstName, lastName, businessName);
+    // Create user first
+    const user = await createUser(email, password, firstName, lastName);
 
-    // Create business for the user
+    // Create business for the user (owner_id links to user)
     const businessResult = await query(
-      `INSERT INTO businesses (name, owner_id) 
+      `INSERT INTO businesses (business_name, owner_id) 
        VALUES ($1, $2) 
-       RETURNING id`,
+       RETURNING id, business_name`,
       [businessName, user.id]
     );
 
-    const businessId = (businessResult.rows[0] as { id: number }).id;
+    const business = businessResult.rows[0] as { id: number; business_name: string };
+    const businessId = business.id;
 
-    // Generate JWT token
-    const token = generateToken({ ...user, business_id: businessId });
+    // Generate JWT token (business info comes from JOIN, but include in token for convenience)
+    const token = generateToken({ ...user, business_name: business.business_name, business_id: businessId });
+
+    // Set HTTP-only cookie for server-side authentication (same as login)
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 1 day
+    });
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -61,7 +71,7 @@ router.post('/register', validateBody(registerSchema), async (req, res, next) =>
 });
 
 // Login user
-router.post('/login', validateBody(loginSchema), async (req, res, next) => {
+router.post('/login', authLimiter, validateBody(loginSchema), async (req, res, next) => {
   try {
     const { email, password, rememberMe } = req.body as { email: string; password: string; rememberMe?: boolean };
 
@@ -104,12 +114,9 @@ router.post('/login', validateBody(loginSchema), async (req, res, next) => {
  * Body: { credential: string }
  * Verifies Google ID token, creates user+business if needed, sets auth cookie and returns user.
  */
-router.post('/google', async (req, res, next) => {
+router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, res, next) => {
   try {
-    const { credential } = req.body as { credential?: string };
-    if (!credential) {
-      return res.status(400).json({ error: 'Missing Google credential' });
-    }
+    const { credential } = req.body;
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
@@ -122,73 +129,59 @@ router.post('/google', async (req, res, next) => {
       audience: clientId
     });
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
+    if (!payload?.email) {
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
 
     const email = payload.email;
     const firstName = (payload.given_name || '').trim() || 'User';
     const lastName = (payload.family_name || '').trim() || '';
-    const defaultBusiness = (payload.name || email.split('@')[0] || 'My Business').trim();
 
     // Ensure user exists; create if not
     let user = await getUserByEmail(email);
     let businessId: number | undefined = user?.business_id;
 
     if (!user) {
-      // Ensure unique business name
-      let businessNameCandidate = defaultBusiness;
-      let suffix = 1;
-      // Check for existing business name
-      // Note: keep this simple; collisions are unlikely
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
-        if (existing.rows.length === 0) break;
-        suffix += 1;
-        businessNameCandidate = `${defaultBusiness} ${suffix}`;
-      }
-
       // Create user with a random password (unused for Google login)
       const randomPassword = crypto.randomBytes(32).toString('hex');
-      user = await createUser(email, randomPassword, firstName, lastName, businessNameCandidate);
+      user = await createUser(email, randomPassword, firstName, lastName);
 
-      // Create a business owned by this new user
+      // Create a business owned by this new user with NULL name
+      // User will be prompted to enter business name on dashboard
       const businessResult = await query(
-        `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
-        [businessNameCandidate, user.id]
+        `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+        [null, user.id]
       );
-      businessId = (businessResult.rows[0] as { id: number }).id;
-    } else {
+      const business = businessResult.rows[0] as { id: number; business_name: string | null };
+      businessId = business.id;
+      user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+    } else if (!businessId) {
       // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
-      if (!businessId) {
-        const ownerBusiness = await query('SELECT id FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
-        if (ownerBusiness.rows.length > 0) {
-          businessId = (ownerBusiness.rows[0] as { id: number }).id;
-        } else {
-          // User exists but has no business - create one for them
-          // This handles edge case where user was created without a business
-          let businessNameCandidate = user.business_name || defaultBusiness;
-          let suffix = 1;
-          // eslint-disable-next-line no-constant-condition
-          while (true) {
-            const existing = await query('SELECT id FROM businesses WHERE name = $1', [businessNameCandidate]);
-            if (existing.rows.length === 0) break;
-            suffix += 1;
-            businessNameCandidate = `${user.business_name || defaultBusiness} ${suffix}`;
-          }
-          
-          const businessResult = await query(
-            `INSERT INTO businesses (name, owner_id) VALUES ($1, $2) RETURNING id`,
-            [businessNameCandidate, user.id]
-          );
-          businessId = (businessResult.rows[0] as { id: number }).id;
-        }
+      const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+      if (ownerBusiness.rows.length > 0) {
+        const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+      } else {
+        // User exists but has no business - create one for them with NULL name
+        // This handles edge case where user was created without a business
+        const businessResult = await query(
+          `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+          [null, user.id]
+        );
+        const business = businessResult.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        // Update user object with business info (normally comes from JOIN)
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
       }
     }
 
-    // Generate token and set cookie
-    const token = generateToken({ ...user!, business_id: businessId });
+    // Generate token and set cookie (include business info if available)
+    const token = generateToken({
+      ...user,
+      business_id: businessId,
+      business_name: user.business_name
+    });
     res.cookie('authToken', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -199,11 +192,11 @@ router.post('/google', async (req, res, next) => {
     return res.json({
       message: 'Google login successful',
       user: {
-        id: user!.id,
-        email: user!.email,
-        firstName: user!.first_name,
-        lastName: user!.last_name,
-        businessName: user!.business_name,
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        businessName: user.business_name,
         businessId: businessId
       },
       token
@@ -214,12 +207,9 @@ router.post('/google', async (req, res, next) => {
 });
 
 // Forgot password (initiate reset)
-router.post('/forgot-password', async (req, res, next) => {
+router.post('/forgot-password', authLimiter, validateBody(forgotPasswordSchema), async (req, res, next) => {
   try {
-    const { email } = req.body as { email?: string };
-    if (!email || typeof email !== 'string') {
-      return res.status(400).json({ error: 'Email is required' });
-    }
+    const { email } = req.body;
 
     // Do not reveal whether user exists
     const lookup = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -237,7 +227,7 @@ router.post('/forgot-password', async (req, res, next) => {
         [user.id, tokenHash, expiresAt]
       );
 
-      const appUrl = process.env.APP_URL || 'http://localhost:3000';
+      const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
       const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
       // Send reset email (do not reveal success to the client)
@@ -252,7 +242,7 @@ router.post('/forgot-password', async (req, res, next) => {
 });
 
 // Reset password
-router.post('/reset-password', validateBody(resetPasswordSchema), async (req, res, next) => {
+router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), async (req, res, next) => {
   try {
     const { token, newPassword } = req.body as { token: string; newPassword: string };
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -303,7 +293,7 @@ router.post('/reset-password', validateBody(resetPasswordSchema), async (req, re
       `INSERT INTO security_events (business_id, event_type, description)
        VALUES ($1, 'password_reset', 'User reset password')`,
       [null]
-    ).catch(() => {}); // non-fatal
+    ).catch(() => { }); // non-fatal
 
     return res.json({ message: 'Password has been reset successfully' });
   } catch (error) {

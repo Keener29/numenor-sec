@@ -22,10 +22,15 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
     // Handle validation errors with detailed messages
     if (errorData.details && Array.isArray(errorData.details)) {
       const validationMessages = errorData.details.map((detail: any) => detail.message).join(', ');
-      throw new Error(validationMessages);
+      const error = new Error(validationMessages);
+      (error as any).errorData = errorData;
+      throw error;
     }
     
-    throw new Error(errorData.error || `HTTP ${response.status}`);
+    // Preserve error data for bulk operations and other structured errors
+    const error = new Error(errorData.error || `HTTP ${response.status}`);
+    (error as any).errorData = errorData;
+    throw error;
   }
   
   return response.json();
@@ -105,6 +110,14 @@ export const authAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  // Delete account and business
+  deleteAccount: async (accountId: number, reason?: string) => {
+    return apiRequest(`/accounts/${accountId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    });
+  },
 };
 
 // Emails API functions
@@ -115,14 +128,22 @@ export const emailsAPI = {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.connected !== undefined) queryParams.append('connected', params.connected.toString());
-    
-    const queryString = queryParams.toString();
-    return apiRequest(`/emails${queryString ? `?${queryString}` : ''}`);
+    const qs = queryParams.toString();
+    const url = qs ? `/emails?${qs}` : '/emails';
+    return apiRequest(url);    
   },
 
   // Add new email to monitor
   addEmail: async (emailData: { emailAddress: string }) => {
     return apiRequest('/emails', {
+      method: 'POST',
+      body: JSON.stringify(emailData),
+    });
+  },
+
+  // Add multiple emails to monitor (bulk)
+  addBulkEmails: async (emailData: { emailAddresses: string[] }) => {
+    return apiRequest('/emails/bulk', {
       method: 'POST',
       body: JSON.stringify(emailData),
     });
@@ -169,14 +190,15 @@ export const alertsAPI = {
     endDate?: string;
   }) => {
     const queryParams = new URLSearchParams();
-    Object.entries(params || {}).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(params || {})) {
       if (value !== undefined) {
         queryParams.append(key, value.toString());
       }
-    });
+    }
     
-    const queryString = queryParams.toString();
-    return apiRequest(`/alerts${queryString ? `?${queryString}` : ''}`);
+    const qs = queryParams.toString();
+    const url = qs ? `/alerts?${qs}` : '/alerts';
+    return apiRequest(url);
   },
 
   // Get specific alert

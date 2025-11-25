@@ -20,11 +20,35 @@ import {
 
 // Mock fetch for WHOIS API calls
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe('Domain Analyzer Utilities', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    // Set default mock to prevent real API calls
+    // Tests can override this with mockResolvedValueOnce or mockRejectedValueOnce
+    mockFetch.mockImplementation((url: string | URL | Request) => {
+      let urlString: string;
+
+      if (typeof url === 'string') {
+        urlString = url;
+      } else if (url instanceof URL) {
+        urlString = url.toString();
+      } else {
+        urlString = url.url;
+      }
+      const domainRegex = /[?&](?:domain|domainName)=([^&]+)/;
+      const domainMatch = domainRegex.exec(urlString);
+      const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
+      const defaultResponse = {
+        ok: true,
+        json: async () => ({
+          domain: domain,
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()
+        })
+      };
+      return Promise.resolve(defaultResponse as Response);
+    });
   });
 
   describe('analyzeDomain', () => {

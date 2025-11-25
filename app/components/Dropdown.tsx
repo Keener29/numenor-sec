@@ -1,13 +1,13 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 
 interface DropdownProps {
-  title: string;
-  children: ReactNode;
-  isExpanded: boolean;
-  onToggle: () => void;
-  className?: string;
-  headerContent?: ReactNode;
-  rightAction?: ReactNode;
+  readonly title: string;
+  readonly children: ReactNode;
+  readonly isExpanded: boolean;
+  readonly onToggle: () => void;
+  readonly className?: string;
+  readonly headerContent?: ReactNode;
+  readonly rightAction?: ReactNode;
 }
 
 export default function Dropdown({ 

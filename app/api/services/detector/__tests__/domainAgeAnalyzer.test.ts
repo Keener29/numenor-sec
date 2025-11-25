@@ -8,17 +8,40 @@ import {
   analyzeDomainAge,
   analyzeSenderDomainAge,
   clearDomainAgeCache,
-  getCacheStats,
-  type DomainAgeResult
+  getCacheStats
 } from '../domainAgeAnalyzer.js';
 
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
-global.fetch = mockFetch;
+globalThis.fetch = mockFetch;
 
 describe('Domain Age Analyzer', () => {
   beforeEach(() => {
     clearDomainAgeCache();
     mockFetch.mockReset();
+    // Set default mock to prevent real API calls
+    // Tests can override this with mockResolvedValueOnce or mockRejectedValueOnce
+    mockFetch.mockImplementation((url: string | URL | Request) => {
+      let urlString: string;
+
+      if (typeof url === 'string') {
+        urlString = url;
+      } else if (url instanceof URL) {
+        urlString = url.toString();
+      } else {
+        urlString = url.url;
+      }
+      const domainRegex = /[?&](?:domain|domainName)=([^&]+)/;
+      const domainMatch = domainRegex.exec(urlString);
+      const domain = domainMatch ? decodeURIComponent(domainMatch[1]) : 'example.com';
+      const defaultResponse = {
+        ok: true,
+        json: async () => ({
+          domain: domain,
+          created_date: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year ago
+        })
+      };
+      return Promise.resolve(defaultResponse as Response);
+    });
   });
 
   describe('analyzeDomainAge', () => {
@@ -107,6 +130,8 @@ describe('Domain Age Analyzer', () => {
     });
 
     it('should handle WHOIS API failures gracefully', async () => {
+      // Mock both WHOIS APIs to fail (there are 2 APIs tried in sequence)
+      mockFetch.mockRejectedValueOnce(new Error('API Error'));
       mockFetch.mockRejectedValueOnce(new Error('API Error'));
 
       const result = await analyzeDomainAge('failing-domain.com');
@@ -146,9 +171,9 @@ describe('Domain Age Analyzer', () => {
       ];
 
       // Set up mock responses for each test case
-      testCases.forEach(() => {
+      for (const _ of testCases) {
         mockFetch.mockResolvedValueOnce(mockResponse as Response);
-      });
+      }
 
       for (const testDomain of testCases) {
         const result = await analyzeDomainAge(testDomain);

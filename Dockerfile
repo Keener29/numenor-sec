@@ -16,7 +16,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for build)
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy source code (including .env if it exists)
 COPY . .
@@ -31,27 +31,20 @@ RUN npm run build
 FROM node:20-alpine AS production
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create app user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S numenor -u 1001
+RUN apk add --no-cache dumb-init && \
+    addgroup -g 1001 -S nodejs && \
+    adduser -S numenor -u 1001
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files and install only production dependencies
 COPY package*.json ./
-RUN npm ci --only=production && npm prune --production
+RUN npm ci --ignore-scripts --only=production && npm prune --production
 
 # Copy built application from builder stage
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/app ./app
-
-COPY --chown=numenor:nodejs README.md README.md
-COPY --chown=numenor:nodejs EMAIL_SETUP.md EMAIL_SETUP.md
-COPY --chown=numenor:nodejs SECURE_EMAIL_APPROVAL.md SECURE_EMAIL_APPROVAL.md
-
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs

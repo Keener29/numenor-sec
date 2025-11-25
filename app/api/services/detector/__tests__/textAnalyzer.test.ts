@@ -1,5 +1,5 @@
 import { textAnalyzer } from '../textAnalyzer.js';
-import { describe, expect, it, jest } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 
 describe('TextAnalyzer', () => {
   describe('analyzeEmailText', () => {
@@ -108,7 +108,7 @@ describe('TextAnalyzer', () => {
       });
       
       // Get the base score for the same text
-      const baseScore = textAnalyzer.analyzeText('URGENT: Verify now!').score;
+      const baseScore = textAnalyzer.analyzeText('URGENT: Verify now!');
       
       // Subject score should be 1.5x the base score
       expect(result.subjectScore).toBe(baseScore * 1.5);
@@ -117,38 +117,41 @@ describe('TextAnalyzer', () => {
 
   describe('analyzeText (individual)', () => {
     it('should analyze individual text content', () => {
-      const result = textAnalyzer.analyzeText('URGENT: Your account will be suspended if you do not act immediately!');
-      
-      expect(result.patterns).toContain('generic_urgency');
-      expect(result.patterns).toContain('account_suspension_threat');
-      expect(result.score).toBeGreaterThan(0);
+      const score = textAnalyzer.analyzeText('URGENT: Your account will be suspended if you do not act immediately!');
+      const patterns = textAnalyzer.getPatterns();
+      expect(patterns).toContain('generic_urgency');
+      expect(patterns).toContain('account_suspension_threat');
+      expect(score).toBeGreaterThan(0);
     });
 
     it('should return same score for same content regardless of context', () => {
       const text = 'URGENT: Verify your account now!';
-      const result1 = textAnalyzer.analyzeText(text);
-      const result2 = textAnalyzer.analyzeText(text);
+      const score1 = textAnalyzer.analyzeText(text);
+      const patterns1 = textAnalyzer.getPatterns();
+      const score2 = textAnalyzer.analyzeText(text);
+      const patterns2 = textAnalyzer.getPatterns();
       
-      expect(result1.score).toBe(result2.score);
-      expect(result1.patterns).toEqual(result2.patterns);
+      expect(score1).toBe(score2);
+      expect(patterns1).toEqual(patterns2);
     });
 
     it('should cap low severity pattern contributions', () => {
       // Create text with many low severity patterns
       const text = 'urgent verify confirm update validate secure protect immediately asap deadline limited time click here download install update now';
       
-      const result = textAnalyzer.analyzeText(text);
+      const score = textAnalyzer.analyzeText(text);
+      const patterns = textAnalyzer.getPatterns();
       
       // Should have some low severity patterns detected
-      expect(result.patterns.length).toBeGreaterThan(2);
+      expect(patterns.length).toBeGreaterThan(2);
       
       // Should detect generic_urgency and generic_verification patterns
-      expect(result.patterns).toContain('generic_urgency');
-      expect(result.patterns).toContain('generic_verification');
+      expect(patterns).toContain('generic_urgency');
+      expect(patterns).toContain('generic_verification');
       
       // But the score should be capped (low severity patterns contribute max 20 points)
       // Plus keyword density and punctuation penalties
-      expect(result.score).toBeLessThan(50); // Reasonable cap considering all low severity patterns
+      expect(score).toBeLessThan(50); // Reasonable cap considering all low severity patterns
     });
   });
 

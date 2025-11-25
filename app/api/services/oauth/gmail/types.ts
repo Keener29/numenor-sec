@@ -3,6 +3,9 @@
  * Types specific to Gmail OAuth implementation
  */
 
+import type { EmailMessage } from "../base/types";
+import type { SetCredentialsFn } from "./GmailOAuthService/actions";
+
 export interface GmailMessage {
   id: string;
   threadId: string;
@@ -13,6 +16,28 @@ export interface GmailMessage {
   payload: GmailMessagePayload;
   sizeEstimate: number;
   raw?: string;
+}
+
+export interface DraftContentOptions {
+  businessId: number;
+  emailAddress: string;
+  originalMessage: GmailMessage;
+  modifiedHtml: string;
+  modifiedPlainText: string;
+  subject: string;
+  from: string;
+  to: string;
+}
+
+export interface FetchEmailsOptions {
+  setCredentials: SetCredentialsFn,
+  gmail: any,
+  businessId: number,
+  emailAddress: string,
+  maxResults?: number,
+  searchQuery: string,
+  parseGmailMessage: (message: GmailMessage, emailAddress?: string) => EmailMessage,
+  connectionTimestamp?: Date;
 }
 
 export interface GmailMessagePayload {

@@ -28,7 +28,7 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
 
     // Get business name and owner email for the email
     const businessResult = await query(
-      `SELECT b.name, u.email as owner_email 
+      `SELECT b.business_name, u.email as owner_email 
        FROM businesses b 
        JOIN users u ON b.owner_id = u.id 
        WHERE b.id = $1`,
@@ -44,7 +44,7 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
 
     // Send permission request email
     try {
-      await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, parseInt(emailId), businessId);
+      await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, Number.parseInt(emailId), businessId);
       
       // Log successful email send
       await query(
@@ -119,10 +119,10 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
     );
 
     const stats = {
-      totalEmails: parseInt((totalEmailsResult.rows[0] as { count: string }).count),
-      connectedEmails: parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
-      disconnectedEmails: parseInt((disconnectedEmailsResult.rows[0] as { count: string }).count),
-      recentActivity: parseInt((recentActivityResult.rows[0] as { count: string }).count)
+      totalEmails: Number.parseInt((totalEmailsResult.rows[0] as { count: string }).count),
+      connectedEmails: Number.parseInt((connectedEmailsResult.rows[0] as { count: string }).count),
+      disconnectedEmails: Number.parseInt((disconnectedEmailsResult.rows[0] as { count: string }).count),
+      recentActivity: Number.parseInt((recentActivityResult.rows[0] as { count: string }).count)
     };
 
     res.json({ stats });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
 import { requireServerAuth } from "../utils/serverAuth";
@@ -9,9 +9,10 @@ import RecentActivity from "../components/RecentActivity";
 import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
+import BusinessNameModal from "../components/BusinessNameModal";
 import { googleLogout } from "@react-oauth/google";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   // return metadata for the dashboard
   return [
     { title: "Dashboard - Numenor Security" },
@@ -32,11 +33,11 @@ const processChartData = (dailyAlerts: any[]) => {
   
   // Create a map of date to count for quick lookup
   const alertsMap = new Map();
-  dailyAlerts.forEach(alert => {
+  for (const alert of dailyAlerts) {
     // Convert ISO date to YYYY-MM-DD format for consistent lookup
     const dateString = new Date(alert.date).toISOString().split('T')[0];
     alertsMap.set(dateString, alert.count);
-  });
+  }
     
   // Generate chart data for the last 7 days
   const chartData = [];
@@ -51,6 +52,7 @@ const processChartData = (dailyAlerts: any[]) => {
     console.log(`Date: ${dateString}, Day: ${dayName}, Alerts: ${alertCount}`);
     
     chartData.push({
+      uuid: crypto.randomUUID(),
       day: dayName,
       alerts: alertCount
     });
@@ -60,7 +62,6 @@ const processChartData = (dailyAlerts: any[]) => {
 };
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
-  const navigate = useNavigate();
   const [emails, setEmails] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [stats, setStats] = useState<any>({});
@@ -68,17 +69,25 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBusinessNameModalOpen, setIsBusinessNameModalOpen] = useState(false);
 
   // Get user data from server-side loader
   const user = loaderData?.user;
 
   // Use the OAuth statuses hook
-  const { oauthStatuses, isLoading: oauthLoading, error: oauthError, refreshOAuthStatuses } = useOAuthStatuses(emails);
+  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails);
 
   // Load dashboard data on component mount
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Check if business name is missing and show modal
+  useEffect(() => {
+    if (user && stats.businessName === null) {
+      setIsBusinessNameModalOpen(true);
+    }
+  }, [user, stats.businessName]);
 
   const loadDashboardData = async () => {
     try {
@@ -102,7 +111,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       setStats({
         ...emailStats.stats,
         ...alertStats.stats,
-        businessName: businessResponse.business?.name || "Your Business",
+        businessName: businessResponse.business?.name || null,
       });
 
       // Process daily alerts data for the chart
@@ -130,14 +139,14 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       setAlerts(alertsResponse.alerts || []);
       setStats((prev: any) => ({
         ...prev,
-        ...(alertStats?.stats || {})
+        ...(alertStats?.stats)
       }));
       // Update chart with latest daily alerts
       const dailyAlerts = alertStats?.stats?.dailyAlerts || [];
       setChartData(processChartData(dailyAlerts));
       // Notify other dashboard components to refresh (e.g., PhishingDetectionDashboard)
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
+      if (globalThis.window !== undefined) {
+        globalThis.window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
       }
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
@@ -155,11 +164,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       googleLogout();
       await authAPI.logout();
       // Use full page reload to trigger server-side authentication check
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     } catch (err) {
       console.error("Logout error:", err);
       // Still navigate to login even if logout API fails
-      window.location.href = "/login";
+      globalThis.window.location.href = "/login";
     }
   };
 
@@ -176,6 +185,12 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
               </Link>
             </div>
             <div className="flex items-center space-x-4">
+              <Link
+                to="/account-settings"
+                className="text-gray-700 px-3 py-2 rounded-md text-base font-medium hover:text-gray-900"
+              >
+                Account Settings
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-gray-700 px-3 py-2 rounded-md text-base font-medium bg-white border-0 cursor-pointer"
@@ -286,6 +301,16 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
         </div>
       </div>
+
+      {/* Business Name Modal - shown when business name is null */}
+      <BusinessNameModal
+        isOpen={isBusinessNameModalOpen}
+        onClose={() => setIsBusinessNameModalOpen(false)}
+        onSuccess={() => {
+          // Reload dashboard data to get updated business name
+          loadDashboardData();
+        }}
+      />
     </div>
   );
 }
