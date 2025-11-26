@@ -7,7 +7,6 @@ import { createUser, verifyUserPassword, getUserById, generateToken, hashPasswor
 import { query } from '../../db/connection.js';
 import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
-import { OAuth2Client } from 'google-auth-library';
 
 const router = Router();
 
