@@ -12,7 +12,7 @@ import { errorHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../../db/connection.js';
 import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword, verifyGoogleToken, getUserByEmail } from '../../utils/auth.js';
 import { emailService } from '../../services/emailService.js';
-
+import { authenticateToken, type AuthRequest } from '../../middleware/auth.js';
 // Mock dependencies
 jest.mock('../../../db/connection.js', () => ({
   query: jest.fn()
@@ -39,7 +39,13 @@ jest.mock('../../services/emailService.js', () => ({
 }));
 
 jest.mock('../../middleware/rateLimit.js', () => ({
-  authLimiter: (req: any, res: any, next: any) => next()
+  authLimiter: (req: any, res: any, next: any) => next(),
+}));
+jest.mock('../../middleware/auth.js', () => ({
+  authenticateToken: (req: AuthRequest, resp: any, next: any) => {
+      req.user = { id: 1, email: 'test@example.com', business_id: 1 };
+      next();
+  }
 }));
 
 describe('POST /api/auth/register', () => {
@@ -513,5 +519,62 @@ describe('POST /api/auth/google', () => {
       .send({ credential: 'mock-credential' });
     expect(response.status).toBe(500);
     expect(response.body.error).toBe('Google client not configured');
+  });
+});
+describe('GET /api/auth/me', () => {
+  let app: express.Application;
+
+  beforeEach(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+    app.use(errorHandler);
+    jest.clearAllMocks();
+  });
+  it('should successfully get current user profile', async () => {
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: 'Test Business',
+      business_id: 1
+    };
+    (getUserById as any).mockResolvedValueOnce(mockUser);
+    const response = await request(app)
+      .get('/api/auth/me');
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.firstName).toBe('Test');
+    expect(response.body.user.lastName).toBe('User');
+    expect(response.body.user.businessName).toBe('Test Business');
+    expect(response.body.user.businessId).toBe(1);
+  });
+  it('should return 404 when user does not exist', async () => {
+    (getUserById as any).mockResolvedValueOnce(null);
+    const response = await request(app)
+      .get('/api/auth/me');
+    expect(response.status).toBe(404);
+    expect(response.body.error).toBe('User not found');
+  });
+});
+
+describe('POST /api/auth/logout', () => {
+  let app: express.Application;
+
+  beforeEach(() => {
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+    app.use(errorHandler);
+    jest.clearAllMocks();
+  });
+  it('should successfully logout', async () => {
+    (query as any).mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    const response = await request(app)
+      .post('/api/auth/logout');
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Logout successful');
   });
 });
