@@ -12,7 +12,7 @@ import { errorHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../../db/connection.js';
 import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword, verifyGoogleToken, getUserByEmail } from '../../utils/auth.js';
 import { emailService } from '../../services/emailService.js';
-import { authenticateToken, type AuthRequest } from '../../middleware/auth.js';
+import { type AuthRequest } from '../../middleware/auth.js';
 // Mock dependencies
 jest.mock('../../../db/connection.js', () => ({
   query: jest.fn()
