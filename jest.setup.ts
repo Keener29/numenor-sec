@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'node:util';
 
 // Polyfill setImmediate for Express/Node.js compatibility in Jest
-if (typeof globalThis.setImmediate === 'undefined') {
+if (globalThis.setImmediate === undefined) {
   (globalThis as any).setImmediate = (callback: (...args: any[]) => void, ...args: any[]) => {
     return setTimeout(() => callback(...args), 0);
   };

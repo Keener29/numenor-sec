@@ -6,7 +6,7 @@
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
 import type { Request, Response, NextFunction } from 'express';
 import { errorHandler, notFoundHandler } from '../errorHandler.js';
-import { EmailServiceError, OAuthServiceError, TokenValidationError } from '../../types/email.js';
+import { EmailServiceError } from '../../types/email.js';
 
 // Mock the service error handler
 jest.mock('../../services/errorHandler.js', () => ({

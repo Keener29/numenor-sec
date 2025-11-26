@@ -569,9 +569,6 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 2. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
 3. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
 4. **attachment analyzer is weak, can be improved**
-5. ** favicon**
-6. **Blue text font in emails, change to white**
-7. **Check user doesn't exist to authorization failed**
 
 ### Future Enhancements
 

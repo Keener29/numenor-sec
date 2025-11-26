@@ -82,7 +82,6 @@ describe('validateBody', () => {
       email: z.string().email()
     });
     // Create a mock that throws a non-Zod error
-    const originalParse = schema.parse;
     jest.spyOn(schema, 'parse').mockImplementation(() => {
       throw new Error('Non-Zod error');
     });

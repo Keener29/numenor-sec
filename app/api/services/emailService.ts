@@ -330,13 +330,14 @@ export function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTem
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${frontendUrl}/dashboard" class="button">
+            <a href="${frontendUrl}/dashboard" class="button" style="color: white;">
               View Dashboard
             </a>
-            <a href="${frontendUrl}/dashboard" class="button" style="background-color: #dc2626;">
+            <a href="${frontendUrl}/dashboard" class="button" style="background-color: #dc2626; color: white;">
               Manage Alerts
             </a>
           </div>
+
           
           <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; border-radius: 6px; margin: 20px 0;">
             <strong>⚠️ Important:</strong> Do not click any links or download attachments from the suspicious email. If you have already interacted with the email, contact your IT security team or Numenor Security immediately.

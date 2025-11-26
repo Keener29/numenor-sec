@@ -19,17 +19,16 @@ jest.mock('../../../db/connection.js', () => ({
 }));
 
 jest.mock('../../utils/auth.js', () => {
-  const actual = jest.requireActual('../../utils/auth.js') as Record<string, any>;
-
-  return {
-    ...actual,  // TS now allows spreading
-    createUser: jest.fn(),
-    verifyUserPassword: jest.fn(),
-    getUserById: jest.fn(),
-    generateToken: jest.fn(),
-    getUserByEmail: jest.fn(),
-    verifyGoogleToken: jest.fn()
-  };
+    return {
+        createUser: jest.fn(),
+        verifyUserPassword: jest.fn(),
+        getUserById: jest.fn(),
+        generateToken: jest.fn(),
+        getUserByEmail: jest.fn(),
+        verifyGoogleToken: jest.fn(),
+        hashPassword: async (password: string) => password,
+        comparePassword: async (password: string, hash: string) => password === hash
+    }
 });
 
 jest.mock('../../services/emailService.js', () => ({
@@ -277,9 +276,7 @@ describe('POST /api/auth/reset-password', () => {
   
   it('should successfully reset password', async () => {
     const mockToken = 'mock-jwt-token';
-    const mockPasswordHash = {
-      password_hash: await hashPassword('mock-password-hash')
-    }
+    const mockPasswordHash = await hashPassword('mock-password-hash');
     const mockTokenRow = {
       user_id: 1,
       expires_at: new Date(Date.now() + 1000),

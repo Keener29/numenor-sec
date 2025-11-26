@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, beforeEach, jest } from '@jest/globals';
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../auth.js';
 import jwt from 'jsonwebtoken';
 
