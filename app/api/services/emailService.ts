@@ -510,7 +510,7 @@ class EmailService {
 
       const fromAddress = process.env.SMTP_FROM || this.config.auth.user;
       const mailOptions = {
-        from: `"Numenor Security" <${fromAddress}>`,
+        from: fromAddress,
         to: recipientEmail,
         subject: template.subject,
         html: template.html,
@@ -611,7 +611,7 @@ class EmailService {
       // Prepare mail options
       const fromAddress = process.env.SMTP_FROM || this.config.auth.user;
       const mailOptions = {
-        from: `"Numenor Security" <${fromAddress}>`,
+        from: fromAddress,
         to: emailAddress,
         subject: template.subject,
         html: template.html,
