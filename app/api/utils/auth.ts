@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { query } from '../../db/connection.js';
+import { OAuth2Client, type TokenPayload } from 'google-auth-library';
+
 
 export interface User {
   id: number;
@@ -10,6 +12,16 @@ export interface User {
   business_name?: string; // From businesses.name via JOIN
   business_id?: number; // From businesses.id via JOIN
 }
+
+export const verifyGoogleToken = async (credential: string, clientId: string): Promise<TokenPayload | undefined> => {
+  const client = new OAuth2Client(clientId);
+  const ticket = await client.verifyIdToken({
+    idToken: credential,
+    audience: clientId
+  });
+
+  return ticket.getPayload();
+};
 
 export const hashPassword = async (password: string): Promise<string> => {
   const saltRounds = 12;

@@ -5,6 +5,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 ## Features
 
 ### Frontend
+
 - **Login Page**: JWT-based authentication with secure login
 - **Signup Page**: User registration with business details and automatic business creation
 - **Dashboard Page**:
@@ -16,6 +17,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **Landing Page**: Marketing homepage with features and call-to-action
 
 ### Backend API
+
 - **Authentication System**: JWT-based auth with password hashing
 - **User Management**: Registration, login, profile management
 - **Business Management**: Business information and statistics
@@ -27,6 +29,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - **Error Handling**: Centralized error handling and logging
 
 ### Modular Architecture
+
 - **Email Management**: Split into focused modules for better maintainability
   - `email-management.ts` - CRUD operations (GET, POST, PUT, DELETE)
   - `email-actions.ts` - Actions like resend and statistics
@@ -38,6 +41,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 ## Tech Stack
 
 ### Frontend
+
 - [React Router v7](https://reactrouter.com) - File-based routing
 - [React 19](https://react.dev) - UI library with hooks
 - [TypeScript](https://www.typescriptlang.org) - Type safety
@@ -45,6 +49,7 @@ A full-stack phishing protection SaaS designed for small to medium businesses. B
 - [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
 
 ### Backend
+
 - [Express.js](https://expressjs.com) - Web framework
 - [PostgreSQL](https://postgresql.org) - Database
 - [Node.js pg](https://node-postgres.com) - PostgreSQL client
@@ -75,6 +80,7 @@ docker-compose up -d
 ```
 
 That's it! The application will be running with:
+
 - ✅ **Frontend**: [http://localhost:3000](http://localhost:3000)
 - ✅ **API**: [http://localhost:3001](http://localhost:3001)
 - ✅ **Database**: PostgreSQL with automatic migrations
@@ -107,10 +113,10 @@ That's it! The application will be running with:
    ```bash
    # Create the database
    createdb numenor_security
-   
+
    # Copy environment variables
    cp .env.example .env
-   
+
    # Edit .env with your database credentials
    # Then run migrations to set up the schema
    npm run db:migrate
@@ -123,13 +129,12 @@ That's it! The application will be running with:
    ```bash
    # Start the frontend (React Router)
    npm run dev
-   
+
    # In a separate terminal, start the backend API
    npm run api:dev
    ```
 
 5. **Open your browser:**
-
    - **Frontend**: Navigate to [http://localhost:3000](http://localhost:3000)
    - **Backend API**: [http://localhost:3001](http://localhost:3001)
    - **API Documentation**: [http://localhost:3001/api](http://localhost:3001/api)
@@ -227,6 +232,7 @@ That's it! The application will be running with:
 ## API Endpoints
 
 ### Authentication (`/api/auth`)
+
 - `POST /register` - Register new user and create business
 - `POST /login` - User authentication with JWT
 - `GET /me` - Get current user profile
@@ -234,11 +240,13 @@ That's it! The application will be running with:
 - `POST /logout` - Logout and log security event
 
 ### Business Management (`/api/business`)
+
 - `GET /` - Get business information
 - `PUT /` - Update business details
 - `GET /stats` - Get business statistics (emails, alerts, etc.)
 
 ### Email Monitoring (`/api/emails`)
+
 - `GET /` - List monitored emails (with pagination)
 - `POST /` - Add single email for monitoring
 - `POST /bulk` - Add multiple emails for monitoring (max 5 per business, max 5 per request)
@@ -259,6 +267,7 @@ This project uses Gmail history-based delta polling to efficiently detect new me
 This approach significantly reduces API usage compared to fixed-interval full scans while maintaining strong reliability for SMB inboxes.
 
 ### OAuth Integration (`/api/oauth`)
+
 - `GET /gmail/auth-url` - Generate Gmail OAuth authorization URL
 - `GET /api/oauth/gmail/callback` - Handle OAuth callback from Google
 - `POST /gmail/disconnect` - Disconnect Gmail OAuth
@@ -268,12 +277,14 @@ This approach significantly reduces API usage compared to fixed-interval full sc
 #### Email Connection Status
 
 **Connected Email:**
+
 - The email address is **actively being monitored** for phishing attempts
 - The system can **receive and analyze emails** sent to this address
 - **Real-time scanning** is enabled for incoming messages
 - The email is **integrated with your security monitoring system**
 
 **Disconnected Email:**
+
 - The email address is **not currently being monitored**
 - The system **cannot scan incoming emails** to this address
 - **No real-time protection** against phishing attempts
@@ -282,6 +293,7 @@ This approach significantly reduces API usage compared to fixed-interval full sc
 This connection status determines whether the email security system is actively protecting that inbox from phishing threats.
 
 ### Phishing Alerts (`/api/alerts`)
+
 - `GET /` - List alerts (with filtering & pagination)
 - `GET /:id` - Get specific alert details
 - `PUT /:id` - Update alert status
@@ -352,11 +364,13 @@ All tables include proper indexes, foreign key relationships, and automatic time
 The project has been migrated from custom CSS to Tailwind CSS v3.4.0 for improved maintainability and faster development:
 
 #### Configuration Files
+
 - **`tailwind.config.js`**: Tailwind configuration with Inter font family
 - **`postcss.config.js`**: PostCSS configuration for Tailwind processing
 - **`app/app.css`**: Contains Tailwind directives and custom component classes
 
 #### Custom Component Classes
+
 The following custom classes are available in `app/app.css`:
 
 ```css
@@ -381,6 +395,7 @@ The following custom classes are available in `app/app.css`:
 ```
 
 #### Recent UI Improvements
+
 - **Responsive Hero Section**: Side-by-side layout on wide screens, stacked on mobile
 - **Enhanced Signup Form**: Real-time password validation with visual feedback
 - **Improved Dashboard**: Collapsible email monitoring with detailed alert information
@@ -389,6 +404,7 @@ The following custom classes are available in `app/app.css`:
 ## Development
 
 ### Frontend Development
+
 - **TypeScript**: Full type safety
 - **React Hooks**: Functional components with useState
 - **React Router**: Client-side routing
@@ -396,6 +412,7 @@ The following custom classes are available in `app/app.css`:
 - **Hot Reload**: Vite development server with HMR
 
 ### Backend Development
+
 - **Express.js**: RESTful API with middleware (Middleware is your security guard, data validator, and error handler)
 - **JWT Authentication**: Secure token-based auth
 - **Input Validation**: Zod schema validation
@@ -430,7 +447,7 @@ docker-compose exec postgres psql -U numenor_user -d numenor_security
 ### Docker Services
 
 - **Frontend**: React Router app on port 3000
-- **API**: Express.js server on port 3001  
+- **API**: Express.js server on port 3001
 - **PostgreSQL**: Database with persistent storage
 - **Redis**: Caching and session storage
 - **Migration**: Automatic database schema setup
@@ -523,12 +540,14 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 ## Learn More
 
 ### Frontend
+
 - [React Router v7 Documentation](https://reactrouter.com)
 - [React Documentation](https://react.dev)
 - [Vite Documentation](https://vitejs.dev)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 
 ### Backend
+
 - [Express.js Documentation](https://expressjs.com)
 - [PostgreSQL Documentation](https://www.postgresql.org/docs/)
 - [JWT Documentation](https://jwt.io/introduction)
@@ -545,22 +564,17 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 ## 📋 TODO List
 
 ### High Priority
+
 1. **Register any needed emails** - Set up proper email addresses for production use
-2. **DONE: Double check terms and conditions** - Review and update legal documentation
-3. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
-4. **DONE: Server multi-client handling** - Make sure your server is handling email scans if someone is logged in or not and for many clients
-5. **Qurantine high and critical risk emails** - Low does nothing, medium can have a banner placed
-6. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
-7. **attachment analyzer is weak, can be improved**
-8. **DONE: Replaced 30s polling with Gmail history-based delta polling (60–120s jitter)**
-9. **DONE: Don't check forwarded emails**
-10. **DONE: Inject warning in medium + risk emails**
-11. **DONE: Sign in and sign up with google**
-12. **DONE: Free pdf download for phishing basics**
-13. **DONE: Critical/High bug**
-14. **DONE: favicon**
-15. **Blue text font in emails, change to white**
+2. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
+3. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
+4. **attachment analyzer is weak, can be improved**
+5. ** favicon**
+6. **Blue text font in emails, change to white**
+7. **Check user doesn't exist to authorization failed**
+
 ### Future Enhancements
+
 - Implement machine learning for threat detection
 
 ## License

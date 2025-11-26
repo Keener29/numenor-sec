@@ -70,11 +70,6 @@ export const authAPI = {
     });
   },
 
-  // Get current user
-  getCurrentUser: async () => {
-    return apiRequest('/auth/me');
-  },
-
   // Change password
   changePassword: async (passwordData: {
     currentPassword: string;

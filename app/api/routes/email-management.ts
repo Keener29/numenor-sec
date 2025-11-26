@@ -113,7 +113,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const businessName = (businessResult.rows[0] as { name: string }).name;
+    const businessName = (businessResult.rows[0] as { business_name: string }).business_name;
     const businessEmail = (businessResult.rows[0] as { owner_email: string }).owner_email;
 
     // Send permission request email
@@ -334,7 +334,7 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     await client.query('ROLLBACK');
     next(error);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

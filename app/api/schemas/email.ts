@@ -72,6 +72,7 @@ export const addBulkEmailsSchema = z.object({
 });
 
 export const updateEmailSchema = z.object({
+  emailAddress: secureEmailRefinement,
   isConnected: z.boolean().optional()
 });
 

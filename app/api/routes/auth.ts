@@ -3,7 +3,7 @@ import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
 import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
-import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail } from '../utils/auth.js';
+import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail, verifyGoogleToken } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
 import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
@@ -117,18 +117,12 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req, res, n
 router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, res, next) => {
   try {
     const { credential } = req.body;
-
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
       return res.status(500).json({ error: 'Google client not configured' });
     }
 
-    const client = new OAuth2Client(clientId);
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: clientId
-    });
-    const payload = ticket.getPayload();
+    const payload = await verifyGoogleToken(credential, clientId);
     if (!payload?.email) {
       return res.status(401).json({ error: 'Invalid Google credential' });
     }
