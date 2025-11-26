@@ -10,7 +10,7 @@ import authRoutes from '../auth.js';
 import { errorHandler } from '../../middleware/errorHandler.js';
 
 import { query } from '../../../db/connection.js';
-import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword } from '../../utils/auth.js';
+import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword, verifyGoogleToken, getUserByEmail } from '../../utils/auth.js';
 import { emailService } from '../../services/emailService.js';
 
 // Mock dependencies
@@ -27,11 +27,10 @@ jest.mock('../../utils/auth.js', () => {
     verifyUserPassword: jest.fn(),
     getUserById: jest.fn(),
     generateToken: jest.fn(),
-    getUserByEmail: jest.fn()
+    getUserByEmail: jest.fn(),
+    verifyGoogleToken: jest.fn()
   };
 });
-
-
 
 jest.mock('../../services/emailService.js', () => ({
   emailService: {
@@ -109,6 +108,21 @@ describe('POST /api/auth/register', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.error).toBe('User with this email already exists');
+  });
+  it('should return 409 when business name already exists', async () => {
+    (query as any).mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    (query as any).mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 }); // Check existing business
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'test@example.com',
+        password: 'password123',
+        firstName: 'Test',
+        lastName: 'User',
+        businessName: 'Test Business'
+      });
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe('A business with this name already exists');
   });
 
   it('should return 400 when validation fails', async () => {
@@ -348,5 +362,156 @@ describe('POST /api/auth/reset-password', () => {
       .send({ token: mockToken, newPassword: 'password123' });
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('User not found');
+  });
+});
+describe('POST /api/auth/google', () => {
+  let app: express.Application;
+
+  beforeEach(() => {
+    process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
+    process.env.NODE_ENV = 'development';
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+    app.use(errorHandler);
+    jest.clearAllMocks();
+  });
+  it('should successfully login with valid credentials', async () => {
+    const mockGmailPayload = {
+      email: 'test@example.com',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: 'Test Business',
+      business_id: 1
+    };
+    (verifyGoogleToken as any).mockResolvedValueOnce(mockGmailPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(mockUser);
+    (generateToken as any).mockResolvedValueOnce("mock-jwt-token");
+
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'mock-credential' });  
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Google login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+  it('should successfully sign up with valid credentials', async () => {
+    const mockGmailPayload = {
+      email: 'test@example.com',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: 'Test Business',
+      business_id: 1
+    };
+    const mockBusiness = { id: 1, business_name: 'Test Business' };
+    (verifyGoogleToken as any).mockResolvedValueOnce(mockGmailPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(null);
+    (createUser as any).mockResolvedValueOnce(mockUser);
+    (query as any).mockResolvedValueOnce({ rows: [mockBusiness], rowCount: 1 });
+    (generateToken as any).mockResolvedValueOnce("mock-jwt-token");
+
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'mock-credential' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Google login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+  it('should successfully sign up user when no business is found but business exists', async () => {
+    const mockGmailPayload = {
+      email: 'test@example.com',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: null,
+      business_id: undefined
+    };
+    const mockBusiness = { id: 1, business_name: 'Test Business' };
+    (verifyGoogleToken as any).mockResolvedValueOnce(mockGmailPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(mockUser);
+    (query as any).mockResolvedValueOnce({ rows: [mockBusiness], rowCount: 1 }); // get business id
+    (generateToken as any).mockResolvedValueOnce("mock-jwt-token");
+    
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'mock-credential' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Google login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+  it('should successfully sign up user when no business exists', async () => {
+    const mockGmailPayload = {
+      email: 'test@example.com',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: null,
+      business_id: undefined
+    };
+    const mockBusiness = { id: 1, business_name: 'Test Business' };
+    (verifyGoogleToken as any).mockResolvedValueOnce(mockGmailPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(mockUser);
+    (query as any).mockResolvedValueOnce({ rows: [], rowCount: 0 }); // check if business exists
+    (query as any).mockResolvedValueOnce({ rows: [mockBusiness], rowCount: 1 }); // create business
+    (generateToken as any).mockResolvedValueOnce("mock-jwt-token");
+    
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'mock-credential' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Google login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+  it('should return 401 when credentials are invalid', async () => {
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'invalid-credential' });
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid Google credential');
+  });
+  it('should return 400 when validation fails', async () => {
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: '' });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Validation failed');
+  });
+  it('should return 500 when Google client is not configured', async () => {
+    delete process.env.GOOGLE_CLIENT_ID;
+    const response = await request(app)
+      .post('/api/auth/google')
+      .send({ credential: 'mock-credential' });
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Google client not configured');
   });
 });
