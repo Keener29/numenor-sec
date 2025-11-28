@@ -55,8 +55,30 @@ export class LinkAnalyzerService {
     return /\.(png|jpg|jpeg|gif|svg|webp|bmp)$/i.test(link);
   }
 
-  private isClickAction(anchor: string): boolean {
-    return /(click|login|reset|verify|update|account|confirm)/i.test(anchor);
+  private isClickAction(urlString: string): boolean {
+    let path = "";
+    try {
+      const url = new URL(urlString);
+      path = (url.pathname + url.search).toLowerCase();
+    } catch {
+      // fallback: treat raw string as path
+      path = urlString.toLowerCase();
+    }
+  
+    const patterns = [
+      /\b(login|signin|logon)\b/,
+      /\b(reset|restore)\b/,
+      /\b(verify|verification)\b/,
+      /\b(update)\b/,
+      /\b(confirm|confirmation)\b/,
+      /\b(password|credentials)\b/,
+      /\b(auth|authenticate|authentication)\b/,
+      /\b(session)\b/,
+      /\b(payment|invoice|billing)\b/,
+      /\b(secure)\b/,
+    ];
+  
+    return patterns.some(regex => regex.test(path));
   }
 
   private isNamespaceURL(urlString: string): boolean {
@@ -347,31 +369,34 @@ export class LinkAnalyzerService {
   }
 
   private checkHttpLink(url: URL, trustedDomain: boolean, link: string): number {
+    if (url.protocol !== "http:") return 0;
     let score = 0;
+    const hostname = url.hostname.toLowerCase();
     // Allow safe HTTP domains (legacy CDNs / W3C / ESPs)
     const isKnownSafeHttp =
       url.protocol === "http:" &&
-      url.hostname !== undefined &&
-      KNOWN_SAFE_HTTP_DOMAINS.some(d => url.hostname.endsWith(d));
+      hostname !== undefined &&
+      KNOWN_SAFE_HTTP_DOMAINS.some(d => hostname.endsWith(d));
+    const isImage = this.isImageLink(link);
+    const isClickAction = this.isClickAction(link);
 
-    if (url.protocol === "http:") {
-      if (isKnownSafeHttp && this.isImageLink(link)) {
-        // fine, legit email vendors do this
-      }
-      else if (this.isImageLink(link) && !trustedDomain) {
-        this.linkRisks.push(`HTTP image asset: ${url.hostname}`);
-        score += 2; // tiny penalty  -  not ideal, but common
-      }
-      else if (this.isClickAction(link) && !trustedDomain) {
-        this.linkRisks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
-        score += 30; // serious  -  login/reset over HTTP is bad
-      }
-      else if (!trustedDomain) {
-        this.linkRisks.push(`Insecure HTTP link on untrusted domain: ${link}`);
-        score += 15; // general penalty
-      }
+    if (isKnownSafeHttp && isImage) {
+      // fine, legit email vendors do this
+      return 0;
     }
-    return score;
+    if (trustedDomain) {
+      return 0;
+    }
+    if (isImage) {
+      return 1;
+    }
+    if (isClickAction) {
+      this.linkRisks.push(`Insecure HTTP link to action on untrusted domain: ${link}`);
+      return 25; // serious  -  login/reset over HTTP is bad
+    }
+
+    this.linkRisks.push(`Insecure HTTP link on untrusted domain: ${link}`);
+    return 10; // general penalty
   }
 
   private checkUrlPatterns(url: URL, trustedDomain: boolean): number {
