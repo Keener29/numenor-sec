@@ -13,6 +13,7 @@
 import { oauthLogger } from '../logger.js';
 import { query } from '../../../db/connection.js';
 import { parse } from "tldts";
+import { KNOWN_BRAND_DOMAINS } from './domainAnalyzer.js';
 
 type RiskLevel = 'very_high' | 'high' | 'medium' | 'low' | 'unknown';
 
@@ -309,43 +310,21 @@ function cleanDomainName(input: string): string | null {
  * Check if domain is a known trusted domain (skip age analysis)
  */
 function isKnownTrustedDomain(domain: string): boolean {
-  const trustedDomains = [
-    // Internal systems (always safe)
-    'localhost', '127.0.0.1', 'numenorsecurity.com',
-    
-    // Major email providers
-    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
-    'icloud.com', 'zoho.com',
-    
-    // Major tech companies
-    'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com',
-    'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 
-    'youtu.be', 'grammarly.com', 'mailsuite.com',
-    'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
-    'tiktok.com', 'spotify.com', 'shopify.com', 'fitbit.com',
-    
-    // Major financial institutions
-    'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',
-    'chase.com', 'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
-    'questrade.com', 'robinhood.com', 'wealthsimple.com',
-
-    // Banks
-    'bankofamerica.com', 'wellsfargo.com', 'citibank.com',
-    'chase.com', 'td.com', 'scotiabank.com', 'cibc.com', 
-    'bmo.com', 'rbc.com',
-    
-    // Government domains
-    'gov', 'mil', 'edu',
-    
-    // Major cloud providers
-    'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com',
-
-    // Extra
-    'boxd.it'
-  ];
-
-  return trustedDomains.some(trusted => 
-    domain === trusted || domain.endsWith('.' + trusted)
+  const domainLower = domain.toLowerCase();
+  
+  // Check internal systems (localhost, IP addresses)
+  if (domainLower === 'localhost' || domainLower === '127.0.0.1') {
+    return true;
+  }
+  
+  // Check government/educational TLDs
+  if (domainLower.endsWith('.gov') || domainLower.endsWith('.mil') || domainLower.endsWith('.edu')) {
+    return true;
+  }
+  
+  // Check against known brand domains
+  return KNOWN_BRAND_DOMAINS.some(trusted => 
+    domainLower === trusted || domainLower.endsWith('.' + trusted)
   );
 }
 

@@ -34,31 +34,40 @@ export interface HomoglyphResult {
 
 /**
  * Known brand domains for comparison
+ * Used for typosquatting/homoglyph detection and trusted domain checks
  */
 export const KNOWN_BRAND_DOMAINS = [
   // Tech Companies
   'google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'facebook.com', 'twitter.com',
   'linkedin.com', 'instagram.com', 'youtube.com', 'youtu.be', 'netflix.com', 'spotify.com',
-  'fitbit.com', 'mailsuite.com',
+  'fitbit.com', 'mailsuite.com', 'grammarly.com', 'slack.com', 'zoom.us',
   
   // Financial Services
   'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com', 'chase.com',
   'bankofamerica.com', 'wellsfargo.com', 'citibank.com', 'capitalone.com',
+  'questrade.com', 'wealthsimple.com',
+  
+  // Banks
+  'td.com', 'scotiabank.com', 'cibc.com', 'bmo.com', 'rbc.com',
   
   // E-commerce
   'ebay.com', 'etsy.com', 'shopify.com', 'walmart.com', 'target.com', 'bestbuy.com',
   
   // Email Providers
-  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com',
+  'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'zoho.com',
   
   // Social Media
   'tiktok.com', 'snapchat.com', 'pinterest.com', 'reddit.com', 'discord.com',
   
   // Cloud Services
   'dropbox.com', 'onedrive.com', 'icloud.com', 'box.com', 'mega.nz',
+  'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com',
   
   // Crypto/Finance
-  'coinbase.com', 'binance.com', 'kraken.com', 'robinhood.com', 'stripe.com'
+  'coinbase.com', 'binance.com', 'kraken.com', 'robinhood.com', 'stripe.com',
+  
+  // Internal/Extra
+  'numenorsecurity.com', 'boxd.it'
 ];
 
 /**
