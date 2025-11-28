@@ -51,7 +51,7 @@ export const KNOWN_BRAND_DOMAINS = [
   'td.com', 'scotiabank.com', 'cibc.com', 'bmo.com', 'rbc.com',
   
   // E-commerce
-  'ebay.com', 'etsy.com', 'shopify.com', 'walmart.com', 'target.com', 'bestbuy.com',
+  'ebay.com', 'etsy.com', 'shopify.com', 'walmart.com', 'target.com', 'bestbuy.com', 'opentable.com',
   
   // Email Providers
   'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'zoho.com',
