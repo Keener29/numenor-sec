@@ -3,6 +3,16 @@ import '@testing-library/jest-dom/jest-globals';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'node:util';
 
+// Polyfill setImmediate for Express/Node.js compatibility in Jest
+if (globalThis.setImmediate === undefined) {
+  (globalThis as any).setImmediate = (callback: (...args: any[]) => void, ...args: any[]) => {
+    return setTimeout(() => callback(...args), 0);
+  };
+  (globalThis as any).clearImmediate = (id: ReturnType<typeof setTimeout>) => {
+    clearTimeout(id);
+  };
+}
+
 // Polyfill TextEncoder/TextDecoder for jsdom
 globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
 globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;

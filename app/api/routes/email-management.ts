@@ -5,6 +5,7 @@ import { addEmailSchema, addBulkEmailsSchema, updateEmailSchema, emailParamsSche
 import { query, getClient } from '../../db/connection.js';
 import { emailService } from '../services/emailService.js';
 import { emailLogger } from '../services/logger.js';
+import type { MonitoredEmail } from '../types/email.js';
 
 const router = Router();
 
@@ -113,7 +114,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       return res.status(404).json({ error: 'Business not found' });
     }
 
-    const businessName = (businessResult.rows[0] as { name: string }).name;
+    const businessName = (businessResult.rows[0] as { business_name: string }).business_name;
     const businessEmail = (businessResult.rows[0] as { owner_email: string }).owner_email;
 
     // Send permission request email
@@ -168,6 +169,51 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
     next(error);
   }
 });
+
+// bulk email send helper
+const bulkEmailSendHelper = async (insertedEmails: MonitoredEmail[], businessId: number, businessName: string, businessEmail: string, ip: string | undefined, userAgent: string | undefined) => {
+  const emailResults: Array<{ email: string; success: boolean; error?: string }> = [];
+  for (const email of insertedEmails) {
+    try {
+      await emailService.sendPermissionRequest(
+        businessName, 
+        email.emailAddress, 
+        businessEmail, 
+        email.id, 
+        businessId
+      );
+      
+      // Log successful email send
+      await query(
+        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+         VALUES ($1, 'permission_email_sent', $2, $3, $4)`,
+        [businessId, `Permission request email sent to: ${email.emailAddress}`, ip, userAgent]
+      );
+      
+      emailResults.push({ email: email.emailAddress, success: true });
+    } catch (emailError) {
+      // Log email send failure
+      emailLogger.error('Failed to send permission request email', {
+        operation: 'send-permission-email',
+        businessId,
+        emailAddress: email.emailAddress
+      }, emailError as Error);
+      
+      await query(
+        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
+         VALUES ($1, 'permission_email_failed', $2, $3, $4)`,
+        [businessId, `Failed to send permission request email to: ${email.emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`, ip, userAgent]
+      );
+      
+      emailResults.push({ 
+        email: email.emailAddress, 
+        success: false, 
+        error: emailError instanceof Error ? emailError.message : 'Unknown error' 
+      });
+    }
+  }
+  return emailResults;
+};
 
 // Add multiple monitored emails (bulk)
 router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEmailsSchema), async (req: AuthRequest, res, next) => {
@@ -247,7 +293,7 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     }
 
     // Insert all new emails
-    const insertedEmails: Array<{ id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date }> = [];
+    const insertedEmails: MonitoredEmail[] = [];
     
     for (const emailAddress of newEmails) {
       const result = await client.query(
@@ -256,53 +302,21 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
          RETURNING id, email_address, last_checked, created_at, updated_at`,
         [businessId, emailAddress]
       );
-      insertedEmails.push(result.rows[0] as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date });
+      insertedEmails.push({
+        id: result.rows[0].id,
+        businessId: result.rows[0].business_id,
+        emailAddress: result.rows[0].email_address,
+        isConnected: false,
+        lastChecked: result.rows[0].last_checked,
+        createdAt: result.rows[0].created_at,
+        updatedAt: result.rows[0].updated_at
+      });
     }
 
     await client.query('COMMIT');
 
-    // Send permission request emails (non-blocking, failures don't affect the response)
-    const emailResults: Array<{ email: string; success: boolean; error?: string }> = [];
-    
-    for (const email of insertedEmails) {
-      try {
-        await emailService.sendPermissionRequest(
-          businessName, 
-          email.email_address, 
-          businessEmail, 
-          email.id, 
-          businessId
-        );
-        
-        // Log successful email send
-        await query(
-          `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-           VALUES ($1, 'permission_email_sent', $2, $3, $4)`,
-          [businessId, `Permission request email sent to: ${email.email_address}`, req.ip, req.get('User-Agent')]
-        );
-        
-        emailResults.push({ email: email.email_address, success: true });
-      } catch (emailError) {
-        // Log email send failure
-        emailLogger.error('Failed to send permission request email', {
-          operation: 'send-permission-email',
-          businessId,
-          emailAddress: email.email_address
-        }, emailError as Error);
-        
-        await query(
-          `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-           VALUES ($1, 'permission_email_failed', $2, $3, $4)`,
-          [businessId, `Failed to send permission request email to: ${email.email_address} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`, req.ip, req.get('User-Agent')]
-        );
-        
-        emailResults.push({ 
-          email: email.email_address, 
-          success: false, 
-          error: emailError instanceof Error ? emailError.message : 'Unknown error' 
-        });
-      }
-    }
+    // Send permission request emails (non-blocking, failures don't affect the response)    
+    const emailResults = await bulkEmailSendHelper(insertedEmails, businessId, businessName, businessEmail, req.ip, req.get('User-Agent'));
 
     const successfulEmails = emailResults.filter(r => r.success);
     const failedEmails = emailResults.filter(r => !r.success);
@@ -311,11 +325,11 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
       message: `Successfully added ${insertedEmails.length} email(s)`,
       emails: insertedEmails.map(email => ({
         id: email.id,
-        emailAddress: email.email_address,
+        emailAddress: email.emailAddress,
         isConnected: false,
-        lastChecked: email.last_checked,
-        createdAt: email.created_at,
-        updatedAt: email.updated_at
+        lastChecked: email.lastChecked,
+        createdAt: email.createdAt,
+        updatedAt: email.updatedAt
       })),
       summary: {
         total: normalizedEmails.length,
@@ -334,7 +348,7 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     await client.query('ROLLBACK');
     next(error);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
