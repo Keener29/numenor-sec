@@ -4,9 +4,6 @@
 # Environment variables
 .env
 
-# Package files
-package-lock.json
-
 # React Router
 /.react-router/
 /build/
