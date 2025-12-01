@@ -10,8 +10,8 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
     },
     ...options,
   };
-
-  const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, config);
+  const apiUrl = import.meta.env.VITE_API_URL;
+  const response = await fetch(`${apiUrl}${endpoint}`, config);
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));

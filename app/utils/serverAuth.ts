@@ -24,7 +24,9 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
     const cookieHeader = request.headers.get('cookie');
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
-    const apiUrl = import.meta.env.VITE_API_URL;
+    // Use internal Docker URL if available (SSR), otherwise use the public URL (Client)
+    const apiUrl = process.env.DOCKER_API_URL || import.meta.env.VITE_API_URL;
+
     const response = await fetch(`${apiUrl}/auth/me`, cookieHeader ? {
       headers: {
         'Content-Type': 'application/json',

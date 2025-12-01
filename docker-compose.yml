@@ -116,6 +116,7 @@ services:
     container_name: numenor-frontend
     environment:
       NODE_ENV: development
+      DOCKER_API_URL: http://api:3001/api
       VITE_API_URL: ${VITE_API_URL}
       VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
