@@ -18,7 +18,7 @@ interface UseOAuthStatusesReturn {
   refreshOAuthStatuses: () => Promise<void>;
 }
 
-export function useOAuthStatuses(emails: Email[]): UseOAuthStatusesReturn {
+export function useOAuthStatuses(emails: Email[], apiUrl: string): UseOAuthStatusesReturn {
   const [oauthStatuses, setOauthStatuses] = useState<Record<string, OAuthStatus>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function useOAuthStatuses(emails: Email[]): UseOAuthStatusesReturn {
     try {
       const statusPromises = emails.map(async (email) => {
         try {
-          const response = await fetch(`http://localhost:3001/api/status/${encodeURIComponent(email.emailAddress)}`, {
+          const response = await fetch(`${apiUrl}/status/${encodeURIComponent(email.emailAddress)}`, {
             credentials: 'include'
           });
           

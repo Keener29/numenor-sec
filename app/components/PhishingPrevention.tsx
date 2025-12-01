@@ -35,14 +35,14 @@ export default function PhishingPrevention({ businessId }: PhishingPreventionPro
       setError("");
 
       const [recommendationsResponse, statisticsResponse] = await Promise.all([
-        fetch('http://localhost:3001/api/phishing/recommendations', {
+        fetch(`${import.meta.env.VITE_API_URL}/phishing/recommendations`, {
           method: 'GET',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json'
           }
         }),
-        fetch('http://localhost:3001/api/phishing/statistics', {
+        fetch(`${import.meta.env.VITE_API_URL}/phishing/statistics`, {
           method: 'GET',
           credentials: 'include',
           headers: {

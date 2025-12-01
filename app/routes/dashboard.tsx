@@ -75,7 +75,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user;
 
   // Use the OAuth statuses hook
-  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails);
+  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails, import.meta.env.VITE_API_URL);
 
   // Load dashboard data on component mount
   useEffect(() => {

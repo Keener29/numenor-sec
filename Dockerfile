@@ -7,7 +7,9 @@ FROM node:20-alpine AS builder
 
 # Accept build arguments for Vite environment variables
 ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ENV VITE_API_URL=$VITE_API_URL
 
 # Set working directory
 WORKDIR /app

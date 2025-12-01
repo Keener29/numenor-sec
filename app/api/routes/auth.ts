@@ -220,7 +220,7 @@ router.post('/forgot-password', authLimiter, validateBody(forgotPasswordSchema),
         [user.id, tokenHash, expiresAt]
       );
 
-      const appUrl = process.env.APP_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
+      const appUrl = process.env.FRONTEND_URL;
       const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
       // Send reset email (do not reveal success to the client)
