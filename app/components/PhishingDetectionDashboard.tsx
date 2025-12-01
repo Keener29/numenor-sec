@@ -75,10 +75,10 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
       setError("");
 
       const [statsResponse, statusResponse] = await Promise.all([
-        fetch('http://localhost:3001/api/phishing/statistics', {
+        fetch(`${import.meta.env.VITE_API_URL}/phishing/statistics`, {
           credentials: 'include'
         }),
-        fetch('http://localhost:3001/api/phishing/monitoring/status', {
+        fetch(`${import.meta.env.VITE_API_URL}/phishing/monitoring/status`, {
           credentials: 'include'
         })
       ]);

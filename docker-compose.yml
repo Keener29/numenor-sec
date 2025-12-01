@@ -72,6 +72,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
       FRONTEND_URL: ${FRONTEND_URL}
+      VITE_API_URL: ${VITE_API_URL}
 
       # WHOIS API Configuration (from .env file)
       WHOIS_JSON_API_KEY: ${WHOIS_JSON_API_KEY}
@@ -111,10 +112,11 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        VITE_API_URL: ${VITE_API_URL}
     container_name: numenor-frontend
     environment:
       NODE_ENV: development
-      API_URL: http://api:3001 # Use Docker service name for internal communication
+      VITE_API_URL: ${VITE_API_URL}
       VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "3000:3000"

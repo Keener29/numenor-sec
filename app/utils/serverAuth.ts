@@ -24,8 +24,8 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
     const cookieHeader = request.headers.get('cookie');
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
-    const apiUrl = process.env.API_URL || 'http://localhost:3001';
-    const response = await fetch(`${apiUrl}/api/auth/me`, cookieHeader ? {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const response = await fetch(`${apiUrl}/auth/me`, cookieHeader ? {
       headers: {
         'Content-Type': 'application/json',
         'Cookie': cookieHeader

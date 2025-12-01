@@ -1,8 +1,5 @@
 // API utility functions for frontend-backend communication
 
-const API_BASE_URL = 'http://localhost:3001/api';
-
-
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
   const config: RequestInit = {
@@ -14,7 +11,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
     ...options,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, config);
   
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ error: 'Network error' }));
