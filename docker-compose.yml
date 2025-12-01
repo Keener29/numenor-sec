@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-numenor_security}
       POSTGRES_USER: ${DB_USER:-numenor_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-}  # Require DB_PASSWORD env var (no default)
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-} # Require DB_PASSWORD env var (no default)
     ports:
       - "5432:5432"
     volumes:
@@ -49,15 +49,15 @@ services:
       DB_NAME: numenor_security
       DB_USER: numenor_user
       DB_PASSWORD: numenor_password
-      
+
       # Application Configuration
       NODE_ENV: development
-      API_PORT: 3000
-      
+      API_PORT: ${API_PORT}
+
       # Security (from .env file)
       JWT_SECRET: ${JWT_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
-      
+
       # Email Configuration (from .env file)
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
@@ -66,21 +66,21 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
       PROCESSED_EMAIL_RETENTION_HOURS: ${PROCESSED_EMAIL_RETENTION_HOURS}
-      
+
       # Gmail OAuth Configuration (from .env file)
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
       FRONTEND_URL: ${FRONTEND_URL}
-      
+
       # WHOIS API Configuration (from .env file)
       WHOIS_JSON_API_KEY: ${WHOIS_JSON_API_KEY}
       WHOIS_XML_API_KEY: ${WHOIS_XML_API_KEY}
     ports:
-      - "3001:3000"
+      - "3001:3001"
     volumes:
-      - ./app:/app/app:ro  # Mount source code for development
-      - ./logs:/app/logs   # Mount logs directory
+      - ./app:/app/app:ro # Mount source code for development
+      - ./logs:/app/logs # Mount logs directory
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,7 +90,15 @@ services:
       - numenor-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -106,12 +114,12 @@ services:
     container_name: numenor-frontend
     environment:
       NODE_ENV: development
-      API_URL: http://api:3000  # Use Docker service name for internal communication
+      API_URL: http://api:3001 # Use Docker service name for internal communication
       VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
     ports:
       - "3000:3000"
     volumes:
-      - ./app:/app/app:ro  # Mount source code for development
+      - ./app:/app/app:ro # Mount source code for development
     depends_on:
       api:
         condition: service_healthy
@@ -119,7 +127,15 @@ services:
       - numenor-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
