@@ -22,7 +22,7 @@
  */
 
 import { query } from '../../../db/connection.js';
-import { oauthLogger } from '../logger.js';
+import { oauthLogger } from '../../../utils/logger.js';
 import { analyzeDomain, extractDomain as extractDomainUtil, isTemporaryEmailDomain } from './domainAnalyzer.js';
 import { getDomain } from 'tldts';
 

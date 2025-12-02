@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import { logger } from './services/logger.js';
+import { logger } from '../utils/logger.js';
 
 // Load environment variables
 dotenv.config();
@@ -44,10 +44,19 @@ app.use(helmet({
 }));
 
 // CORS configuration
+// Allow CORS_ORIGINS env var for flexible configuration (supports multiple origins)
+// Format: comma-separated list, e.g., "https://numenorsecurity.com,https://www.numenorsecurity.com"
+const getAllowedOrigins = (): string[] => {
+  if (process.env.CORS_ORIGINS) {
+    return process.env.CORS_ORIGINS.split(',').map(origin => origin.trim());
+  }
+  return process.env.NODE_ENV === 'production' 
+    ? ['https://numenorsecurity.com', 'https://www.numenorsecurity.com']
+    : ['http://localhost:3000']; // React Router dev server
+};
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://numenorsecurity.com']
-    : ['http://localhost:3000'], // React Router dev server
+  origin: getAllowedOrigins(),
   credentials: true
 }));
 

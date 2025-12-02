@@ -6,7 +6,7 @@
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { tokenService } from '../utils/tokenService.js';
-import { emailLogger } from './logger.js';
+import { emailLogger } from '../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from './errorHandler.js';
 import type {
   EmailConfig,

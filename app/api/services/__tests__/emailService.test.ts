@@ -3,7 +3,7 @@
  */
   
 // Mock logger so tests don't explode
-jest.mock('../logger.js', () => ({
+jest.mock('../../../utils/logger.js', () => ({
 emailLogger: {
     debug: jest.fn(),
     error: jest.fn(),

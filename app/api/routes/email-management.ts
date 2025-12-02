@@ -4,7 +4,7 @@ import { authenticateToken, requireBusiness, type AuthRequest } from '../middlew
 import { addEmailSchema, addBulkEmailsSchema, updateEmailSchema, emailParamsSchema, emailQuerySchema } from '../schemas/email.js';
 import { query, getClient } from '../../db/connection.js';
 import { emailService } from '../services/emailService.js';
-import { emailLogger } from '../services/logger.js';
+import { emailLogger } from '../../utils/logger.js';
 import type { MonitoredEmail } from '../types/email.js';
 
 const router = Router();

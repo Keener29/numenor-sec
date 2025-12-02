@@ -544,7 +544,7 @@ email2@example.com, email3@example.com`}
                     )}
 
                     {error && (
-                      <div className="text-red-600 text-sm whitespace-pre-line">
+                      <div className="text-gray-600 text-sm whitespace-pre-line">
                         {error.split('\n').map((line) => (
                           <div key={crypto.randomUUID()}>{line}</div>
                         ))}

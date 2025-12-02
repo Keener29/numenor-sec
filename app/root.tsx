@@ -24,7 +24,7 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { readonly children: React.ReactNode }) {
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || "";
   
   if (!googleClientId) {
     console.error("VITE_GOOGLE_CLIENT_ID is not configured");

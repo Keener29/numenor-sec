@@ -1,5 +1,5 @@
 import { query } from '../../../db/connection.js';
-import { oauthLogger } from '../logger.js';
+import { oauthLogger } from '../../../utils/logger.js';
 import type { ThreatAssessment } from '../../types/email.js';
 import { emailAuthenticationService } from './emailAuthDetector.js';
 import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';

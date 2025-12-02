@@ -9,7 +9,7 @@ const levenshteinDistance = fastLevenshtein.get;
 import * as confusables from 'confusables';
 import { analyzeDomainAge, type DomainAgeResult } from './domainAgeAnalyzer.js';
 import { extractEmailAddress } from '../../utils/emailUtils.js';
-import { emailLogger } from '../logger.js';
+import { emailLogger } from '../../../utils/logger.js';
 
 export interface DomainAnalysisResult {
   isSuspicious: boolean;

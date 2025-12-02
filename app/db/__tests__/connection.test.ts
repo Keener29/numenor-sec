@@ -27,8 +27,8 @@ jest.mock("../config.ts", () => ({
   }),
 }));
 
-jest.mock("../../api/services/logger.ts", () => ({
-  logger: {
+jest.mock("../../utils/logger.js", () => ({
+  dbLogger: {
     error: jest.fn(),
     info: jest.fn(),
   },
@@ -93,10 +93,8 @@ describe("getPool()", () => {
     const testError = new Error("pool failure");
 
     expect(() => handler(testError)).toThrow("exit called");
-
-    const { logger } = require("../../api/services/logger.ts");
-
-    expect(logger.error).toHaveBeenCalledWith(
+    const { dbLogger } = require("../../utils/logger.js");
+    expect(dbLogger.error).toHaveBeenCalledWith(
       "Unexpected error on idle client",
       { operation: "database-pool-error" },
       testError
@@ -120,11 +118,9 @@ describe("query()", () => {
     const testError = new Error("db broke");
     mockQuery.mockRejectedValue(testError);
 
-    const { logger } = require("../../api/services/logger.ts");
-
     await expect(query("SELECT * FROM bigTable")).rejects.toThrow("db broke");
-
-    expect(logger.error).toHaveBeenCalledWith(
+    const { dbLogger } = require("../../utils/logger.js");
+    expect(dbLogger.error).toHaveBeenCalledWith(
       "Database query error",
       expect.objectContaining({
         operation: "database-query",
@@ -142,12 +138,11 @@ describe("query()", () => {
 
     mockQuery.mockRejectedValue(error);
 
-    const { logger } = require("../../api/services/logger.ts");
-
     await expect(query(longQuery)).rejects.toThrow();
 
-    expect(logger.error.mock.calls[0][1].metadata.query.length).toBe(103);
-    expect(logger.error.mock.calls[0][1].metadata.query.endsWith("...")).toBe(true);
+    const { dbLogger } = require("../../utils/logger.js");
+    expect(dbLogger.error.mock.calls[0][1].metadata.query.length).toBe(103);
+    expect(dbLogger.error.mock.calls[0][1].metadata.query.endsWith("...")).toBe(true);
   });
 });
 

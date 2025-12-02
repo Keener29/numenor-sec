@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Numenor Security
+# Multi-stage Dockerfile for Frontend (standalone React Router service)
 
 # ================================
 # Stage 1: Build the application
@@ -6,6 +6,7 @@
 FROM node:20-alpine AS builder
 
 # Accept build arguments for Vite environment variables
+# These are injected at build time and baked into the frontend bundle
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_API_URL
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
@@ -20,8 +21,22 @@ COPY package*.json ./
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci --ignore-scripts
 
-# Copy source code (including .env if it exists)
-COPY . .
+# Copy source code (excluding API backend - frontend only)
+COPY app/routes ./app/routes
+COPY app/components ./app/components
+COPY app/utils ./app/utils
+COPY app/hooks ./app/hooks
+COPY app/root.tsx ./app/root.tsx
+COPY app/routes.ts ./app/routes.ts
+COPY app/app.css ./app/app.css
+COPY app/welcome ./app/welcome
+COPY public ./public
+COPY react-router.config.ts ./
+COPY vite.config.ts ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY tsconfig.json ./
+COPY tsconfig.test.json ./
 
 # Generate types and build the application
 RUN npm run typecheck
@@ -46,7 +61,6 @@ RUN npm ci --ignore-scripts --only=production && npm prune --production
 
 # Copy built application from builder stage
 COPY --from=builder /app/build ./build
-COPY --from=builder /app/app ./app
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs

@@ -4,7 +4,7 @@ import { validateBody, validateQuery } from '../middleware/validation.js';
 import { phishingDetector } from '../services/detector/phishingDetector.js';
 import { emailMonitor } from '../services/emailMonitor.js';
 import { query } from '../../db/connection.js';
-import { securityLogger } from '../services/logger.js';
+import { securityLogger } from '../../utils/logger.js';
 import { phishingStatisticsQuerySchema, phishingPatternsQuerySchema } from '../schemas/phishing.js';
 import { z } from 'zod';
 import type { ThreatRow } from '../types/email.js';

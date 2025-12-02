@@ -4,7 +4,7 @@
  */
 
 import { query } from '../../../db/connection.js';
-import { emailLogger } from '../logger.js';
+import { emailLogger } from '../../../utils/logger.js';
 
 // Authentication result types
 export type SPFResult = 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';

@@ -10,7 +10,7 @@ import { ZodError } from 'zod';
 import type { Request, Response, NextFunction } from 'express';
 
 // Mock logger to avoid console output during tests
-jest.mock('../logger.js', () => ({
+jest.mock('../../../utils/logger.js', () => ({
   logger: {
     error: jest.fn(),
     warn: jest.fn(),
