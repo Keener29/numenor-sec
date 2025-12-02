@@ -18,6 +18,10 @@ RUN npm ci --ignore-scripts && npm cache clean --force
 # Copy API source code
 COPY app/api ./app/api
 COPY app/db ./app/db
+COPY app/utils ./app/utils
+
+# Copy TypeScript config (needed for tsx to resolve modules correctly)
+COPY tsconfig.json ./
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
