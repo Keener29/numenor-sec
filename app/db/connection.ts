@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import type { PoolClient } from 'pg';
 import { getDatabaseConfig } from './config.js';
-import { logger } from '../api/services/logger.js';
+import { dbLogger } from '../utils/logger.js';
 
 // A pool is a collection of connections to the database that can be reused and does not waste time creating a new connection each time.
 
@@ -32,7 +32,7 @@ export const getPool = (): Pool => {
 
     // Handle pool errors
     pool.on('error', (err) => {
-      logger.error('Unexpected error on idle client', {
+      dbLogger.error('Unexpected error on idle client', {
         operation: 'database-pool-error'
       }, err);
       process.exit(-1);
@@ -48,7 +48,7 @@ export const query = async (text: string, params?: unknown[]): Promise<{ rows: u
     const res = await pool.query(text, params);
     return res;
   } catch (error) {
-    logger.error('Database query error', {
+    dbLogger.error('Database query error', {
       operation: 'database-query',
       metadata: {
         query: text.substring(0, 100) + (text.length > 100 ? '...' : '')
@@ -72,7 +72,7 @@ export const closePool = async (): Promise<void> => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  logger.info('Received SIGINT, closing database pool', {
+  dbLogger.info('Received SIGINT, closing database pool', {
     operation: 'database-shutdown'
   });
   await closePool();
@@ -80,7 +80,7 @@ process.on('SIGINT', async () => {
 });
 
 process.on('SIGTERM', async () => {
-  logger.info('Received SIGTERM, closing database pool', {
+  dbLogger.info('Received SIGTERM, closing database pool', {
     operation: 'database-shutdown'
   });
   await closePool();

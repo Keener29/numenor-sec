@@ -10,7 +10,7 @@
  * Uses WHOIS lookup with caching to avoid rate limits
  */
 
-import { oauthLogger } from '../logger.js';
+import { oauthLogger } from '../../../utils/logger.js';
 import { query } from '../../../db/connection.js';
 import { parse } from "tldts";
 

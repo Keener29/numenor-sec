@@ -1,4 +1,4 @@
-import { oauthLogger } from '../../../logger.js';
+import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
 import type { EmailMessage, LogContext } from '../../base/types.js';

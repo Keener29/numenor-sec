@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { gmailOAuthService } from '../services/oauth/gmail/GmailOAuthService.js';
-import { oauthLogger } from '../services/logger.js';
+import { oauthLogger } from '../../utils/logger.js';
 
 const router = Router();
 

@@ -1,6 +1,6 @@
 import { emailMonitor } from './services/emailMonitor.js';
 import { emailService } from './services/emailService.js';
-import { logger } from './services/logger.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Initialize and start all background services

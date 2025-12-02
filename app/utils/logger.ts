@@ -1,9 +1,18 @@
 /**
  * Professional Structured Logging Service
- * Provides consistent, structured logging across all email and OAuth operations
+ * Provides consistent, structured logging across all operations
+ * Shared by both API and database services
  */
 
-import type { LogContext } from '../types/email.js';
+export interface LogContext {
+  readonly requestId?: string;
+  readonly userId?: number;
+  readonly businessId?: number;
+  readonly emailAddress?: string;
+  readonly sender?: string;
+  readonly operation: string;
+  readonly metadata?: Record<string, unknown>;
+}
 
 export enum LogLevel {
   ERROR = 'error',
@@ -174,7 +183,7 @@ class ChildLogger {
       ...context,
       ...this.additionalContext
     };
-    this.parent.error(message, mergedContext, error, metadata);
+    this.parent.error(message, mergedContext, error);
   }
 
   warn(message: string, context: LogContext, metadata?: Record<string, unknown>): void {
@@ -236,3 +245,5 @@ export const emailLogger = logger.child({ operation: 'email-service' });
 export const oauthLogger = logger.child({ operation: 'oauth-service' });
 export const securityLogger = logger.child({ operation: 'security' });
 export const monitoringLogger = logger.child({ operation: 'email-monitoring' });
+export const dbLogger = logger.child({ operation: 'database' });
+

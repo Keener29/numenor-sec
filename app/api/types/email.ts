@@ -305,12 +305,5 @@ export interface EmailProviderConfig {
   readonly authRequired: boolean;
 }
 
-export interface LogContext {
-  readonly requestId?: string;
-  readonly userId?: number;
-  readonly businessId?: number;
-  readonly emailAddress?: string;
-  readonly sender?: string;
-  readonly operation: string;
-  readonly metadata?: Record<string, unknown>;
-}
+// Re-export LogContext from shared logger for backward compatibility
+export type { LogContext } from '../../utils/logger.js';

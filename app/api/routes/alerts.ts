@@ -3,7 +3,7 @@ import { validateBody, validateParams, validateQuery } from '../middleware/valid
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { updateAlertSchema, alertParamsSchema, alertQuerySchema, createAlertSchema } from '../schemas/alerts.js';
 import { query } from '../../db/connection.js';
-import { oauthLogger } from '../services/logger.js';
+import { oauthLogger } from '../../utils/logger.js';
 
 const router = Router();
 

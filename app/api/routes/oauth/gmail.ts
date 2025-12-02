@@ -4,7 +4,7 @@ import { validateBody, validateQuery } from '../../middleware/validation.js';
 import { oauthLimiter } from '../../middleware/rateLimit.js';
 import { query } from '../../../db/connection.js';
 import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.js';
-import { oauthLogger } from '../../services/logger.js';
+import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
 import type { Request, Response } from 'express';

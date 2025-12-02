@@ -13,7 +13,7 @@ jest.mock('../../../../db/connection.js', () => ({
 }));
 
 // Mock the logger
-jest.mock('../../logger.js', () => ({
+jest.mock('../../../../utils/logger.js', () => ({
   oauthLogger: {
     error: jest.fn()
   }

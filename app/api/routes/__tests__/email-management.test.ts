@@ -23,7 +23,7 @@ jest.mock('../../services/emailService.js', () => ({
   }
 }));
 
-jest.mock('../../services/logger.js', () => ({
+jest.mock('../../../utils/logger.js', () => ({
   emailLogger: {
     info: jest.fn(),
     error: jest.fn()

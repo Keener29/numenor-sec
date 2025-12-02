@@ -10,7 +10,8 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
     },
     ...options,
   };
-  const apiUrl = import.meta.env.VITE_API_URL;
+  let apiUrl = process.env.VITE_API_URL;
+
   const response = await fetch(`${apiUrl}${endpoint}`, config);
   
   if (!response.ok) {

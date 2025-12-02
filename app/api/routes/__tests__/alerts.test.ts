@@ -15,7 +15,7 @@ jest.mock('../../../db/connection.js', () => ({
   query: jest.fn()
 }));
 
-jest.mock('../../services/logger.js', () => ({
+jest.mock('../../../utils/logger.js', () => ({
   oauthLogger: {
     debug: jest.fn()
   }

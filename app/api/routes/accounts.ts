@@ -3,7 +3,7 @@ import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validation.js';
 import { deleteAccountSchema } from '../schemas/user.js';
 import { query } from '../../db/connection.js';
-import { logger } from '../services/logger.js';
+import { logger } from '../../utils/logger.js';
 
 const router = Router();
 

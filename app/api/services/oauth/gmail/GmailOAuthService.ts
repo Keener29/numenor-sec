@@ -4,7 +4,7 @@
  */
 
 import { google } from 'googleapis';
-import { oauthLogger } from '../../logger.js';
+import { oauthLogger } from '../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import * as Auth from './GmailOAuthService/auth.js';
 import * as Actions from './GmailOAuthService/actions.js';
