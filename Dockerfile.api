@@ -1,4 +1,4 @@
-# Dockerfile for API server only
+# Dockerfile for API server only (standalone backend service)
 FROM node:20-alpine
 
 # Install dumb-init for proper signal handling
