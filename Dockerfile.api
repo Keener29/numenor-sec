@@ -23,6 +23,10 @@ COPY app/utils ./app/utils
 # Copy TypeScript config (needed for tsx to resolve modules correctly)
 COPY tsconfig.json ./
 
+# Copy entrypoint script (runs migrations automatically - needed for free tier)
+COPY docker-entrypoint-api.sh /docker-entrypoint-api.sh
+RUN chmod +x /docker-entrypoint-api.sh
+
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
 
@@ -36,8 +40,9 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
+# Use entrypoint script to run migrations before starting server
+# This is necessary for Render free tier (no shell/background workers)
+ENTRYPOINT ["dumb-init", "--", "/docker-entrypoint-api.sh"]
 
 # Start the API server
 CMD ["npm", "run", "api:dev"]
