@@ -13,7 +13,7 @@ export type SetCredentialsFn = (businessId: number, emailAddress: string) => Pro
 
 interface WatchResponse {
   historyId: string;
-  expiration: string; // RFC3339 timestamp
+  expiration: string; // Unix timestamp (milliseconds) as string, e.g., "1700000123456"
 }
 
 /**
@@ -53,7 +53,50 @@ export async function watchMailbox(
     });
 
     const watchResponse = response.data as WatchResponse;
-    const expiration = new Date(watchResponse.expiration);
+    
+    oauthLogger.debug('Gmail watch API response received', {
+      ...context,
+      metadata: {
+        rawResponse: JSON.stringify(watchResponse),
+        hasExpiration: !!watchResponse.expiration,
+        hasHistoryId: !!watchResponse.historyId
+      }
+    });
+
+    // Parse expiration (Gmail returns Unix timestamp in milliseconds as string)
+    const expirationTimestamp = Number.parseInt(watchResponse.expiration, 10);
+    if (isNaN(expirationTimestamp) || expirationTimestamp <= 0) {
+      oauthLogger.error('Invalid expiration timestamp from Gmail API', {
+        ...context,
+        metadata: {
+          rawExpiration: watchResponse.expiration,
+          parsedTimestamp: expirationTimestamp,
+          responseData: JSON.stringify(watchResponse)
+        }
+      });
+      throw ErrorFactory.oauthService(
+        ErrorCodes.GMAIL_API_ERROR,
+        `Invalid expiration timestamp from Gmail: ${watchResponse.expiration}. Expected Unix timestamp in milliseconds as string.`
+      );
+    }
+
+    const expiration = new Date(expirationTimestamp);
+    if (isNaN(expiration.getTime())) {
+      oauthLogger.error('Failed to parse expiration date', {
+        ...context,
+        metadata: {
+          rawExpiration: watchResponse.expiration,
+          parsedTimestamp: expirationTimestamp,
+          parsedValue: expiration.toString(),
+          responseData: JSON.stringify(watchResponse)
+        }
+      });
+      throw ErrorFactory.oauthService(
+        ErrorCodes.GMAIL_API_ERROR,
+        `Failed to parse expiration timestamp: ${expirationTimestamp}`
+      );
+    }
+
     const historyId = watchResponse.historyId;
 
     // Store watch expiration and historyId in database
