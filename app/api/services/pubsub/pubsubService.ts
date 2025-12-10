@@ -15,13 +15,10 @@ class PubSubService {
 
   constructor() {
     this.topicName = process.env.GMAIL_PUBSUB_TOPIC || 'gmail-notifications';
-    this.subscriptionName = process.env.GMAIL_PUBSUB_SUBSCRIPTION || 'gmail-notifications-sub';
+    this.subscriptionName = process.env.GMAIL_PUBSUB_SUBSCRIPTION || 'gmail-notify-sub';
     
     // Webhook URL for push subscription
-    const baseUrl = process.env.PUBSUB_WEBHOOK_URL || 
-      (process.env.NODE_ENV === 'production' 
-        ? 'https://numenorsecurity.com' 
-        : 'http://localhost:3001');
+    const baseUrl = process.env.VITE_API_URL;
     this.webhookUrl = `${baseUrl}/api/gmail-notify`;
 
     this.initialize();
