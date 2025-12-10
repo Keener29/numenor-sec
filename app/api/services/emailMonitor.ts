@@ -137,6 +137,8 @@ class EmailMonitor {
       let emailsProcessed = 0;
 
       // Process each message with deduplication
+      // Process each email individually - if one fails, continue with others
+      // This ensures we acknowledge the notification even if some emails fail to process
       for (const emailMessage of messages) {
         const seen = await this.isMessageProcessed(businessId, emailAddress, emailMessage.id);
         if (seen) {
@@ -148,12 +150,27 @@ class EmailMonitor {
           continue;
         }
 
-        await this.processEmailMessage(monitoredEmail, emailMessage);
+        // Mark as processed IMMEDIATELY to prevent duplicate processing
+        // This prevents race conditions if multiple notifications arrive for the same email
         await this.markMessageProcessed(businessId, emailAddress, emailMessage.id);
-        emailsProcessed++;
-        
-        // Check if threat was detected (would be logged in processEmailMessage)
-        // We'll count threats by checking if alert was created, but for now just track processed count
+
+        try {
+          await this.processEmailMessage(monitoredEmail, emailMessage);
+          emailsProcessed++;
+        } catch (emailError) {
+          // Log error but continue processing other emails
+          // Email is already marked as processed, so it won't be reprocessed
+          // This ensures we acknowledge the notification even if individual emails fail
+          monitoringLogger.error('Error processing individual email message', {
+            operation: 'process-new-emails-history',
+            emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              subject: emailMessage.subject
+            }
+          }, emailError instanceof Error ? emailError : new Error(String(emailError)));
+          // Continue processing other emails - don't throw
+        }
       }
 
       const scanDuration = Date.now() - startTime;
@@ -249,13 +266,33 @@ class EmailMonitor {
       let emailsProcessed = 0;
 
       // Process each message with deduplication
+      // Process each email individually - if one fails, continue with others
+      // This ensures we acknowledge the notification even if some emails fail to process
       for (const emailMessage of filteredMessages) {
         const seen = await this.isMessageProcessed(businessId, emailAddress, emailMessage.id);
         if (seen) continue;
 
-        await this.processEmailMessage(monitoredEmail, emailMessage);
+        // Mark as processed IMMEDIATELY to prevent duplicate processing
+        // This prevents race conditions if multiple notifications arrive for the same email
         await this.markMessageProcessed(businessId, emailAddress, emailMessage.id);
-        emailsProcessed++;
+
+        try {
+          await this.processEmailMessage(monitoredEmail, emailMessage);
+          emailsProcessed++;
+        } catch (emailError) {
+          // Log error but continue processing other emails
+          // Email is already marked as processed, so it won't be reprocessed
+          // This ensures we acknowledge the notification even if individual emails fail
+          monitoringLogger.error('Error processing individual email message', {
+            operation: 'full-sync-fallback',
+            emailAddress,
+            metadata: {
+              messageId: emailMessage.id,
+              subject: emailMessage.subject
+            }
+          }, emailError instanceof Error ? emailError : new Error(String(emailError)));
+          // Continue processing other emails - don't throw
+        }
       }
 
       const scanDuration = Date.now() - startTime;
@@ -352,29 +389,6 @@ class EmailMonitor {
             emailData
           );
 
-          // Mark email as read in Gmail - only for detected phishing threats
-          try {
-            await gmailOAuthService.markAsRead(monitoredEmail.businessId, monitoredEmail.emailAddress, emailMessage.id);
-            monitoringLogger.debug('Email marked as read after phishing detection', {
-              operation: 'mark-phishing-email-read',
-              emailAddress: monitoredEmail.emailAddress,
-              metadata: {
-                messageId: emailMessage.id,
-                threatLevel: threatAssessment.threatLevel
-              }
-            });
-          } catch (markError) {
-            monitoringLogger.error('Error marking phishing email as read', {
-              operation: 'mark-phishing-email-read',
-              emailAddress: monitoredEmail.emailAddress,
-              metadata: {
-                messageId: emailMessage.id,
-                threatLevel: threatAssessment.threatLevel
-              }
-            }, markError as Error);
-            // Continue processing even if marking fails
-          }
-
           await this.sendThreatAlert(monitoredEmail, emailMessage, threatAssessment);
 
           // Log security event
@@ -391,17 +405,6 @@ class EmailMonitor {
             }
           );
         }
-      } else {
-        // For safe/low threat emails, log that they were not marked as read
-        monitoringLogger.debug('Email not marked as read - no phishing threat detected', {
-          operation: 'process-email-message',
-          emailAddress: monitoredEmail.emailAddress,
-          metadata: {
-            messageId: emailMessage.id,
-            threatLevel: threatAssessment.threatLevel,
-            subject: emailMessage.subject
-          }
-        });
       }
 
     } catch (error) {

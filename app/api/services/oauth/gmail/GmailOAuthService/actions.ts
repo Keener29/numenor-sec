@@ -44,24 +44,6 @@ export async function fetchEmails(
   }
 }
 
-export async function markAsRead(
-  setCredentials: SetCredentialsFn,
-  gmail: any,
-  businessId: number,
-  emailAddress: string,
-  messageId: string
-): Promise<void> {
-  const context: LogContext = { operation: 'mark-as-read', businessId, emailAddress, metadata: { messageId } };
-  try {
-    await setCredentials(businessId, emailAddress);
-    await gmail.users.messages.modify({ userId: 'me', id: messageId, resource: { removeLabelIds: ['UNREAD'] } });
-    oauthLogger.debug('Email marked as read successfully', context);
-  } catch (error) {
-    oauthLogger.error('Failed to mark email as read', context, error as Error);
-    throw ErrorFactory.oauthService(ErrorCodes.GMAIL_API_ERROR, 'Failed to mark email as read');
-  }
-}
-
 export async function deleteEmail(
   setCredentials: SetCredentialsFn,
   gmail: any,

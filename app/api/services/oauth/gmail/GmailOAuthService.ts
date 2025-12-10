@@ -125,13 +125,6 @@ export class GmailOAuthService extends OAuthProvider {
   }
 
   /**
-   * Mark email as read
-   */
-  async markAsRead(businessId: number, emailAddress: string, messageId: string): Promise<void> {
-    return Actions.markAsRead(this.setCredentials.bind(this), this.gmail, businessId, emailAddress, messageId);
-  }
-
-  /**
    * Delete an email message
    */
   async deleteEmail(businessId: number, emailAddress: string, messageId: string): Promise<void> {
