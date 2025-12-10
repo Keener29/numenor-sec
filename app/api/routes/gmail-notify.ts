@@ -65,17 +65,6 @@ function decodePubSubMessage(body: Buffer): GmailNotification | null {
     // Decode Base64url-encoded data field (Gmail uses base64url, not base64)
     const decodedData = base64url.decode(pubsubMessage.message.data);
     
-    // Log decoded data for debugging (first 500 chars)
-    monitoringLogger.info('Decoded Pub/Sub message data', {
-      operation: 'gmail-notify',
-      metadata: {
-        decodedPreview: decodedData.substring(0, 500),
-        decodedLength: decodedData.length,
-        firstChar: decodedData.charAt(0),
-        looksLikeJson: decodedData.trim().startsWith('{') || decodedData.trim().startsWith('[')
-      }
-    });
-
     // Try to parse as JSON
     let notification: GmailNotification;
     try {
@@ -251,20 +240,6 @@ async function processEmailsWithFallback(
  * @access Public (authenticated via Pub/Sub OIDC token)
  */
 router.post('/', async (req: Request, res: Response) => {
-  // Log all incoming requests to debug Pub/Sub delivery
-  monitoringLogger.info('Webhook endpoint called', {
-    operation: 'gmail-notify',
-    metadata: {
-      method: req.method,
-      path: req.path,
-      contentType: req.headers['content-type'],
-      hasBody: !!req.body,
-      bodyType: typeof req.body,
-      bodyLength: req.body ? (req.body as Buffer).length : 0
-    }
-  });
-
-  
   const authHeader = req.headers.authorization;
   const isValid = await pubsubService.verifyJwtToken(authHeader);
   if (!isValid) {
@@ -276,7 +251,7 @@ router.post('/', async (req: Request, res: Response) => {
       }
     });
     return res.status(401).json({ error: 'Unauthorized' });
-  }
+    }
 
   try {
     // req.body is a Buffer from express.raw() middleware
