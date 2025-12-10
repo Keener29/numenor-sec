@@ -716,7 +716,6 @@ class EmailMonitor {
           COUNT(*) as total_scans,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as successful_scans,
           COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_scans,
-          AVG(emails_processed) as avg_emails_per_scan
          FROM email_scans 
          WHERE created_at > NOW() - INTERVAL '24 hours'`,
         []
@@ -730,11 +729,10 @@ class EmailMonitor {
         recently_checked: 0
       };
 
-      const scanStatsData = (scanStats.rows[0] as { total_scans: number; successful_scans: number; failed_scans: number; avg_emails_per_scan: number }) || {
+      const scanStatsData = (scanStats.rows[0] as { total_scans: number; successful_scans: number; failed_scans: number }) || {
         total_scans: 0,
         successful_scans: 0,
-        failed_scans: 0,
-        avg_emails_per_scan: 0
+        failed_scans: 0
       };
 
       return {
@@ -756,8 +754,7 @@ class EmailMonitor {
         scans: {
           total_scans: 0,
           successful_scans: 0,
-          failed_scans: 0,
-          avg_emails_per_scan: 0
+          failed_scans: 0
         }
       };
     }

@@ -138,8 +138,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
         scans: {
           total_scans: 0,
           successful_scans: 0,
-          failed_scans: 0,
-          avg_emails_per_scan: 0
+          failed_scans: 0
         }
       };
     }
@@ -209,8 +208,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -243,8 +241,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -343,8 +340,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
         scans: {
           total_scans: 0,
           successful_scans: 0,
-          failed_scans: 0,
-          avg_emails_per_scan: 0
+          failed_scans: 0
         }
       };
     }
@@ -363,8 +359,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -389,8 +384,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
