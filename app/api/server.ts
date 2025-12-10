@@ -27,10 +27,7 @@ import { enforceHttps } from './middleware/httpsEnforcement.js';
 const app = express();
 const PORT = Number.parseInt(process.env.API_PORT || '3001');
 
-// Trust proxy for correct X-Forwarded-* headers (required for HTTPS detection behind reverse proxy)
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+app.set('trust proxy', 1);
 
 // HTTPS enforcement middleware (must be before other middleware)
 app.use(enforceHttps);

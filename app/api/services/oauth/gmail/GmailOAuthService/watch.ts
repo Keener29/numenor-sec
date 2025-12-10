@@ -39,10 +39,13 @@ export async function watchMailbox(
     const topicName = pubsubService.getTopicResourceName();
 
     // Call Gmail watch API
+    // userId: 'me' - Gmail API convention meaning "the authenticated user's mailbox"
+    //   This refers to the user whose OAuth token is set via setCredentials() above
+    //   Equivalent to using the user's email address, but 'me' is the standard way
     // labelIds: ['INBOX'] - only watch for new messages in INBOX
     // topicName: Pub/Sub topic to send notifications to
     const response = await gmail.users.watch({
-      userId: 'me',
+      userId: 'me', // Authenticated user's mailbox (set via OAuth token)
       requestBody: {
         labelIds: ['INBOX'],
         topicName: topicName
