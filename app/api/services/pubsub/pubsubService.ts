@@ -4,6 +4,8 @@
  */
 
 import { PubSub } from '@google-cloud/pubsub';
+import jwt from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
 import { monitoringLogger } from '../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../errorHandler.js';
 
@@ -22,8 +24,18 @@ class PubSubService {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     
     // Webhook URL for push subscription
-    const baseUrl = process.env.VITE_API_URL;
-    this.webhookUrl = `${baseUrl}/api/gmail-notify`;
+    const baseUrl = process.env.PUBSUB_WEBHOOK_URL || process.env.VITE_API_URL;
+    if (!baseUrl) {
+      monitoringLogger.error('PUBSUB_WEBHOOK_URL not set. Pub/Sub notifications will not work.', {
+        operation: 'pubsub-initialize',
+        metadata: {
+          note: 'Set PUBSUB_WEBHOOK_URL environment variable to your public API URL (e.g., ngrok URL)'
+        }
+      });
+      this.webhookUrl = '';
+    } else {
+      this.webhookUrl = `${baseUrl}/api/gmail-notify`;
+    }
 
     this.initialize();
   }
@@ -76,15 +88,107 @@ class PubSubService {
   }
 
   /**
-   * Verify Pub/Sub message authenticity
-   * Note: For production, you should verify the JWT token from Pub/Sub
-   * This is a simplified version - in production, verify the Authorization header JWT
+   * Get Google's JWKS client for JWT verification
    */
-  verifyMessage(message: any): boolean {
-    // Basic validation - in production, verify JWT signature
-    // For now, we'll rely on HTTPS and the webhook URL being secret
-    // TODO: Implement proper JWT verification using Google's public keys
-    return !!message && !!message.message && !!message.message.data;
+  private getJwksClient() {
+    return jwksClient({
+      jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
+      cache: true,
+      cacheMaxAge: 86400000, // 24 hours
+      rateLimit: true,
+      jwksRequestsPerMinute: 10
+    });
+  }
+
+  /**
+   * Get signing key for JWT verification
+   */
+  private async getSigningKey(kid: string): Promise<string> {
+    const client = this.getJwksClient();
+    return new Promise((resolve, reject) => {
+      client.getSigningKey(kid, (err, key) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        const signingKey = key?.getPublicKey();
+        if (!signingKey) {
+          reject(new Error('Unable to get signing key'));
+          return;
+        }
+        resolve(signingKey);
+      });
+    });
+  }
+
+  /**
+   * Verify Pub/Sub message JWT token from Authorization header
+   */
+  async verifyJwtToken(authHeader: string | undefined): Promise<boolean> {
+    if (!authHeader) {
+      monitoringLogger.warn('Missing Authorization header in Pub/Sub request', {
+        operation: 'pubsub-verify-jwt'
+      });
+      return false;
+    }
+
+    // Extract token from "Bearer <token>" format
+    const tokenMatch = authHeader.match(/^Bearer (.+)$/);
+    if (!tokenMatch) {
+      monitoringLogger.warn('Invalid Authorization header format', {
+        operation: 'pubsub-verify-jwt'
+      });
+      return false;
+    }
+
+    const token = tokenMatch[1];
+
+    try {
+      // Decode token to get kid (key ID) without verification
+      const decoded = jwt.decode(token, { complete: true });
+      if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
+        monitoringLogger.warn('Invalid JWT token structure', {
+          operation: 'pubsub-verify-jwt'
+        });
+        return false;
+      }
+
+      // Get the signing key
+      const signingKey = await this.getSigningKey(decoded.header.kid);
+
+      // Verify the token
+      const verified = jwt.verify(token, signingKey, {
+        algorithms: ['RS256'],
+        issuer: 'https://accounts.google.com',
+        audience: this.webhookUrl
+      }) as jwt.JwtPayload;
+
+      // Verify the token was issued by Google Cloud Pub/Sub
+      // The 'sub' claim should contain the service account email for Pub/Sub
+      if (!verified.sub || !verified.sub.includes('gcp-sa-pubsub')) {
+        monitoringLogger.warn('Invalid JWT token subject', {
+          operation: 'pubsub-verify-jwt',
+          metadata: { sub: verified.sub }
+        });
+        return false;
+      }
+
+      monitoringLogger.debug('Pub/Sub JWT token verified successfully', {
+        operation: 'pubsub-verify-jwt',
+        metadata: {
+          issuer: verified.iss,
+          audience: verified.aud,
+          email: verified.email
+        }
+      });
+
+      return true;
+    } catch (error) {
+      monitoringLogger.error('JWT verification failed', {
+        operation: 'pubsub-verify-jwt'
+      }, error as Error);
+      return false;
+    }
   }
 }
 

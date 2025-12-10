@@ -53,7 +53,7 @@ function decodePubSubMessage(body: Buffer): GmailNotification | null {
   }
 
   // Verify message structure
-  if (!pubsubService.verifyMessage(pubsubMessage)) {
+  if (!pubsubMessage.message?.data) {
     monitoringLogger.warn('Invalid Pub/Sub message structure', {
       operation: 'gmail-notify',
       metadata: { hasMessage: !!pubsubMessage.message, hasData: !!pubsubMessage.message?.data }
@@ -263,6 +263,20 @@ router.post('/', async (req: Request, res: Response) => {
       bodyLength: req.body ? (req.body as Buffer).length : 0
     }
   });
+
+  
+  const authHeader = req.headers.authorization;
+  const isValid = await pubsubService.verifyJwtToken(authHeader);
+  if (!isValid) {
+    monitoringLogger.warn('Invalid or missing Pub/Sub JWT token', {
+      operation: 'gmail-notify',
+      metadata: {
+        hasAuthHeader: !!authHeader,
+        authHeaderPreview: authHeader ? authHeader.substring(0, 50) : 'none'
+      }
+    });
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   try {
     // req.body is a Buffer from express.raw() middleware
