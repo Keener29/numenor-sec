@@ -79,9 +79,53 @@ function decodePubSubMessage(body: Buffer): GmailNotification | null {
   }
 
   try {
-    // Decode Base64-encoded data field (this is the actual notification payload)
-    const decodedData = Buffer.from(pubsubMessage.message.data, 'base64').toString('utf-8');
-    const notification = JSON.parse(decodedData) as GmailNotification;
+    // Decode Base64url-encoded data field (Gmail uses base64url, not base64)
+    // Base64url uses - and _ instead of + and /, and may omit padding
+    let base64Data = pubsubMessage.message.data;
+    // Convert base64url to base64: replace - with + and _ with /
+    base64Data = base64Data.replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed (base64url may omit padding)
+    while (base64Data.length % 4) {
+      base64Data += '=';
+    }
+    const decodedData = Buffer.from(base64Data, 'base64').toString('utf-8');
+    
+    // Log decoded data for debugging (first 500 chars)
+    monitoringLogger.info('Decoded Pub/Sub message data', {
+      operation: 'gmail-notify',
+      metadata: {
+        decodedPreview: decodedData.substring(0, 500),
+        decodedLength: decodedData.length,
+        firstChar: decodedData.charAt(0),
+        looksLikeJson: decodedData.trim().startsWith('{') || decodedData.trim().startsWith('[')
+      }
+    });
+
+    // Try to parse as JSON
+    let notification: GmailNotification;
+    try {
+      notification = JSON.parse(decodedData) as GmailNotification;
+    } catch (parseError) {
+      // If it's not JSON, it might be a test message or different format
+      monitoringLogger.warn('Pub/Sub message data is not JSON', {
+        operation: 'gmail-notify',
+        metadata: {
+          decodedPreview: decodedData.substring(0, 200),
+          error: parseError instanceof Error ? parseError.message : String(parseError)
+        }
+      });
+      
+      // Check if it's a test message (Pub/Sub sends "Hello World" or similar for testing)
+      if (decodedData.toLowerCase().includes('hello') || decodedData.toLowerCase().includes('test')) {
+        monitoringLogger.info('Received Pub/Sub test message - ignoring', {
+          operation: 'gmail-notify',
+          metadata: { message: decodedData.substring(0, 100) }
+        });
+        return null; // Ignore test messages
+      }
+      
+      return null;
+    }
 
     if (!notification.emailAddress || !notification.historyId) {
       monitoringLogger.warn('Invalid notification data', {
@@ -94,7 +138,12 @@ function decodePubSubMessage(body: Buffer): GmailNotification | null {
     return notification;
   } catch (error) {
     monitoringLogger.error('Failed to decode Base64 payload from Pub/Sub message', {
-      operation: 'gmail-notify'
+      operation: 'gmail-notify',
+      metadata: {
+        error: error instanceof Error ? error.message : String(error),
+        hasMessage: !!pubsubMessage.message,
+        hasData: !!pubsubMessage.message?.data
+      }
     }, error as Error);
     return null;
   }
@@ -222,13 +271,15 @@ router.post('/', async (req: Request, res: Response) => {
     // Pub/Sub sends JSON with Base64-encoded message.data field
     const notification = decodePubSubMessage(req.body as Buffer);
     if (!notification) {
-      monitoringLogger.warn('Failed to decode Pub/Sub message', {
+      // Test messages or invalid messages - acknowledge with 200 to prevent redelivery
+      // Pub/Sub requires 200-299 status codes to acknowledge messages
+      monitoringLogger.debug('Acknowledging test/invalid Pub/Sub message', {
         operation: 'gmail-notify',
         metadata: {
           bodyPreview: req.body ? (req.body as Buffer).toString('utf8').substring(0, 200) : 'no body'
         }
       });
-      return res.status(400).json({ error: 'Invalid message format' });
+      return res.status(200).json({ status: 'acknowledged', reason: 'test_or_invalid_message' });
     }
 
     const { emailAddress, historyId } = notification;
@@ -252,21 +303,43 @@ router.post('/', async (req: Request, res: Response) => {
     const { business_id: businessId, id: emailId } = emailRecord;
 
     // Get or initialize historyId
-    const lastHistoryId = await getStoredHistoryId(businessId, emailAddress);
+    let lastHistoryId = await getStoredHistoryId(businessId, emailAddress);
     if (!lastHistoryId) {
+      // First notification - do a full sync to catch the email that triggered it
+      // Then store the notification's historyId as the baseline for future notifications
+      monitoringLogger.info('First notification received - performing full sync', {
+        operation: 'gmail-notify',
+        metadata: { emailAddress, notificationHistoryId: historyId }
+      });
+      
       try {
-        await initializeHistoryId(businessId, emailAddress);
-        return res.status(200).json({ success: true, message: 'HistoryId initialized' });
+        await emailMonitor.performFullSyncFallback(businessId, emailId, emailAddress);
+        await storeHistoryId(businessId, emailAddress, historyId);
+        
+        monitoringLogger.info('Full sync completed for first notification', {
+          operation: 'gmail-notify',
+          metadata: { emailAddress, historyId }
+        });
+        
+        return res.status(200).json({ success: true, message: 'Full sync completed' });
       } catch (error) {
-        monitoringLogger.error('Failed to initialize historyId', {
+        monitoringLogger.error('Full sync failed during initialization', {
           operation: 'gmail-notify',
           metadata: { emailAddress }
         }, error as Error);
-        return res.status(500).json({ error: 'Failed to initialize historyId' });
+        return res.status(500).json({ error: 'Full sync failed' });
       }
     }
 
-    // Process emails
+    // Process emails (only if historyId has changed)
+    if (lastHistoryId === historyId) {
+      monitoringLogger.debug('HistoryId unchanged, no new emails to process', {
+        operation: 'gmail-notify',
+        metadata: { emailAddress, historyId }
+      });
+      return res.status(200).json({ success: true, message: 'No new emails' });
+    }
+
     try {
       await processEmailsWithFallback(businessId, emailId, emailAddress, lastHistoryId, historyId);
 
