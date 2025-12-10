@@ -9,6 +9,7 @@ import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import * as Auth from './GmailOAuthService/auth.js';
 import * as Actions from './GmailOAuthService/actions.js';
 import * as History from './GmailOAuthService/history.js';
+import * as Watch from './GmailOAuthService/watch.js';
 import { OAuthProvider } from '../base/OAuthProvider.js';
 import type {
   OAuthTokens,
@@ -254,6 +255,27 @@ export class GmailOAuthService extends OAuthProvider {
       this.gmail,
       options
     );
+  }
+
+  /**
+   * Set up Gmail mailbox watch for push notifications
+   */
+  async watchMailbox(businessId: number, emailAddress: string): Promise<{ historyId: string; expiration: Date }> {
+    return Watch.watchMailbox(this.setCredentials.bind(this), this.gmail, businessId, emailAddress);
+  }
+
+  /**
+   * Stop watching a Gmail mailbox
+   */
+  async stopWatch(businessId: number, emailAddress: string): Promise<void> {
+    return Watch.stopWatch(this.setCredentials.bind(this), this.gmail, businessId, emailAddress);
+  }
+
+  /**
+   * Get watch expiration for an email address
+   */
+  async getWatchExpiration(businessId: number, emailAddress: string): Promise<Date | null> {
+    return Watch.getWatchExpiration(businessId, emailAddress);
   }
 
   /**

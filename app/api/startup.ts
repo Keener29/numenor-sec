@@ -1,5 +1,6 @@
 import { emailMonitor } from './services/emailMonitor.js';
 import { emailService } from './services/emailService.js';
+import { watchRenewalScheduler } from './services/watchRenewalScheduler.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -18,10 +19,15 @@ export async function initializeServices(): Promise<void> {
       logger.warn('Email service connection failed - check SMTP configuration', { operation: 'test-email-connection' });
     }
 
-    // Start email monitoring service
-    logger.info('Starting email monitoring service', { operation: 'start-email-monitoring' });
-    await emailMonitor.startMonitoring();
-    logger.info('Email monitoring service started', { operation: 'start-email-monitoring' });
+    // Initialize email monitoring service (event-driven, no polling)
+    logger.info('Initializing email monitoring service (event-driven)', { operation: 'initialize-email-monitoring' });
+    await emailMonitor.initialize();
+    logger.info('Email monitoring service initialized', { operation: 'initialize-email-monitoring' });
+
+    // Start Gmail watch renewal scheduler
+    logger.info('Starting Gmail watch renewal scheduler', { operation: 'start-watch-renewal' });
+    await watchRenewalScheduler.start();
+    logger.info('Gmail watch renewal scheduler started', { operation: 'start-watch-renewal' });
 
     logger.info('All services initialized successfully', { operation: 'initialize-services' });
   } catch (error) {
@@ -40,6 +46,10 @@ export async function shutdownServices(): Promise<void> {
     // Stop email monitoring
     emailMonitor.stopMonitoring();
     logger.info('Email monitoring service stopped', { operation: 'shutdown-services' });
+
+    // Stop watch renewal scheduler
+    watchRenewalScheduler.stop();
+    logger.info('Gmail watch renewal scheduler stopped', { operation: 'shutdown-services' });
 
     logger.info('All services shut down gracefully', { operation: 'shutdown-services' });
   } catch (error) {

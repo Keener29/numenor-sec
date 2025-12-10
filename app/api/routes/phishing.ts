@@ -400,16 +400,17 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
 
 /**
  * @route POST /api/phishing/monitoring/start
- * @desc Start email monitoring service
+ * @desc Initialize email monitoring service (event-driven, always active)
  * @access Private (Admin only - for now, business users)
+ * @note Monitoring is now event-driven via Pub/Sub push notifications
  */
 router.post('/monitoring/start', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
-    await emailMonitor.startMonitoring();
+    await emailMonitor.initialize();
 
     res.json({
       success: true,
-      message: 'Email monitoring service started successfully'
+      message: 'Email monitoring service initialized (event-driven mode)'
     });
 
   } catch (error) {
@@ -419,8 +420,9 @@ router.post('/monitoring/start', authenticateToken, async (req: AuthRequest, res
 
 /**
  * @route POST /api/phishing/monitoring/stop
- * @desc Stop email monitoring service
+ * @desc Stop email monitoring service (cleanup only)
  * @access Private (Admin only - for now, business users)
+ * @note Monitoring is event-driven, this only stops maintenance tasks
  */
 router.post('/monitoring/stop', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
@@ -428,7 +430,7 @@ router.post('/monitoring/stop', authenticateToken, async (req: AuthRequest, res,
 
     res.json({
       success: true,
-      message: 'Email monitoring service stopped successfully'
+      message: 'Email monitoring service stopped (maintenance tasks only)'
     });
 
   } catch (error) {
