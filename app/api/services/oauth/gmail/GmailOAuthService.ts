@@ -272,13 +272,6 @@ export class GmailOAuthService extends OAuthProvider {
   }
 
   /**
-   * Get watch expiration for an email address
-   */
-  async getWatchExpiration(businessId: number, emailAddress: string): Promise<Date | null> {
-    return Watch.getWatchExpiration(businessId, emailAddress);
-  }
-
-  /**
    * Generate secure nonce for OAuth state
    */
   private generateNonce(): string {

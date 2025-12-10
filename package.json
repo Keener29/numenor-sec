@@ -15,11 +15,13 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0",
     "@react-oauth/google": "^0.12.2",
     "@react-router/node": "^7.7.1",
     "@react-router/serve": "^7.7.1",
     "@types/cookie-parser": "^1.4.9",
     "@types/nodemailer": "^7.0.2",
+    "base64url": "^3.0.1",
     "bcryptjs": "^2.4.3",
     "confusables": "^1.1.1",
     "cookie-parser": "^1.4.7",
@@ -28,7 +30,6 @@
     "express": "^4.19.2",
     "express-rate-limit": "^8.2.1",
     "fast-levenshtein": "^3.0.0",
-    "@google-cloud/pubsub": "^4.0.0",
     "googleapis": "^144.0.0",
     "helmet": "^7.1.0",
     "isbot": "^5.1.27",

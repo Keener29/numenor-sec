@@ -36,7 +36,7 @@ class PubSubService {
         projectId: this.projectId
       });
 
-      const isNgrok = this.webhookUrl.includes('ngrok.io') || this.webhookUrl.includes('ngrok-free.app');
+      const isNgrok = this.webhookUrl.includes('ngrok');
       const logLevel = isNgrok ? 'warn' : 'info';
       const logMessage = isNgrok 
         ? 'Pub/Sub service initialized (ngrok detected - ensure Pub/Sub subscription push endpoint matches)'

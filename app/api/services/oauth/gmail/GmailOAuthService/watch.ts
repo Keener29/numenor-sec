@@ -175,25 +175,6 @@ export async function stopWatch(
 }
 
 /**
- * Get watch expiration for an email address
- */
-export async function getWatchExpiration(
-  businessId: number,
-  emailAddress: string
-): Promise<Date | null> {
-  const result = await query(
-    'SELECT watch_expiration FROM gmail_watches WHERE business_id = $1 AND email_address = $2',
-    [businessId, emailAddress]
-  );
-
-  if (result.rows.length === 0) {
-    return null;
-  }
-
-  return (result.rows[0] as { watch_expiration: Date }).watch_expiration;
-}
-
-/**
  * Get all watches that need renewal (expiring within 24 hours)
  */
 export async function getWatchesNeedingRenewal(): Promise<Array<{ businessId: number; emailAddress: string }>> {
