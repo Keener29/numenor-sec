@@ -125,6 +125,7 @@ class PubSubService {
    * Verify Pub/Sub message JWT token from Authorization header
    */
   async verifyJwtToken(authHeader: string | undefined): Promise<boolean> {
+
     if (!authHeader) {
       monitoringLogger.warn('Missing Authorization header in Pub/Sub request', {
         operation: 'pubsub-verify-jwt'
@@ -146,6 +147,7 @@ class PubSubService {
     try {
       // Decode token to get kid (key ID) without verification
       const decoded = jwt.decode(token, { complete: true });
+
       if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
         monitoringLogger.warn('Invalid JWT token structure', {
           operation: 'pubsub-verify-jwt'
@@ -156,31 +158,29 @@ class PubSubService {
       // Get the signing key
       const signingKey = await this.getSigningKey(decoded.header.kid);
 
-      // Verify the token
-      const verified = jwt.verify(token, signingKey, {
-        algorithms: ['RS256'],
-        issuer: 'https://accounts.google.com',
-        audience: this.webhookUrl
-      }) as jwt.JwtPayload;
-
-      // Verify the token was issued by Google Cloud Pub/Sub
-      // The 'sub' claim should contain the service account email for Pub/Sub
-      if (!verified.sub || !verified.sub.includes('gcp-sa-pubsub')) {
-        monitoringLogger.warn('Invalid JWT token subject', {
-          operation: 'pubsub-verify-jwt',
-          metadata: { sub: verified.sub }
-        });
+      let verified: jwt.JwtPayload;
+      try {
+        verified = jwt.verify(token, signingKey, {
+          algorithms: ['RS256'],
+          issuer: 'https://accounts.google.com',
+          audience: this.webhookUrl
+        }) as jwt.JwtPayload;
+      } catch (verifyError: any) {
+        monitoringLogger.warn('JWT verification failed', {
+          operation: 'pubsub-verify-jwt'
+        }, verifyError);
         return false;
       }
 
-      monitoringLogger.debug('Pub/Sub JWT token verified successfully', {
-        operation: 'pubsub-verify-jwt',
-        metadata: {
-          issuer: verified.iss,
-          audience: verified.aud,
-          email: verified.email
-        }
-      });
+      const serviceAccountEmail = verified.email;
+      const isValidServiceAccount = serviceAccountEmail && typeof serviceAccountEmail === 'string' && serviceAccountEmail.endsWith('.iam.gserviceaccount.com');
+
+      if (!isValidServiceAccount) {
+        monitoringLogger.warn('Invalid JWT token - not a Google service account', {
+          operation: 'pubsub-verify-jwt'
+        });
+        return false;
+      }
 
       return true;
     } catch (error) {
