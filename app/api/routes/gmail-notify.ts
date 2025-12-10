@@ -203,12 +203,31 @@ async function processEmailsWithFallback(
  * @desc Receive Gmail push notifications from Pub/Sub
  * @access Public (authenticated via Pub/Sub OIDC token)
  */
-router.post('/gmail-notify', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
+  // Log all incoming requests to debug Pub/Sub delivery
+  monitoringLogger.info('Webhook endpoint called', {
+    operation: 'gmail-notify',
+    metadata: {
+      method: req.method,
+      path: req.path,
+      contentType: req.headers['content-type'],
+      hasBody: !!req.body,
+      bodyType: typeof req.body,
+      bodyLength: req.body ? (req.body as Buffer).length : 0
+    }
+  });
+
   try {
     // req.body is a Buffer from express.raw() middleware
     // Pub/Sub sends JSON with Base64-encoded message.data field
     const notification = decodePubSubMessage(req.body as Buffer);
     if (!notification) {
+      monitoringLogger.warn('Failed to decode Pub/Sub message', {
+        operation: 'gmail-notify',
+        metadata: {
+          bodyPreview: req.body ? (req.body as Buffer).toString('utf8').substring(0, 200) : 'no body'
+        }
+      });
       return res.status(400).json({ error: 'Invalid message format' });
     }
 
