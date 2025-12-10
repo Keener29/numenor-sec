@@ -715,7 +715,7 @@ class EmailMonitor {
         `SELECT 
           COUNT(*) as total_scans,
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as successful_scans,
-          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_scans,
+          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_scans
          FROM email_scans 
          WHERE created_at > NOW() - INTERVAL '24 hours'`,
         []
