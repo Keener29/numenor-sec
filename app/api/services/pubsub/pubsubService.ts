@@ -12,10 +12,14 @@ class PubSubService {
   private topicName: string;
   private subscriptionName: string;
   private webhookUrl: string;
+  private projectId?: string;
 
   constructor() {
     this.topicName = process.env.GMAIL_PUBSUB_TOPIC || 'gmail-notifications';
     this.subscriptionName = process.env.GMAIL_PUBSUB_SUBSCRIPTION || 'gmail-notify-sub';
+    
+    // Store project ID explicitly to ensure consistency
+    this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     
     // Webhook URL for push subscription
     const baseUrl = process.env.VITE_API_URL;
@@ -29,7 +33,7 @@ class PubSubService {
       // Initialize Pub/Sub client
       // Uses Application Default Credentials (ADC) or GOOGLE_APPLICATION_CREDENTIALS env var
       this.pubsub = new PubSub({
-        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || process.env.GOOGLE_CLIENT_ID?.split('-')[0]
+        projectId: this.projectId
       });
 
       const isNgrok = this.webhookUrl.includes('ngrok.io') || this.webhookUrl.includes('ngrok-free.app');
@@ -67,8 +71,8 @@ class PubSubService {
         'Pub/Sub service not initialized'
       );
     }
-    const projectId = this.pubsub.projectId;
-    return `projects/${projectId}/topics/${this.topicName}`;
+
+    return `projects/${this.projectId}/topics/${this.topicName}`;
   }
 
   /**
