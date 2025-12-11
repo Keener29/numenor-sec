@@ -6,6 +6,7 @@ import { query, getClient } from '../../db/connection.js';
 import { emailService } from '../services/emailService.js';
 import { emailLogger } from '../../utils/logger.js';
 import type { MonitoredEmail } from '../types/email.js';
+import { securityEventLogger } from '../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -122,10 +123,14 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, (email as { id: number }).id, businessId);
       
       // Log successful email send
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_sent', $2, $3, $4)`,
-        [businessId, `Permission request email sent to: ${emailAddress}`, req.ip, req.get('User-Agent')]
+      await securityEventLogger.logSecurityEvent(
+        businessId,
+        'permission_email_sent',
+        `Permission request email sent to: ${emailAddress}`,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
       );
 
       res.status(201).json({
@@ -146,10 +151,14 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
         businessId,
         emailAddress
       }, emailError as Error);
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_failed', $2, $3, $4)`,
-        [businessId, `Failed to send permission request email to: ${emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`, req.ip, req.get('User-Agent')]
+      await securityEventLogger.logSecurityEvent(
+        businessId,
+        'permission_email_failed',
+        `Failed to send permission request email to: ${emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
       );
 
       res.status(201).json({
@@ -184,10 +193,14 @@ const bulkEmailSendHelper = async (insertedEmails: MonitoredEmail[], businessId:
       );
       
       // Log successful email send
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_sent', $2, $3, $4)`,
-        [businessId, `Permission request email sent to: ${email.emailAddress}`, ip, userAgent]
+      await securityEventLogger.logSecurityEvent(
+        businessId,
+        'permission_email_sent',
+        `Permission request email sent to: ${email.emailAddress}`,
+        {
+          ipAddress: ip,
+          userAgent: userAgent
+        }
       );
       
       emailResults.push({ email: email.emailAddress, success: true });
@@ -199,10 +212,14 @@ const bulkEmailSendHelper = async (insertedEmails: MonitoredEmail[], businessId:
         emailAddress: email.emailAddress
       }, emailError as Error);
       
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_failed', $2, $3, $4)`,
-        [businessId, `Failed to send permission request email to: ${email.emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`, ip, userAgent]
+      await securityEventLogger.logSecurityEvent(
+        businessId,
+        'permission_email_failed',
+        `Failed to send permission request email to: ${email.emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+        {
+          ipAddress: ip,
+          userAgent: userAgent
+        }
       );
       
       emailResults.push({ 
@@ -400,10 +417,14 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
     const email = result.rows[0] as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date };
 
     // Log the update
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'email_updated', $2, $3, $4)`,
-      [businessId, `Email monitoring updated for: ${email.email_address}`, req.ip, req.get('User-Agent')]
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'email_updated',
+      `Email monitoring updated for: ${email.email_address}`,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
     );
 
     res.json({
@@ -465,10 +486,14 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
     await query('DELETE FROM monitored_emails WHERE id = $1 AND business_id = $2', [emailId, businessId]);
 
     // Log the deletion
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'email_deleted', $2, $3, $4)`,
-      [businessId, `Email monitoring and OAuth connection removed for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'email_deleted',
+      `Email monitoring and OAuth connection removed for: ${emailAddress}`,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
     );
 
     res.json({

@@ -7,7 +7,7 @@ import { Router, type Request, type Response } from 'express';
 import base64url from 'base64url';
 import { query } from '../../db/connection.js';
 import { gmailOAuthService } from '../services/oauth/gmail/GmailOAuthService.js';
-import { emailMonitor } from '../services/emailMonitor.js';
+import { emailMonitor } from '../services/emailMonitor/index.js';
 import { pubsubService } from '../services/pubsub/pubsubService.js';
 import { monitoringLogger } from '../../utils/logger.js';
 

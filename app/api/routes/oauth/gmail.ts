@@ -8,6 +8,7 @@ import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
+import { securityEventLogger } from '../../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -71,10 +72,14 @@ export async function handleApprovalToken(
     throw new TypeError('Invalid emailAddress parameter, expected string');
   }
   
-  await query(
-    `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-     VALUES ($1, 'email_approved', $2, $3, $4)`,
-    [businessId, `Email monitoring approved for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+  await securityEventLogger.logSecurityEvent(
+    businessId,
+    'email_approved',
+    `Email monitoring approved for: ${emailAddress}`,
+    {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    }
   );
 
   return true;

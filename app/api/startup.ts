@@ -1,4 +1,4 @@
-import { emailMonitor } from './services/emailMonitor.js';
+import { emailMonitor } from './services/emailMonitor/index.js';
 import { emailService } from './services/emailService.js';
 import { watchRenewalScheduler } from './services/watchRenewalScheduler.js';
 import { logger } from '../utils/logger.js';
