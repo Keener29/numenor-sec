@@ -244,14 +244,16 @@ async function processEmailsWithFallback(
   newHistoryId: string
 ): Promise<void> {
   try {
-    await emailMonitor.processNewEmailsFromHistory(
+    // Use latestHistoryId from the API response (what we actually processed)
+    // This is more accurate than the notification's historyId
+    const processedHistoryId = await emailMonitor.processNewEmailsFromHistory(
       businessId,
       emailId,
       emailAddress,
       lastHistoryId,
       newHistoryId
     );
-    await storeHistoryId(businessId, emailAddress, newHistoryId);
+    await storeHistoryId(businessId, emailAddress, processedHistoryId);
   } catch (error: any) {
     // If historyId is too old, fall back to full sync
     if (error?.causeCode === 'HISTORY_TOO_OLD') {
@@ -261,6 +263,7 @@ async function processEmailsWithFallback(
       });
 
       await emailMonitor.performFullSyncFallback(businessId, emailId, emailAddress);
+      // Use the notification's historyId as fallback since we did full sync
       await storeHistoryId(businessId, emailAddress, newHistoryId);
     } else {
       throw error;

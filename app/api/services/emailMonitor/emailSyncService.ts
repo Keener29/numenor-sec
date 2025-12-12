@@ -11,6 +11,7 @@ import type { MonitoredEmail, EmailMessage } from './types.js';
 export class EmailSyncService {
   /**
    * Process new emails from Gmail history (called by Pub/Sub webhook)
+   * Returns the latest historyId from the processed history entries
    */
   async processNewEmailsFromHistory(
     businessId: number,
@@ -18,7 +19,7 @@ export class EmailSyncService {
     emailAddress: string,
     startHistoryId: string,
     endHistoryId: string
-  ): Promise<void> {
+  ): Promise<string> {
     try {
       monitoringLogger.info('Processing new emails from history', {
         operation: 'process-new-emails-history',
@@ -41,14 +42,16 @@ export class EmailSyncService {
           operation: 'process-new-emails-history',
           emailAddress
         });
-        return;
+        // Return the latestHistoryId even if no messages, so we don't reprocess
+        return latestHistoryId;
       }
 
       monitoringLogger.info('Found new messages in history', {
         operation: 'process-new-emails-history',
         emailAddress,
         metadata: {
-          messageCount: messageIds.length
+          messageCount: messageIds.length,
+          latestHistoryId
         }
       });
 
@@ -124,9 +127,14 @@ export class EmailSyncService {
         metadata: {
           messagesProcessed: messages.length,
           emailsProcessed,
-          scanDuration
+          scanDuration,
+          latestHistoryId
         }
       });
+      
+      // Return the latestHistoryId from the API response (what we actually processed)
+      // This is more accurate than the notification's historyId
+      return latestHistoryId;
     } catch (error) {
       monitoringLogger.error('Error processing new emails from history', {
         operation: 'process-new-emails-history',

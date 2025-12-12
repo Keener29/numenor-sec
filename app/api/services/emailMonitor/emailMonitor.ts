@@ -62,7 +62,7 @@ class EmailMonitor {
     emailAddress: string,
     startHistoryId: string,
     endHistoryId: string
-  ): Promise<void> {
+  ): Promise<string> {
     return emailSyncService.processNewEmailsFromHistory(
       businessId,
       emailId,
