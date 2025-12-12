@@ -148,7 +148,7 @@ export class LinkAnalyzerService {
     }
     if (lastTagName && lastTagIndex >= 0) {
       const between = html.slice(lastTagIndex, anchorIndex);
-      const closeRe = new RegExp(`</\\s*${lastTagName}\\s*>`, 'i');
+      const closeRe = new RegExp(String.raw`</\s*${lastTagName}\s*>`, 'i');
       if (!closeRe.test(between)) {
         return true;
       }

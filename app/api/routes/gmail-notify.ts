@@ -335,6 +335,10 @@ router.post('/', async (req: Request, res: Response) => {
         const result = await handleFirstNotification(businessId, emailId, emailAddress, historyId);
         return res.status(200).json(result);
       } catch (error) {
+        monitoringLogger.error('Full sync failed during first notification', {
+          operation: 'gmail-notify',
+          metadata: { emailAddress, historyId }
+        }, error as Error);
         return res.status(500).json({ error: 'Full sync failed' });
       }
     }

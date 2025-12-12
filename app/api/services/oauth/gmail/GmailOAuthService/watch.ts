@@ -65,7 +65,7 @@ export async function watchMailbox(
 
     // Parse expiration (Gmail returns Unix timestamp in milliseconds as string)
     const expirationTimestamp = Number.parseInt(watchResponse.expiration, 10);
-    if (isNaN(expirationTimestamp) || expirationTimestamp <= 0) {
+    if (Number.isNaN(expirationTimestamp) || expirationTimestamp <= 0) {
       oauthLogger.error('Invalid expiration timestamp from Gmail API', {
         ...context,
         metadata: {
@@ -81,7 +81,7 @@ export async function watchMailbox(
     }
 
     const expiration = new Date(expirationTimestamp);
-    if (isNaN(expiration.getTime())) {
+    if (Number.isNaN(expiration.getTime())) {
       oauthLogger.error('Failed to parse expiration date', {
         ...context,
         metadata: {

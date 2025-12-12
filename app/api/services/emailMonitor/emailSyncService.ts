@@ -3,7 +3,7 @@ import { gmailOAuthService } from '../oauth/gmail/GmailOAuthService.js';
 import { monitoringLogger } from '../../../utils/logger.js';
 import { processedEmailsService } from './processedEmailsService.js';
 import { emailProcessor } from './emailProcessor.js';
-import type { MonitoredEmail, EmailMessage } from './types.js';
+import type { MonitoredEmail } from './types.js';
 
 /**
  * Service for syncing emails from Gmail history

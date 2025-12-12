@@ -11,10 +11,10 @@ import { ErrorFactory, ErrorCodes } from '../errorHandler.js';
 
 class PubSubService {
   private pubsub: PubSub | null = null;
-  private topicName: string;
-  private subscriptionName: string;
-  private webhookUrl: string;
-  private projectId?: string;
+  private readonly topicName: string;
+  private readonly subscriptionName: string;
+  private readonly webhookUrl: string;
+  private readonly projectId?: string;
 
   constructor() {
     this.topicName = process.env.GMAIL_PUBSUB_TOPIC || 'gmail-notifications';
@@ -25,7 +25,9 @@ class PubSubService {
     
     // Webhook URL for push subscription
     const baseUrl = process.env.PUBSUB_WEBHOOK_URL || process.env.VITE_API_URL;
-    if (!baseUrl) {
+    if (baseUrl) {
+      this.webhookUrl = `${baseUrl}/api/gmail-notify`;      
+    } else {
       monitoringLogger.error('PUBSUB_WEBHOOK_URL not set. Pub/Sub notifications will not work.', {
         operation: 'pubsub-initialize',
         metadata: {
@@ -33,8 +35,6 @@ class PubSubService {
         }
       });
       this.webhookUrl = '';
-    } else {
-      this.webhookUrl = `${baseUrl}/api/gmail-notify`;
     }
 
     this.initialize();
@@ -134,7 +134,8 @@ class PubSubService {
     }
 
     // Extract token from "Bearer <token>" format
-    const tokenMatch = authHeader.match(/^Bearer (.+)$/);
+    const tokenMatch = /^Bearer (.+)$/.exec(authHeader);
+
     if (!tokenMatch) {
       monitoringLogger.warn('Invalid Authorization header format', {
         operation: 'pubsub-verify-jwt'
