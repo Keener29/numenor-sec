@@ -9,6 +9,8 @@ import {
 import {GoogleOAuthProvider} from "@react-oauth/google";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { MsalProvider } from "@azure/msal-react";
+import { msalInstance } from "./msalConfig";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -39,9 +41,13 @@ export function Layout({ children }: { readonly children: React.ReactNode }) {
         <Links />       
       </head>
       <body suppressHydrationWarning={true}>
-        <GoogleOAuthProvider clientId={googleClientId}>
-          {children}
-        </GoogleOAuthProvider>
+        {msalInstance && (
+          <MsalProvider instance={msalInstance}>
+            <GoogleOAuthProvider clientId={googleClientId}>
+              {children}
+            </GoogleOAuthProvider>
+          </MsalProvider>
+        )}
         <ScrollRestoration />
         <Scripts />
       </body>

@@ -29,7 +29,7 @@ COPY app/hooks ./app/hooks
 COPY app/root.tsx ./app/root.tsx
 COPY app/routes.ts ./app/routes.ts
 COPY app/app.css ./app/app.css
-COPY app/welcome ./app/welcome
+COPY app/msalConfig.ts ./app/msalConfig.ts
 COPY public ./public
 COPY react-router.config.ts ./
 COPY vite.config.ts ./
