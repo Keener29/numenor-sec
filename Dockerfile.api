@@ -25,10 +25,7 @@ COPY tsconfig.json ./
 
 # Copy entrypoint script (runs migrations automatically - needed for free tier)
 COPY docker-entrypoint-api.sh /docker-entrypoint-api.sh
-RUN chmod +x /docker-entrypoint-api.sh
-
-# Create logs directory
-RUN mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
+RUN chmod +x /docker-entrypoint-api.sh && mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
 
 # Switch to non-root user
 USER numenor
