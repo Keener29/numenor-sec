@@ -168,6 +168,7 @@ async function initializeHistoryId(businessId: number, emailAddress: string): Pr
 
 /**
  * Handle first notification by performing full sync
+ * Uses atomic INSERT to prevent race conditions when multiple notifications arrive simultaneously
  */
 async function handleFirstNotification(
   businessId: number,
@@ -175,6 +176,39 @@ async function handleFirstNotification(
   emailAddress: string,
   notificationHistoryId: string
 ): Promise<{ success: boolean; message: string }> {
+  // Try to atomically initialize historyId - only one process will succeed
+  // This prevents multiple simultaneous notifications from all triggering full sync
+  const initResult = await query(
+    `INSERT INTO email_offsets (business_id, email_address, provider, last_history_id, last_synced_at)
+     VALUES ($1, $2, $3, NULL, CURRENT_TIMESTAMP)
+     ON CONFLICT (business_id, email_address, provider) DO NOTHING
+     RETURNING last_history_id`,
+    [businessId, emailAddress, 'gmail']
+  );
+
+  // If no row was inserted, another process already initialized it
+  if (initResult.rows.length === 0) {
+    // Check if another process already stored a historyId
+    const existingHistoryId = await getStoredHistoryId(businessId, emailAddress);
+    if (existingHistoryId) {
+      monitoringLogger.debug('Another process already initialized historyId, skipping full sync', {
+        operation: 'gmail-notify',
+        metadata: { emailAddress, existingHistoryId }
+      });
+      return { success: true, message: 'Already initialized by another process' };
+    }
+    // If no historyId exists yet, wait a bit and check again (another process is initializing)
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const retryHistoryId = await getStoredHistoryId(businessId, emailAddress);
+    if (retryHistoryId) {
+      monitoringLogger.debug('HistoryId initialized by another process after wait', {
+        operation: 'gmail-notify',
+        metadata: { emailAddress, historyId: retryHistoryId }
+      });
+      return { success: true, message: 'Initialized by another process' };
+    }
+  }
+
   monitoringLogger.info('First notification received - performing full sync', {
     operation: 'gmail-notify',
     metadata: { emailAddress, notificationHistoryId }

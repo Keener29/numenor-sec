@@ -161,6 +161,23 @@ export class EmailSyncService {
       }
 
       const connectionTimestamp = (tokenResult.rows[0] as { created_at: Date }).created_at;
+      
+      // Convert to Date object if it's a string
+      const connectionDate = connectionTimestamp instanceof Date 
+        ? connectionTimestamp 
+        : new Date(connectionTimestamp);
+      
+      // Add a small buffer (1 second) to ensure we don't miss emails due to timing precision
+      const connectionTimestampWithBuffer = new Date(connectionDate.getTime() - 1000);
+
+      monitoringLogger.debug('Full sync using connection timestamp', {
+        operation: 'full-sync-fallback',
+        emailAddress,
+        metadata: {
+          connectionTimestamp: connectionDate.toISOString(),
+          connectionTimestampWithBuffer: connectionTimestampWithBuffer.toISOString()
+        }
+      });
 
       // Fetch emails since connection
       const messages = await gmailOAuthService.fetchEmails(
@@ -168,15 +185,21 @@ export class EmailSyncService {
         emailAddress,
         50,
         '',
-        connectionTimestamp
+        connectionTimestampWithBuffer
       );
 
-      // Filter out sent/draft/trash emails
+      // Filter out sent/draft/trash emails and emails before connection
+      // Note: Gmail's 'after:' query is date-based, so we need to filter by exact timestamp
       const filteredMessages = messages.filter(emailMessage => {
         const labels = emailMessage.labels || [];
         if (labels.includes('SENT') || labels.includes('DRAFT') || labels.includes('TRASH')) return false;
         if (emailMessage.sender === emailAddress) return false;
-        return emailMessage.timestamp > connectionTimestamp;
+        
+        // Ensure timestamp is after connection (with buffer)
+        const messageTimestamp = emailMessage.timestamp instanceof Date 
+          ? emailMessage.timestamp 
+          : new Date(emailMessage.timestamp);
+        return messageTimestamp >= connectionTimestampWithBuffer;
       });
 
       monitoringLogger.info('Full sync fetched emails', {
