@@ -110,15 +110,6 @@ export async function watchMailbox(
       [businessId, emailAddress, expiration, historyId]
     );
 
-    oauthLogger.info('Gmail watch subscription created successfully', {
-      ...context,
-      metadata: {
-        historyId,
-        expiration: expiration.toISOString(),
-        topicName
-      }
-    });
-
     return { historyId, expiration };
   } catch (error: any) {
     oauthLogger.error('Failed to create Gmail watch subscription', context, error as Error);

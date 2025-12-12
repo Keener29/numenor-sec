@@ -303,8 +303,8 @@ export function generateThreatAlertTemplate(params: ThreatAlertParams): EmailTem
           <h3>Suspicious Email Details</h3>
           <div class="threat-info">
             <p><strong>Subject:</strong> ${emailMessage.subject}</p>
-            <p><strong>From:</strong> ${emailMessage.sender.address}</p>
-            <p><strong>To:</strong> ${emailMessage.recipient.address}</p>
+            <p><strong>From:</strong> ${emailMessage.sender}</p>
+            <p><strong>To:</strong> ${emailMessage.recipient}</p>
             <p><strong>Received:</strong> ${new Date(emailMessage.timestamp).toLocaleString()}</p>
           </div>
           
@@ -364,8 +364,8 @@ THREAT DETAILS:
 
 SUSPICIOUS EMAIL DETAILS:
 - Subject: ${emailMessage.subject}
-- From: ${emailMessage.sender.address}
-- To: ${emailMessage.recipient.address}
+- From: ${emailMessage.sender}
+- To: ${emailMessage.recipient}
 - Received: ${new Date(emailMessage.timestamp).toLocaleString()}
 
 DETECTED THREAT PATTERNS:
@@ -647,7 +647,9 @@ class EmailService {
   }
 
   /**
-   * Send threat alert email
+   * Send threat alert email (low-level email sending)
+   * This method handles the actual SMTP email sending.
+   * For a higher-level wrapper that includes business owner lookup, see threatAlertService.sendThreatAlert()
    */
   async sendThreatAlert(
     businessName: string,

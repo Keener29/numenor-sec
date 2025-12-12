@@ -116,6 +116,11 @@ export class ThreatAlertService {
 
   /**
    * Send threat alert notification to business owner
+   * This is a wrapper around emailService.sendThreatAlert() that handles:
+   * - Looking up business owner information from the database
+   * - Monitoring-specific logging
+   * 
+   * The actual email sending is handled by emailService.sendThreatAlert()
    */
   async sendThreatAlert(
     monitoredEmail: MonitoredEmail,
@@ -144,7 +149,7 @@ export class ThreatAlertService {
       const businessName = businessOwner.business_name;
       const ownerEmail = businessOwner.email;
 
-      // Send threat alert email
+      // Delegate to emailService for actual email sending
       await emailService.sendThreatAlert(
         businessName,
         ownerEmail,
