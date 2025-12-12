@@ -71,10 +71,18 @@ cd clicksafe
 # 2. Copy environment variables
 cp docker.env.example .env
 
-# 3. Start all services
-docker-compose up -d
+# 3. Installations
+#Mac
+brew install ngrok
+#Windows at https://ngrok.com/download/windows
 
-# 4. Access the application
+npm install
+
+# 4. Start all services
+docker-compose up -d
+ngrok http 3001 # copy to google cloud console
+
+# 5. Access the application
 # Frontend: http://localhost:3000
 # API: http://localhost:3001
 ```

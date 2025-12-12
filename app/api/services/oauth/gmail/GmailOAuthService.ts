@@ -9,6 +9,7 @@ import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import * as Auth from './GmailOAuthService/auth.js';
 import * as Actions from './GmailOAuthService/actions.js';
 import * as History from './GmailOAuthService/history.js';
+import * as Watch from './GmailOAuthService/watch.js';
 import { OAuthProvider } from '../base/OAuthProvider.js';
 import type {
   OAuthTokens,
@@ -121,13 +122,6 @@ export class GmailOAuthService extends OAuthProvider {
       connectionTimestamp
     };
     return Actions.fetchEmails(fetchEmailsOptions);
-  }
-
-  /**
-   * Mark email as read
-   */
-  async markAsRead(businessId: number, emailAddress: string, messageId: string): Promise<void> {
-    return Actions.markAsRead(this.setCredentials.bind(this), this.gmail, businessId, emailAddress, messageId);
   }
 
   /**
@@ -257,10 +251,17 @@ export class GmailOAuthService extends OAuthProvider {
   }
 
   /**
-   * Generate secure nonce for OAuth state
+   * Set up Gmail mailbox watch for push notifications
    */
-  private generateNonce(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  async watchMailbox(businessId: number, emailAddress: string): Promise<{ historyId: string; expiration: Date }> {
+    return Watch.watchMailbox(this.setCredentials.bind(this), this.gmail, businessId, emailAddress);
+  }
+
+  /**
+   * Stop watching a Gmail mailbox
+   */
+  async stopWatch(businessId: number, emailAddress: string): Promise<void> {
+    return Watch.stopWatch(this.setCredentials.bind(this), this.gmail, businessId, emailAddress);
   }
 }
 

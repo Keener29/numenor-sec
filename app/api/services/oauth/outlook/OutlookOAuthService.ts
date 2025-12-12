@@ -82,13 +82,6 @@ export class OutlookOAuthService extends OAuthProvider {
   }
 
   /**
-   * Mark email as read
-   */
-  async markAsRead(businessId: number, emailAddress: string, messageId: string): Promise<void> {
-    throw new Error('Outlook OAuth not yet implemented');
-  }
-
-  /**
    * Delete an email message
    */
   async deleteEmail(businessId: number, emailAddress: string, messageId: string): Promise<void> {

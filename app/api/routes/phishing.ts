@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { validateBody, validateQuery } from '../middleware/validation.js';
 import { phishingDetector } from '../services/detector/phishingDetector.js';
-import { emailMonitor } from '../services/emailMonitor.js';
+import { emailMonitor } from '../services/emailMonitor/index.js';
 import { query } from '../../db/connection.js';
 import { securityLogger } from '../../utils/logger.js';
 import { phishingStatisticsQuerySchema, phishingPatternsQuerySchema } from '../schemas/phishing.js';
@@ -138,8 +138,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
         scans: {
           total_scans: 0,
           successful_scans: 0,
-          failed_scans: 0,
-          avg_emails_per_scan: 0
+          failed_scans: 0
         }
       };
     }
@@ -209,8 +208,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -243,8 +241,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -343,8 +340,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
         scans: {
           total_scans: 0,
           successful_scans: 0,
-          failed_scans: 0,
-          avg_emails_per_scan: 0
+          failed_scans: 0
         }
       };
     }
@@ -363,8 +359,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -389,8 +384,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       }
@@ -400,16 +394,17 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
 
 /**
  * @route POST /api/phishing/monitoring/start
- * @desc Start email monitoring service
+ * @desc Initialize email monitoring service (event-driven, always active)
  * @access Private (Admin only - for now, business users)
+ * @note Monitoring is now event-driven via Pub/Sub push notifications
  */
 router.post('/monitoring/start', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
-    await emailMonitor.startMonitoring();
+    await emailMonitor.initialize();
 
     res.json({
       success: true,
-      message: 'Email monitoring service started successfully'
+      message: 'Email monitoring service initialized (event-driven mode)'
     });
 
   } catch (error) {
@@ -419,8 +414,9 @@ router.post('/monitoring/start', authenticateToken, async (req: AuthRequest, res
 
 /**
  * @route POST /api/phishing/monitoring/stop
- * @desc Stop email monitoring service
+ * @desc Stop email monitoring service (cleanup only)
  * @access Private (Admin only - for now, business users)
+ * @note Monitoring is event-driven, this only stops maintenance tasks
  */
 router.post('/monitoring/stop', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
@@ -428,7 +424,7 @@ router.post('/monitoring/stop', authenticateToken, async (req: AuthRequest, res,
 
     res.json({
       success: true,
-      message: 'Email monitoring service stopped successfully'
+      message: 'Email monitoring service stopped (maintenance tasks only)'
     });
 
   } catch (error) {

@@ -114,7 +114,12 @@ describe('Business Routes', () => {
     expect(query).toHaveBeenCalledTimes(2);
     expect(query).toHaveBeenLastCalledWith(
         expect.stringContaining('INSERT INTO security_events'),
-        [1, '127.0.0.1', 'test-agent'] // business_id = 1
+        [
+          1,
+          'business_updated',
+          'Business information updated',
+          JSON.stringify({ ipAddress: '127.0.0.1', userAgent: 'test-agent' }) // metadata
+        ]
     );
   });
 

@@ -7,6 +7,7 @@ import { createUser, verifyUserPassword, getUserById, generateToken, hashPasswor
 import { query } from '../../db/connection.js';
 import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
+import { securityEventLogger } from '../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -282,11 +283,11 @@ router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), a
     await query('UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1 AND used_at IS NULL', [tokenHash]);
 
     // Optionally log event
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description)
-       VALUES ($1, 'password_reset', 'User reset password')`,
-      [null]
-    ).catch(() => { }); // non-fatal
+    await securityEventLogger.logSecurityEvent(
+      userId,
+      'password_reset',
+      'User reset password'
+    );
 
     return res.json({ message: 'Password has been reset successfully' });
   } catch (error) {
@@ -349,10 +350,14 @@ router.post('/change-password', authenticateToken, validateBody(changePasswordSc
 router.post('/logout', authenticateToken, async (req: AuthRequest, res, next) => {
   try {
     // Log the logout event
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'logout', 'User logged out', $2, $3)`,
-      [req.user!.business_id, req.ip, req.get('User-Agent')]
+    await securityEventLogger.logSecurityEvent(
+      req.user!.business_id as number,
+      'logout',
+      'User logged out',
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
     );
 
     // Clear the HTTP-only cookie

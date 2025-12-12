@@ -204,8 +204,13 @@ describe('HeaderAnalyzerService', () => {
         1
       );
 
-      expect(result.risks).toContain('Reply-To differs from From - sender domain is trusted');
-      expect(result.score).toBeLessThan(30); // Reduced penalty (5 for trusted domain vs 25 for non-trusted)
+      // With the new logic, when Reply-To domain is trusted, it uses a more specific message
+      expect(result.risks.some(risk => 
+        risk.includes('Reply-To domain') && 
+        risk.includes('differs from From domain') &&
+        risk.includes('Reply-To domain is trusted')
+      )).toBe(true);
+      expect(result.score).toBeLessThan(10); // Reduced penalty (3 for trusted Reply-To domain vs 25 for non-trusted)
     });
 
     it('should handle complete headers without issues', async () => {

@@ -11,12 +11,14 @@ This document outlines the testing setup and guidelines for the ClickSafe projec
 ## Test Configuration
 
 ### Jest Configuration (`jest.config.js`)
+
 - Uses `ts-jest/presets/default-esm` preset for ESM support
 - Test environment: Node.js
 - Test files: `**/__tests__/**/*.test.ts` and `**/?(*.)+(spec|test).ts`
 - TypeScript configuration: `tsconfig.test.json`
 
 ### TypeScript Test Configuration (`tsconfig.test.json`)
+
 - Extends main `tsconfig.json`
 - Includes Jest and Node types
 - ESM module support enabled
@@ -33,6 +35,7 @@ npm run test:watch
 
 # Run tests with coverage
 npm run test:coverage
+# npm test -- --coverage --coverageReporters=lcov
 ```
 
 ## Test Structure
@@ -131,37 +134,44 @@ app/
 ## Test Categories
 
 ### 1. Unit Tests
+
 - Test individual functions and methods
 - Mock external dependencies
 - Focus on specific functionality
 
 ### 2. Integration Tests
+
 - Test component interactions
 - Test API endpoints
 - Test database operations
 
 ### 3. End-to-End Tests
+
 - Test complete user workflows
 - Test system behavior from user perspective
 
 ## Testing Best Practices
 
 ### 1. Test Structure
+
 - Use `describe` blocks to group related tests
 - Use descriptive test names that explain what is being tested
 - Follow the Arrange-Act-Assert pattern
 
 ### 2. Mocking
+
 - Mock external dependencies (database, APIs, etc.)
 - Use Jest's built-in mocking capabilities
 - Mock at the module level when possible
 
 ### 3. Test Data
+
 - Use realistic test data
 - Create test fixtures for complex data structures
 - Avoid hardcoded values when possible
 
 ### 4. Assertions
+
 - Use specific assertions (`toBe`, `toEqual`, `toContain`)
 - Test both positive and negative cases
 - Verify error conditions
@@ -169,40 +179,40 @@ app/
 ## Example Test Structure
 
 ```typescript
-import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 // Mock external dependencies
-jest.mock('../../../db/connection.js', () => ({
-  query: jest.fn()
+jest.mock("../../../db/connection.js", () => ({
+  query: jest.fn(),
 }));
 
-import { ServiceClass } from '../serviceClass.js';
+import { ServiceClass } from "../serviceClass.js";
 
-describe('ServiceClass', () => {
+describe("ServiceClass", () => {
   let service: ServiceClass;
 
   beforeEach(() => {
     service = new ServiceClass();
   });
 
-  describe('Method Group', () => {
-    test('should handle success case', () => {
+  describe("Method Group", () => {
+    test("should handle success case", () => {
       // Arrange
-      const input = 'test input';
-      
+      const input = "test input";
+
       // Act
       const result = service.method(input);
-      
+
       // Assert
-      expect(result).toBe('expected output');
+      expect(result).toBe("expected output");
     });
 
-    test('should handle error case', () => {
+    test("should handle error case", () => {
       // Arrange
-      const input = 'invalid input';
-      
+      const input = "invalid input";
+
       // Act & Assert
-      expect(() => service.method(input)).toThrow('Error message');
+      expect(() => service.method(input)).toThrow("Error message");
     });
   });
 });
@@ -220,6 +230,7 @@ describe('ServiceClass', () => {
 **All Tests Passing**: ✅ 264/264 tests passed across 7 test suites
 
 ### Test Suite Coverage:
+
 - **Text Analyzer**: 23 tests - Intelligent text analysis with subject/body distinction
 - **Domain Analyzer**: 45 tests - Domain analysis and typosquatting detection
 - **Domain Age Analyzer**: 67 tests - WHOIS lookups and domain age analysis
@@ -230,10 +241,10 @@ describe('ServiceClass', () => {
 
 ## Test Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm test` | Run all tests once |
-| `npm run test:watch` | Run tests in watch mode |
+| Command                 | Description                    |
+| ----------------------- | ------------------------------ |
+| `npm test`              | Run all tests once             |
+| `npm run test:watch`    | Run tests in watch mode        |
 | `npm run test:coverage` | Run tests with coverage report |
 
 ## Adding New Tests
@@ -255,6 +266,7 @@ describe('ServiceClass', () => {
 ## Continuous Integration
 
 Tests should be run automatically on:
+
 - Pull requests
 - Main branch pushes
 - Scheduled runs
@@ -277,6 +289,7 @@ Tests should be run automatically on:
 ### Debug Mode
 
 Run tests with debug output:
+
 ```bash
 npm test -- --verbose
 ```

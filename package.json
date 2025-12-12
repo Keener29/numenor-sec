@@ -15,11 +15,13 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@google-cloud/pubsub": "^4.0.0",
     "@react-oauth/google": "^0.12.2",
     "@react-router/node": "^7.7.1",
     "@react-router/serve": "^7.7.1",
     "@types/cookie-parser": "^1.4.9",
     "@types/nodemailer": "^7.0.2",
+    "base64url": "^3.0.1",
     "bcryptjs": "^2.4.3",
     "confusables": "^1.1.1",
     "cookie-parser": "^1.4.7",
@@ -33,6 +35,7 @@
     "isbot": "^5.1.27",
     "jest-environment-jsdom": "^30.2.0",
     "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.2.0",
     "jwt-decode": "^4.0.0",
     "nodemailer": "^7.0.6",
     "pg": "^8.11.3",

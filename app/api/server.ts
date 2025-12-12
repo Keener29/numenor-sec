@@ -17,6 +17,7 @@ import phishingRoutes from './routes/phishing.js';
 import oauthRoutes from './routes/oauth/index.js';
 import statusRoutes from './routes/status.js';
 import accountsRoutes from './routes/accounts.js';
+import gmailNotifyRoutes from './routes/gmail-notify.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -24,12 +25,9 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import { enforceHttps } from './middleware/httpsEnforcement.js';
 
 const app = express();
-const PORT = process.env.API_PORT || 3001;
+const PORT = Number.parseInt(process.env.API_PORT || '3001');
 
-// Trust proxy for correct X-Forwarded-* headers (required for HTTPS detection behind reverse proxy)
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-}
+app.set('trust proxy', 1);
 
 // HTTPS enforcement middleware (must be before other middleware)
 app.use(enforceHttps);
@@ -60,10 +58,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 // Cookie parsing middleware
 app.use(cookieParser());
 
@@ -83,6 +77,14 @@ app.get('/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Pub/Sub webhook route - must be registered BEFORE express.json() to handle raw body
+// Pub/Sub sends Base64-encoded payloads that must be decoded before JSON parsing
+app.use('/api/gmail-notify', express.raw({ type: 'application/json', limit: '10mb' }), gmailNotifyRoutes);
+
+// Body parsing middleware (for all other routes)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -135,14 +137,17 @@ app.get('/api', (req, res) => {
         'POST /api/phishing/monitoring/stop': 'Stop email monitoring',
         'GET /api/phishing/recommendations': 'Get security recommendations'
       },
-            oauth: {
-              'GET /api/oauth/providers': 'Get list of available OAuth providers',
-              'GET /api/oauth/gmail/auth-url': 'Generate Gmail OAuth authorization URL',
-              'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
-              'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
-              'GET /api/oauth/gmail/status/:emailAddress': 'Get Gmail OAuth connection status',
-              'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
-            }
+      oauth: {
+        'GET /api/oauth/providers': 'Get list of available OAuth providers',
+        'GET /api/oauth/gmail/auth-url': 'Generate Gmail OAuth authorization URL',
+        'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
+        'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
+        'GET /api/oauth/gmail/status/:emailAddress': 'Get Gmail OAuth connection status',
+        'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
+      },
+      gmailNotify: {
+        'POST /api/gmail-notify': 'Handle Gmail push notifications'
+      }
     }
   });
 });
@@ -152,10 +157,10 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const host = process.env.API_HOST || 'localhost';
-  
+
   logger.info('Numenor Security API server started', {
     operation: 'server-startup',
     metadata: {
@@ -166,7 +171,6 @@ app.listen(PORT, async () => {
     }
   });
   
-  // Initialize background services
   try {
     const { initializeServices } = await import('./startup.js');
     await initializeServices();
@@ -176,5 +180,6 @@ app.listen(PORT, async () => {
     }, error as Error);
   }
 });
+
 
 export default app;

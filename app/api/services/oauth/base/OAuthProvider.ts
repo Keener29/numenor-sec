@@ -71,11 +71,6 @@ export abstract class OAuthProvider {
   ): Promise<EmailMessage[]>;
 
   /**
-   * Mark email as read
-   */
-  abstract markAsRead(businessId: number, emailAddress: string, messageId: string): Promise<void>;
-
-  /**
    * Delete an email message
    */
   abstract deleteEmail(businessId: number, emailAddress: string, messageId: string): Promise<void>;
