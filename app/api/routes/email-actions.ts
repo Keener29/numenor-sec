@@ -5,6 +5,7 @@ import { emailParamsSchema } from '../schemas/email.js';
 import { query } from '../../db/connection.js';
 import { emailService } from '../services/emailService.js';
 import { emailLogger } from '../../utils/logger.js';
+import { securityEventLogger } from '../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -47,11 +48,15 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
       await emailService.sendPermissionRequest(businessName, emailAddress, businessEmail, Number.parseInt(emailId), businessId);
       
       // Log successful email send
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_resent', $2, $3, $4)`,
-        [businessId, `Permission request email resent to: ${emailAddress}`, req.ip, req.get('User-Agent')]
-      );
+      await securityEventLogger.logSecurityEvent(
+      businessId,
+      'permission_email_resent',
+      `Permission request email resent to: ${emailAddress}`,
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
 
       res.json({
         message: 'Permission request email resent successfully',
@@ -64,10 +69,14 @@ router.post('/:id/resend', authenticateToken, requireBusiness, validateParams(em
         businessId,
         emailAddress
       }, emailError as Error);
-      await query(
-        `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-         VALUES ($1, 'permission_email_resend_failed', $2, $3, $4)`,
-        [businessId, `Failed to resend permission request email to: ${emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`, req.ip, req.get('User-Agent')]
+      await securityEventLogger.logSecurityEvent(
+        businessId,
+        'permission_email_resend_failed',
+        `Failed to resend permission request email to: ${emailAddress} - ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+        {
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent')
+        }
       );
 
       res.status(500).json({ 

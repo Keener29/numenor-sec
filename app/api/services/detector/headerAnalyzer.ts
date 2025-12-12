@@ -62,7 +62,7 @@ export class HeaderAnalyzerService {
   
     // Marketing Platforms
     'mailchimp.com', 'constantcontact.com', 'aweber.com', 'getresponse.com',
-    'mailerlite.com', 'convertkit.com', 'activecampaign.com',
+    'mailerlite.com', 'convertkit.com', 'activecampaign.com', 'getconvey.com',
   
     // CRM / Helpdesk
     'hubspot.com', 'salesforce.com', 'zendesk.com', 'freshdesk.com', 'intercom.io', 'helpscout.com',
@@ -123,7 +123,7 @@ export class HeaderAnalyzerService {
     score += this.checkForMissingHeaders(isTrustedDomain);
     score += this.checkForReceivedHeaders(isTrustedDomain);
     score += await this.checkForFromReturnPathMismatch(isTrustedDomain);
-    score += await this.checkForReplyToFromMismatch(isTrustedDomain);
+    score += await this.checkForReplyToFromMismatch(isTrustedDomain, businessId);
 
     // Check for suspicious header patterns
     if (!isTrustedDomain) {
@@ -252,12 +252,15 @@ export class HeaderAnalyzerService {
     return score;
   }
 
-  private async checkForReplyToFromMismatch(isTrustedDomain: boolean): Promise<number> {
+  private async checkForReplyToFromMismatch(isTrustedDomain: boolean, businessId?: number): Promise<number> {
     let score = 0;
     // Check for Reply-To vs From mismatch (potential spoofing)
     // Reply-To: Where replies should be sent (can differ from From)
     // From: Who the email appears to be from
     // Mismatch can indicate spoofing - email appears from one person but replies go elsewhere
+    // However, legitimate cases include:
+    // - Companies using ESPs (From = ESP domain, Reply-To = company domain)
+    // - Companies using different domains for sending vs receiving
     const from = this.headers['from']?.toLowerCase() || '';
     const replyTo = this.headers['reply-to']?.toLowerCase() || '';
     if (!from || !replyTo) return 0;
@@ -268,13 +271,44 @@ export class HeaderAnalyzerService {
 
     const fromOrg = getOrgDomain(fromDomain);
     const replyOrg = getOrgDomain(replyDomain);
-      // Same org domain → lower risk (likely support/marketing alias)
+    // Same org domain → no risk (likely support/marketing alias)
     const isSameOrg = fromOrg === replyOrg;
-    if (!isSameOrg) {
-      score += isTrustedDomain ? 5 : 25;
-      const message = isTrustedDomain ? 'Reply-To differs from From - sender domain is trusted' : `Reply-To domain (${replyOrg}) differs from From domain (${fromOrg}) - potential spoofing`;
-      this.risks.push(message);
+    if (isSameOrg) {
+      return score;
     }
+
+    // Check if From domain is a legitimate email service provider
+    // This is common: companies use ESPs to send emails, but set Reply-To to their own domain
+    const isFromLegitimateESP = this.isLegitimateEmailService(fromDomain);
+    
+    // Check if Reply-To domain is trusted (monitored email domain)
+    const isReplyToTrusted = await this.isTrustedDomain(`test@${replyDomain}`, businessId);
+    
+    // If From is an ESP and Reply-To is trusted, this is legitimate
+    if (isFromLegitimateESP && isReplyToTrusted) {
+      this.risks.push(`Reply-To domain (${replyOrg}) differs from From domain (${fromOrg}) - sent via email service provider`);
+      score += 2; // Very low penalty - legitimate ESP usage
+      return score;
+    }
+    
+    // If From is an ESP (even if Reply-To isn't trusted), reduce penalty
+    if (isFromLegitimateESP) {
+      this.risks.push(`Reply-To domain (${replyOrg}) differs from From domain (${fromOrg}) - sent via email service provider`);
+      score += 3; // Reduced penalty for ESP usage (legitimate pattern)
+      return score;
+    }
+    
+    // If Reply-To is trusted, reduce penalty
+    if (isReplyToTrusted) {
+      this.risks.push(`Reply-To domain (${replyOrg}) differs from From domain (${fromOrg}) - Reply-To domain is trusted`);
+      score += isTrustedDomain ? 3 : 12; // Reduced penalty when Reply-To is trusted
+      return score;
+    }
+
+    // Generic mismatch - higher risk
+    score += isTrustedDomain ? 5 : 25;
+    const message = isTrustedDomain ? 'Reply-To differs from From - sender domain is trusted' : `Reply-To domain (${replyOrg}) differs from From domain (${fromOrg}) - potential spoofing`;
+    this.risks.push(message);
     return score;
   }
   

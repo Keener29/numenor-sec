@@ -120,6 +120,18 @@ CREATE TABLE IF NOT EXISTS processed_emails (
     PRIMARY KEY (business_id, email_address, message_id)
 );
 
+-- Gmail watch subscriptions (for Pub/Sub push notifications)
+CREATE TABLE IF NOT EXISTS gmail_watches (
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    watch_expiration TIMESTAMP WITH TIME ZONE NOT NULL,
+    history_id TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id, email_address),
+    CONSTRAINT fk_gmail_watches_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS account_deletions (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,
@@ -254,6 +266,8 @@ END $$;
 -- Create indexes for new foreign keys
 CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(business_id);
 CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(business_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_watches_business_id ON gmail_watches(business_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_watches_expiration ON gmail_watches(watch_expiration);
 
 -- Indexes for account_deletions (for analytics queries)
 CREATE INDEX IF NOT EXISTS idx_account_deletions_user_email ON account_deletions(user_email);
@@ -275,3 +289,6 @@ CREATE TRIGGER update_phishing_alerts_updated_at BEFORE UPDATE ON phishing_alert
 
 DROP TRIGGER IF EXISTS update_oauth_tokens_updated_at ON oauth_tokens;
 CREATE TRIGGER update_oauth_tokens_updated_at BEFORE UPDATE ON oauth_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_gmail_watches_updated_at ON gmail_watches;
+CREATE TRIGGER update_gmail_watches_updated_at BEFORE UPDATE ON gmail_watches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -4,6 +4,7 @@ import { authenticateToken, requireBusiness, type AuthRequest } from '../middlew
 import { updateAlertSchema, alertParamsSchema, alertQuerySchema, createAlertSchema } from '../schemas/alerts.js';
 import { query } from '../../db/connection.js';
 import { oauthLogger } from '../../utils/logger.js';
+import { securityEventLogger } from '../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -316,10 +317,14 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
                      req.ip || 
                      'unknown';
     
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'alert_updated', $2, $3, $4)`,
-      [businessId, `Alert ${alertId} status updated to ${updates.status || 'modified'}`, clientIP, req.get('User-Agent') || null]
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'alert_updated',
+      `Alert ${alertId} status updated to ${updates.status || 'modified'}`,
+      {
+        ipAddress: clientIP,
+        userAgent: req.get('User-Agent') || null
+      }
     );
 
     res.json({
@@ -390,10 +395,14 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
                      req.ip || 
                      'unknown';
     
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'alert_created', $2, $3, $4)`,
-      [businessId, `New phishing alert created: ${alertType}`, clientIP, req.get('User-Agent') || null]
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'alert_created',
+      `New phishing alert created: ${alertType}`,
+      {
+        ipAddress: clientIP,
+        userAgent: req.get('User-Agent') || null
+      }
     );
 
     res.status(201).json({

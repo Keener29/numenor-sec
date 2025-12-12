@@ -8,6 +8,7 @@ import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
+import { securityEventLogger } from '../../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -71,10 +72,14 @@ export async function handleApprovalToken(
     throw new TypeError('Invalid emailAddress parameter, expected string');
   }
   
-  await query(
-    `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-     VALUES ($1, 'email_approved', $2, $3, $4)`,
-    [businessId, `Email monitoring approved for: ${emailAddress}`, req.ip, req.get('User-Agent')]
+  await securityEventLogger.logSecurityEvent(
+    businessId,
+    'email_approved',
+    `Email monitoring approved for: ${emailAddress}`,
+    {
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent')
+    }
   );
 
   return true;
@@ -173,6 +178,28 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
       [businessId, emailAddress]
     );
 
+    // Set up Gmail watch for push notifications
+    try {
+      const watchResult = await gmailOAuthService.watchMailbox(businessId, emailAddress);
+      oauthLogger.info('Gmail watch subscription created during OAuth callback', {
+        operation: 'oauth-callback',
+        businessId,
+        emailAddress,
+        metadata: {
+          historyId: watchResult.historyId,
+          expiration: watchResult.expiration.toISOString()
+        }
+      });
+    } catch (watchError) {
+      // Log error but don't fail the OAuth flow
+      oauthLogger.error('Failed to create Gmail watch during OAuth callback', {
+        operation: 'oauth-callback',
+        businessId,
+        emailAddress
+      }, watchError as Error);
+      // Continue - watch can be set up later via renewal scheduler
+    }
+
     // Redirect to success page (no login required)
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
@@ -193,6 +220,24 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
   try {
     const businessId = req.user!.business_id!;
     const { emailAddress } = req.body;
+
+    // Stop Gmail watch before disconnecting
+    try {
+      await gmailOAuthService.stopWatch(businessId, emailAddress);
+    } catch (watchError) {
+      // Log but continue - watch may not exist
+      oauthLogger.warn('Failed to stop Gmail watch during disconnect', {
+        operation: 'disconnect-oauth',
+        businessId,
+        emailAddress
+      }, {
+        error: watchError instanceof Error ? {
+          name: watchError.name,
+          message: watchError.message,
+          stack: watchError.stack
+        } : String(watchError)
+      });
+    }
 
     // Remove OAuth tokens
     await gmailOAuthService.disconnect(businessId, emailAddress);

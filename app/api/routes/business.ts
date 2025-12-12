@@ -3,6 +3,7 @@ import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../middleware/auth.js';
 import { updateBusinessSchema } from '../schemas/business.js';
 import { query } from '../../db/connection.js';
+import { securityEventLogger } from '../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -114,10 +115,14 @@ router.put('/', authenticateToken, requireBusiness, validateBody(updateBusinessS
     };
 
     // Log the update event
-    await query(
-      `INSERT INTO security_events (business_id, event_type, description, ip_address, user_agent)
-       VALUES ($1, 'business_updated', 'Business information updated', $2, $3)`,
-      [businessId, req.ip, req.get('User-Agent')]
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'business_updated',
+      'Business information updated',
+      {
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
     );
 
     res.json({

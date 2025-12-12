@@ -20,10 +20,13 @@ export default {
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   collectCoverageFrom: [
-    'app/**/*.{ts,tsx}',
+    'app/api/**/*.{ts,tsx}',
+    'app/db/**/*.{ts,tsx}',
     '!app/**/*.d.ts',
     '!app/**/__tests__/**',
-    '!app/**/node_modules/**'
+    '!app/**/node_modules/**',
+    '!app/routes.ts',
+    '!app/root.tsx'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html']

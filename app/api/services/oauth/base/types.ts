@@ -26,17 +26,8 @@ export interface OAuthConnectionStatus {
   tokenExpiry?: Date;
 }
 
-export interface EmailMessage {
-  id: string;
-  subject: string;
-  body: string;
-  sender: string;
-  recipient: string;
-  timestamp: Date;
-  links: string[];
-  headers: Record<string, string>;
-  labels?: string[];
-}
+// Re-export EmailMessage from canonical types location
+export type { EmailMessage } from '../../../types/email.js';
 
 export interface LogContext {
   operation: string;

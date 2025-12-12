@@ -21,30 +21,18 @@ import type { AttachmentAnalysis } from '../services/detector/attachmentAnalyzer
 // CORE EMAIL TYPES
 // =============================================================================
 
-export interface EmailAddress {
-  readonly address: string;
-  readonly name?: string;
-}
-
 export interface EmailMessage {
   readonly id: string;
   readonly subject: string;
   readonly body: string;
-  readonly sender: EmailAddress;
-  readonly recipient: EmailAddress;
+  readonly sender: string;
+  readonly recipient: string;
   readonly timestamp: Date;
-  readonly attachments?: EmailAttachment[];
+  readonly attachments?: string[];
   readonly links?: string[];
   readonly headers: Record<string, string>;
   readonly threadId?: string;
   readonly labels?: string[];
-}
-
-export interface EmailAttachment {
-  readonly filename: string;
-  readonly contentType: string;
-  readonly size: number;
-  readonly contentId?: string;
 }
 
 export interface MonitoredEmail {

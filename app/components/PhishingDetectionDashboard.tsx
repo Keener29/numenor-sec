@@ -36,7 +36,6 @@ interface ThreatStatistics {
       total_scans: number;
       successful_scans: number;
       failed_scans: number;
-      avg_emails_per_scan: number;
     };
   };
 }
@@ -110,8 +109,7 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
           scans: {
             total_scans: 0,
             successful_scans: 0,
-            failed_scans: 0,
-            avg_emails_per_scan: 0
+            failed_scans: 0
           }
         }
       });
@@ -460,10 +458,6 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Failed</span>
                     <span className="text-sm font-medium text-red-600">{statistics?.monitoring?.scans?.failed_scans || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Avg Emails/Scan</span>
-                    <span className="text-sm font-medium">{Math.round(statistics?.monitoring?.scans?.avg_emails_per_scan || 0)}</span>
                   </div>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
+import crypto from 'node:crypto';
 import type { EmailMessage, LogContext } from '../../base/types.js';
 import type { DraftContentOptions, FetchEmailsOptions, GmailMessage } from '../types.js';
 import { decodeHtmlEntities, stripHtmlTags } from '../../../../utils/emailUtils.js';
@@ -41,24 +42,6 @@ export async function fetchEmails(
   } catch (error) {
     oauthLogger.error('Failed to fetch emails from Gmail', context, error as Error);
     throw ErrorFactory.oauthService(ErrorCodes.GMAIL_API_ERROR, 'Failed to fetch emails from Gmail API');
-  }
-}
-
-export async function markAsRead(
-  setCredentials: SetCredentialsFn,
-  gmail: any,
-  businessId: number,
-  emailAddress: string,
-  messageId: string
-): Promise<void> {
-  const context: LogContext = { operation: 'mark-as-read', businessId, emailAddress, metadata: { messageId } };
-  try {
-    await setCredentials(businessId, emailAddress);
-    await gmail.users.messages.modify({ userId: 'me', id: messageId, resource: { removeLabelIds: ['UNREAD'] } });
-    oauthLogger.debug('Email marked as read successfully', context);
-  } catch (error) {
-    oauthLogger.error('Failed to mark email as read', context, error as Error);
-    throw ErrorFactory.oauthService(ErrorCodes.GMAIL_API_ERROR, 'Failed to mark email as read');
   }
 }
 
@@ -182,7 +165,9 @@ export async function createDraftWithContent(
     await setCredentials(businessId, emailAddress);
     
     // Create multipart MIME message with both HTML and plain text
-    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Use cryptographically secure random bytes for boundary uniqueness
+    // (not security-sensitive, but better practice than Math.random())
+    const boundary = `----=_Part_${Date.now()}_${crypto.randomBytes(8).toString('base64url')}`;
     
     const messageParts = [
       `From: ${from}`,

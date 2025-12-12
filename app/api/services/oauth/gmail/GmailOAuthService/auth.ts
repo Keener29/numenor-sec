@@ -1,6 +1,7 @@
 import { query } from '../../../../../db/connection.js';
 import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
+import crypto from 'node:crypto';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../../base/types.js';
 
 export function generateAuthUrl(
@@ -262,8 +263,15 @@ export function validateState(state: string): OAuthState {
 }
 
 
+/**
+ * Generate a cryptographically secure nonce for OAuth state parameter
+ * Uses crypto.randomBytes() instead of Math.random() for security
+ * The nonce is used to prevent CSRF attacks in OAuth flows
+ */
 function generateNonce(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // Generate 16 random bytes (128 bits of entropy) and convert to base64url
+  // Base64url encoding is URL-safe and doesn't require padding
+  return crypto.randomBytes(16).toString('base64url');
 }
 
 
