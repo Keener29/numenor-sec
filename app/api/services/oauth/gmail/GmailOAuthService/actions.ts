@@ -1,6 +1,7 @@
 import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import { query } from '../../../../../db/connection.js';
+import crypto from 'node:crypto';
 import type { EmailMessage, LogContext } from '../../base/types.js';
 import type { DraftContentOptions, FetchEmailsOptions, GmailMessage } from '../types.js';
 import { decodeHtmlEntities, stripHtmlTags } from '../../../../utils/emailUtils.js';
@@ -164,7 +165,9 @@ export async function createDraftWithContent(
     await setCredentials(businessId, emailAddress);
     
     // Create multipart MIME message with both HTML and plain text
-    const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Use cryptographically secure random bytes for boundary uniqueness
+    // (not security-sensitive, but better practice than Math.random())
+    const boundary = `----=_Part_${Date.now()}_${crypto.randomBytes(8).toString('base64url')}`;
     
     const messageParts = [
       `From: ${from}`,

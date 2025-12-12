@@ -263,13 +263,6 @@ export class GmailOAuthService extends OAuthProvider {
   async stopWatch(businessId: number, emailAddress: string): Promise<void> {
     return Watch.stopWatch(this.setCredentials.bind(this), this.gmail, businessId, emailAddress);
   }
-
-  /**
-   * Generate secure nonce for OAuth state
-   */
-  private generateNonce(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  }
 }
 
 // Export singleton instance
