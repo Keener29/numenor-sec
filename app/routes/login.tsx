@@ -142,7 +142,7 @@ export default function Login() {
                 logo_alignment="center"
               />
             </div>
-            <AzureLogin handleOauthLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" />
+            <AzureLogin handleAzureLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" />
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">

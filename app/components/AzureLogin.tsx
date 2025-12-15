@@ -1,5 +1,5 @@
 interface AzureLoginProps {
-    handleOauthLogin: () => void;
+    handleAzureLogin: () => void;
     isLoading: boolean;
     text: string;
 }
@@ -13,12 +13,12 @@ const MicrosoftIcon = () => (
   </svg>
 );
 
-export default function AzureLogin({ handleOauthLogin, isLoading, text }: AzureLoginProps) {
+export default function AzureLogin({ handleAzureLogin, isLoading, text }: AzureLoginProps) {
 
   return (
 <div className="w-full flex justify-center">
   <button
-    onClick={handleOauthLogin}
+    onClick={handleAzureLogin}
     disabled={isLoading}
     className="
       h-[40px]
