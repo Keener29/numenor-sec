@@ -8,8 +8,15 @@ export const msalConfig: Configuration = {
   },
 };
 
+// Create instance only on client (browser)
+// During SSR, this will be undefined, and components will handle it gracefully
 export let msalInstance: PublicClientApplication | undefined;
 
 if (typeof window !== "undefined") {
-  msalInstance = new PublicClientApplication(msalConfig);
+  try {
+    msalInstance = new PublicClientApplication(msalConfig);
+  } catch (err) {
+    console.error("Failed to create MSAL instance:", err);
+    msalInstance = undefined;
+  }
 }
