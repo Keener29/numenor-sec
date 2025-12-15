@@ -3,6 +3,7 @@
 import { googleLogout } from "@react-oauth/google";
 import type { IPublicClientApplication } from "@azure/msal-browser";
 import { authAPI } from "./api";
+import type { AuthenticationResult } from "@azure/msal-browser";
 
 /**
  * Handles logout for all authentication providers (Google, Microsoft, Email/Password)
@@ -50,4 +51,32 @@ export async function handleLogout(msalInstance?: IPublicClientApplication): Pro
     globalThis.window.location.href = "/login";
   }
 }
+/**
+ * Handle Google Identity Services credential response.
+ * Extracts the credential and sends it to the backend for verification.
+ * Throws if the credential is missing or the backend rejects it.
+ */
+export async function loginWithGoogle(credentialResponse: any): Promise<void> {
+  const credential = credentialResponse?.credential;
+  if (!credential) {
+    throw new Error("Google credential not found");
+  }
+  await authAPI.googleLogin({ credential });
+}
+
+/**
+ * Handle Microsoft/Azure AD authentication result.
+ * Extracts the ID token and sends it to the backend for verification.
+ * Throws if the token is missing or the backend rejects it.
+ */
+export async function loginWithMicrosoft(authenticationResult: AuthenticationResult): Promise<void> {
+  const idToken = authenticationResult?.idToken;
+  if (!idToken) {
+    throw new Error("Microsoft ID token not found");
+  }
+  await authAPI.microsoftLogin({ idToken });
+}
+
+
+
 
