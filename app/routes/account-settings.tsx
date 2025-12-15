@@ -1,9 +1,9 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/account-settings";
 import { requireServerAuth } from "../utils/serverAuth";
-import { authAPI } from "../utils/api";
 import DeleteAccountCard from "../components/DeleteAccountCard";
-import { googleLogout } from "@react-oauth/google";
+import { useMsal } from "@azure/msal-react";
+import { handleLogout } from "../utils/authUtils";
 
 export function meta() {
   return [
@@ -21,15 +21,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function AccountSettings({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user;
 
-  const handleLogout = async () => {
-    try {
-      googleLogout();
-      await authAPI.logout();
-      globalThis.window.location.href = "/login";
-    } catch (err) {
-      console.error("Logout error:", err);
-      globalThis.window.location.href = "/login";
-    }
+  const onLogout = () => {
+    handleLogout();
   };
 
   if (!user) {
@@ -57,7 +50,7 @@ export default function AccountSettings({ loaderData }: Route.ComponentProps) {
                 Dashboard
               </Link>
               <button
-                onClick={handleLogout}
+                onClick={onLogout}
                 className="text-gray-700 px-3 py-2 rounded-md text-base font-medium bg-white border-0 cursor-pointer"
               >
                 Logout
