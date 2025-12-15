@@ -3,7 +3,8 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
-import { loginWithGoogle } from "../utils/googleAuth";
+import { loginWithGoogle } from "../utils/authUtils";
+import { loginWithMicrosoft } from "../utils/authUtils";
 import { GoogleLogin } from "@react-oauth/google";
 import { useMsal } from "@azure/msal-react";
 import AzureLogin from "~/components/AzureLogin";
@@ -85,11 +86,11 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError("");
-      await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      await loginWithMicrosoft(response);
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Azure sign-in failed");
-    } finally {
       setIsLoading(false);
     }
   };

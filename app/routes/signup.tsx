@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { authAPI } from "../utils/api";
-import { loginWithGoogle } from "~/utils/googleAuth";
+import { loginWithGoogle } from "../utils/authUtils";
+import { loginWithMicrosoft } from "../utils/authUtils";
 import { useMsal } from "@azure/msal-react";
 import AzureLogin from "~/components/AzureLogin";
 import { GoogleLogin } from "@react-oauth/google";export function meta() {
@@ -43,11 +44,11 @@ export default function Signup() {
     try {
       setIsLoading(true);
       setError("");
-      await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      await loginWithMicrosoft(response);
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Azure sign-up failed");
-    } finally {
       setIsLoading(false);
     }
   };
