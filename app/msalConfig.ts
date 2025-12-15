@@ -4,7 +4,7 @@ export const msalConfig: Configuration = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID || '',
     authority: "https://login.microsoftonline.com/common",
-    redirectUri: "http://localhost:3000",
+    redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || ''
   },
 };
 
