@@ -20,9 +20,10 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function AccountSettings({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user;
+  const { instance } = useMsal();
 
   const onLogout = () => {
-    handleLogout();
+    handleLogout(instance);
   };
 
   if (!user) {
