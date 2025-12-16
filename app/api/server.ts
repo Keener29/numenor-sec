@@ -144,7 +144,6 @@ app.get('/api', (req, res) => {
         'GET /api/oauth/gmail/auth-url': 'Generate Gmail OAuth authorization URL',
         'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
         'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
-        'GET /api/oauth/gmail/status/:emailAddress': 'Get Gmail OAuth connection status',
         'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
       },
       gmailNotify: {

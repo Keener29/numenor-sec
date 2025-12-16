@@ -264,33 +264,6 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
 });
 
 /**
- * @route GET /api/oauth/gmail/status/:emailAddress
- * @desc Get Gmail OAuth connection status for an email
- * @access Private (Business users only)
- */
-router.get('/status/:emailAddress', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
-  try {
-    const businessId = req.user!.business_id!;
-    const emailAddress = req.params.emailAddress;
-
-    const connectionStatus = await gmailOAuthService.getConnectionStatus(businessId, emailAddress);
-
-    res.json({
-      success: true,
-      ...connectionStatus
-    });
-
-  } catch (error) {
-    oauthLogger.error('Error checking Gmail OAuth status', {
-      operation: 'check-oauth-status',
-      businessId: req.user!.business_id!,
-      emailAddress: req.params.emailAddress
-    }, error as Error);
-    next(error);
-  }
-});
-
-/**
  * @route POST /api/oauth/gmail/test
  * @desc Test Gmail OAuth connection
  * @access Private (Business users only)
