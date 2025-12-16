@@ -24,7 +24,7 @@ class PubSubService {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
     
     // Webhook URL for push subscription
-    const baseUrl = process.env.PUBSUB_WEBHOOK_URL || process.env.VITE_API_URL;
+    const baseUrl = process.env.PUBSUB_WEBHOOK_URL;
     if (baseUrl) {
       this.webhookUrl = `${baseUrl}/api/gmail-notify`;      
     } else {

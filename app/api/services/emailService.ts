@@ -103,7 +103,7 @@ export function generatePermissionRequestTemplate(params: PermissionRequestParam
     approvalToken
   } = params;
 
-  const apiUrl = process.env.VITE_API_URL;
+  const apiUrl = process.env.API_URL;
   const currentYear = new Date().getFullYear();
   let subject = "Permission Request: Email Security Monitoring";
   let businessNameDisplay = businessName;
