@@ -1,6 +1,7 @@
 import { emailMonitor } from './services/emailMonitor/index.js';
 import { emailService } from './services/emailService.js';
 import { watchRenewalScheduler } from './services/watchRenewalScheduler.js';
+import { microsoftSubscriptionRenewalScheduler } from './services/microsoftSubscriptionRenewalScheduler.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -29,6 +30,11 @@ export async function initializeServices(): Promise<void> {
     await watchRenewalScheduler.start();
     logger.info('Gmail watch renewal scheduler started', { operation: 'start-watch-renewal' });
 
+    // Start Microsoft subscription renewal scheduler
+    logger.info('Starting Microsoft subscription renewal scheduler', { operation: 'start-microsoft-renewal' });
+    await microsoftSubscriptionRenewalScheduler.start();
+    logger.info('Microsoft subscription renewal scheduler started', { operation: 'start-microsoft-renewal' });
+
     logger.info('All services initialized successfully', { operation: 'initialize-services' });
   } catch (error) {
     logger.error('Failed to initialize services', { operation: 'initialize-services' }, error as Error);
@@ -50,6 +56,10 @@ export async function shutdownServices(): Promise<void> {
     // Stop watch renewal scheduler
     watchRenewalScheduler.stop();
     logger.info('Gmail watch renewal scheduler stopped', { operation: 'shutdown-services' });
+
+    // Stop Microsoft subscription renewal scheduler
+    microsoftSubscriptionRenewalScheduler.stop();
+    logger.info('Microsoft subscription renewal scheduler stopped', { operation: 'shutdown-services' });
 
     logger.info('All services shut down gracefully', { operation: 'shutdown-services' });
   } catch (error) {
