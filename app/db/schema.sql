@@ -146,6 +146,21 @@ CREATE TABLE IF NOT EXISTS microsoft_subscriptions (
     CONSTRAINT fk_microsoft_subscriptions_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
+-- OAuth nonces for state verification (prevents CSRF attacks)
+CREATE TABLE IF NOT EXISTS oauth_nonces (
+    nonce TEXT PRIMARY KEY,
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT fk_oauth_nonces_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+);
+
+-- Index for cleanup queries
+CREATE INDEX IF NOT EXISTS idx_oauth_nonces_expires_at ON oauth_nonces(expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_nonces_business_email_provider ON oauth_nonces(business_id, email_address, provider);
+
 CREATE TABLE IF NOT EXISTS account_deletions (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,

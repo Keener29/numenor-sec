@@ -121,7 +121,7 @@ router.get(
       }
 
       // Generate OAuth URL and redirect
-      const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+      const authUrl = await gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
       res.redirect(authUrl);
 
     } catch (error) {

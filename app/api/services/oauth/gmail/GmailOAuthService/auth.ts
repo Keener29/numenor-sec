@@ -1,14 +1,14 @@
 import { query } from '../../../../../db/connection.js';
 import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
-import crypto from 'node:crypto';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../../base/types.js';
+import { validateOAuthState, generateNonce } from '../../base/stateValidation.js';
 
-export function generateAuthUrl(
+export async function generateAuthUrl(
   oauth2Client: any,
   businessId: number,
   emailAddress: string
-): string {
+): Promise<string> {
   const context: LogContext = {
     operation: 'generate-auth-url',
     businessId,
@@ -21,10 +21,21 @@ export function generateAuthUrl(
       'https://www.googleapis.com/auth/gmail.modify'
     ];
 
+    const nonce = generateNonce();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 5); // 5 minute expiry
+
+    // Store nonce in database for verification
+    await query(
+      `INSERT INTO oauth_nonces (nonce, business_id, email_address, provider, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [nonce, businessId, emailAddress, 'gmail', expiresAt]
+    );
+
     const state: OAuthState = {
       businessId,
       emailAddress,
-      nonce: generateNonce(),
+      nonce,
       timestamp: Date.now(),
       provider: 'gmail'
     };
@@ -225,53 +236,8 @@ export async function disconnect(businessId: number, emailAddress: string): Prom
   }
 }
 
-export function validateState(state: string): OAuthState {
-  let stateData: any;
-
-  // Only catch JSON parsing errors here
-  try {
-    stateData = JSON.parse(state);
-  } catch {
-    throw ErrorFactory.oauthService(
-      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
-    );
-  }
-
-  // Now validate structure (these should NOT be inside the try/catch)
-  if (
-    !stateData.businessId ||
-    !stateData.emailAddress ||
-    !stateData.nonce ||
-    !stateData.timestamp
-  ) {
-    throw ErrorFactory.oauthService(
-      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
-    );
-  }
-
-  const stateAge = Date.now() - stateData.timestamp;
-  if (stateAge > 10 * 60 * 1000) {
-    throw ErrorFactory.oauthService(
-      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
-    );
-  }
-
-  return stateData as OAuthState;
-}
-
-
-/**
- * Generate a cryptographically secure nonce for OAuth state parameter
- * Uses crypto.randomBytes() instead of Math.random() for security
- * The nonce is used to prevent CSRF attacks in OAuth flows
- */
-function generateNonce(): string {
-  // Generate 16 random bytes (128 bits of entropy) and convert to base64url
-  // Base64url encoding is URL-safe and doesn't require padding
-  return crypto.randomBytes(16).toString('base64url');
+export async function validateState(state: string): Promise<OAuthState> {
+  return validateOAuthState(state, 'gmail');
 }
 
 
