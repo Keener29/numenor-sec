@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { validateBody } from '../middleware/validation.js';
 import { authenticateToken, type AuthRequest } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/rateLimit.js';
-import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
-import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail, verifyGoogleToken } from '../utils/auth.js';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema, googleAuthSchema, microsoftAuthSchema, forgotPasswordSchema } from '../schemas/user.js';
+import { createUser, verifyUserPassword, getUserById, generateToken, hashPassword, comparePassword, getUserByEmail, verifyGoogleToken, verifyMicrosoftToken } from '../utils/auth.js';
 import { query } from '../../db/connection.js';
 import crypto from 'node:crypto';
 import { emailService } from '../services/emailService.js';
@@ -185,6 +185,100 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
 
     return res.json({
       message: 'Google login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        businessName: user.business_name,
+        businessId: businessId
+      },
+      token
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Microsoft/Azure AD login/signup
+ * @route POST /api/auth/microsoft
+ * Body: { idToken: string }
+ * Verifies Microsoft ID token, creates user+business if needed, sets auth cookie and returns user.
+ */
+router.post('/microsoft', authLimiter, validateBody(microsoftAuthSchema), async (req, res, next) => {
+  try {
+    const { idToken } = req.body;
+    const clientId = process.env.AZURE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(500).json({ error: 'Microsoft client not configured' });
+    }
+
+    const payload = await verifyMicrosoftToken(idToken, clientId);
+    if (!payload?.email) {
+      return res.status(401).json({ error: 'Invalid Microsoft credential' });
+    }
+
+    const email = payload.email;
+    // Microsoft tokens use 'name' field, split into first/last name
+    const nameParts = (payload.name || '').trim().split(' ');
+    const firstName = (payload.given_name || nameParts[0] || '').trim() || 'User';
+    const lastName = (payload.family_name || nameParts.slice(1).join(' ') || '').trim();
+
+    // Ensure user exists; create if not
+    let user = await getUserByEmail(email);
+    let businessId: number | undefined = user?.business_id;
+
+    if (!user) {
+      // Create user with a random password (unused for Microsoft login)
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      user = await createUser(email, randomPassword, firstName, lastName);
+
+      // Create a business owned by this new user with NULL name
+      // User will be prompted to enter business name on dashboard
+      const businessResult = await query(
+        `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+        [null, user.id]
+      );
+      const business = businessResult.rows[0] as { id: number; business_name: string | null };
+      businessId = business.id;
+      user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+    } else if (!businessId) {
+      // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+      const ownerBusiness = await query('SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1', [user.id]);
+      if (ownerBusiness.rows.length > 0) {
+        const business = ownerBusiness.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+      } else {
+        // User exists but has no business - create one for them with NULL name
+        // This handles edge case where user was created without a business
+        const businessResult = await query(
+          `INSERT INTO businesses (business_name, owner_id) VALUES ($1, $2) RETURNING id, business_name`,
+          [null, user.id]
+        );
+        const business = businessResult.rows[0] as { id: number; business_name: string | null };
+        businessId = business.id;
+        // Update user object with business info (normally comes from JOIN)
+        user = { ...user, business_id: businessId, business_name: business.business_name || undefined };
+      }
+    }
+
+    // Generate token and set cookie (include business info if available)
+    const token = generateToken({
+      ...user,
+      business_id: businessId,
+      business_name: user.business_name
+    });
+    res.cookie('authToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    return res.json({
+      message: 'Microsoft login successful',
       user: {
         id: user.id,
         email: user.email,

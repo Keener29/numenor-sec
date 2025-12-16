@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/dashboard";
-import { emailsAPI, alertsAPI, authAPI, businessAPI } from "../utils/api";
+import { emailsAPI, alertsAPI, businessAPI } from "../utils/api";
 import { requireServerAuth } from "../utils/serverAuth";
 import { useOAuthStatuses } from "../hooks/useOAuthStatuses";
 import PhishingAlertChart from "../components/PhishingAlertChart";
@@ -10,7 +10,8 @@ import EmailMonitoring from "../components/EmailMonitoring";
 import ConnectedEmailsDropdown from "../components/ConnectedEmailsDropdown";
 import PhishingDetectionDashboard from "../components/PhishingDetectionDashboard";
 import BusinessNameModal from "../components/BusinessNameModal";
-import { googleLogout } from "@react-oauth/google";
+import { useMsal } from "@azure/msal-react";
+import { handleLogout } from "../utils/authUtils";
 
 export function meta() {
   // return metadata for the dashboard
@@ -73,6 +74,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   // Get user data from server-side loader
   const user = loaderData?.user;
+  const { instance } = useMsal();
 
   // Use the OAuth statuses hook
   const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails, process.env.VITE_API_URL || "");
@@ -159,17 +161,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     await refreshOAuthStatuses();
   };
 
-  const handleLogout = async () => {
-    try {
-      googleLogout();
-      await authAPI.logout();
-      // Use full page reload to trigger server-side authentication check
-      globalThis.window.location.href = "/login";
-    } catch (err) {
-      console.error("Logout error:", err);
-      // Still navigate to login even if logout API fails
-      globalThis.window.location.href = "/login";
-    }
+  const onLogout = () => {
+    handleLogout(instance);
   };
 
 
@@ -192,7 +185,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                 Account Settings
               </Link>
               <button
-                onClick={handleLogout}
+                onClick={onLogout}
                 className="text-gray-700 px-3 py-2 rounded-md text-base font-medium bg-white border-0 cursor-pointer"
               >
                 Logout

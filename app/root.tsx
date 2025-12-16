@@ -9,6 +9,8 @@ import {
 import {GoogleOAuthProvider} from "@react-oauth/google";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { MsalProvider } from "@azure/msal-react";
+import { msalInstance } from "./msalConfig";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -22,6 +24,30 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
 ];
+
+// Provider wrapper that handles SSR gracefully
+function ClientProviders({ children, googleClientId }: { children: React.ReactNode; googleClientId: string }) {
+  // Always render GoogleOAuthProvider (handles SSR fine)
+  // For MsalProvider, we need to ensure it's always rendered to satisfy useMsal() hook
+  // During SSR, msalInstance will be undefined, but we'll handle that in components
+  const content = (
+    <GoogleOAuthProvider clientId={googleClientId}>
+      {children}
+    </GoogleOAuthProvider>
+  );
+
+  // Only render MsalProvider when instance exists (client-side)
+  // This means useMsal() will throw during SSR, which we handle in components
+  if (msalInstance) {
+    return (
+      <MsalProvider instance={msalInstance}>
+        {content}
+      </MsalProvider>
+    );
+  }
+
+  return content;
+}
 
 export function Layout({ children }: { readonly children: React.ReactNode }) {
   const googleClientId = process.env.VITE_GOOGLE_CLIENT_ID || "";
@@ -39,9 +65,9 @@ export function Layout({ children }: { readonly children: React.ReactNode }) {
         <Links />       
       </head>
       <body suppressHydrationWarning={true}>
-        <GoogleOAuthProvider clientId={googleClientId}>
+        <ClientProviders googleClientId={googleClientId}>
           {children}
-        </GoogleOAuthProvider>
+        </ClientProviders>
         <ScrollRestoration />
         <Scripts />
       </body>

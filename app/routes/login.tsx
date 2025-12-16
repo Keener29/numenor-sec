@@ -3,8 +3,11 @@ import { Link, useNavigate } from "react-router";
 import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
-import { loginWithGoogle } from "../utils/googleAuth";
+import { loginWithGoogle } from "../utils/authUtils";
+import { loginWithMicrosoft } from "../utils/authUtils";
 import { GoogleLogin } from "@react-oauth/google";
+import { useMsal } from "@azure/msal-react";
+import AzureLogin from "~/components/AzureLogin";
 export function meta() {
   return [
     { title: "Login - Numenor Security" },
@@ -27,6 +30,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const { instance } = useMsal();
 
   useEffect(() => {
     // Prefill email if previously remembered
@@ -74,7 +78,19 @@ export default function Login() {
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
-    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAzureLogin = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      await loginWithMicrosoft(response);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Azure sign-in failed");
       setIsLoading(false);
     }
   };
@@ -115,7 +131,7 @@ export default function Login() {
             </div>
           )}
           <div className="mb-6">
-            <div className="w-full flex justify-center">
+            <div className="w-full flex justify-center mb-3">
               <GoogleLogin 
                 onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
                 onError={() => {setError("Google sign-in failed");}} 
@@ -123,8 +139,11 @@ export default function Login() {
                 shape="pill"
                 text="signin_with"
                 useOneTap={true}
+                width="220px"
+                logo_alignment="center"
               />
             </div>
+            <AzureLogin handleAzureLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" />
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
