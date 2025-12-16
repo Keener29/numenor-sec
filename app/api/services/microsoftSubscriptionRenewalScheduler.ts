@@ -5,7 +5,9 @@
 
 import { outlookOAuthService } from './oauth/outlook/OutlookOAuthService.js';
 import { microsoftSubscriptionService, type MicrosoftSubscription } from './oauth/outlook/MicrosoftSubscriptionService.js';
+import { microsoftEmailSyncService } from './emailMonitor/microsoftEmailSyncService.js';
 import { monitoringLogger } from '../../utils/logger.js';
+import { query } from '../../db/connection.js';
 
 class MicrosoftSubscriptionRenewalScheduler {
   private renewalInterval: NodeJS.Timeout | null = null;
@@ -91,6 +93,51 @@ class MicrosoftSubscriptionRenewalScheduler {
   }
 
   /**
+   * Trigger fallback polling when subscription renewal fails
+   * Ensures emails are still monitored even if subscription expires
+   */
+  private async triggerFallbackPolling(subscription: MicrosoftSubscription): Promise<void> {
+    // Get emailId from monitored_emails table
+    const emailResult = await query(
+      `SELECT id FROM monitored_emails 
+       WHERE business_id = $1 AND email_address = $2`,
+      [subscription.businessId, subscription.emailAddress]
+    );
+
+    if (emailResult.rows.length === 0) {
+      monitoringLogger.debug('No monitored email found for fallback polling', {
+        operation: 'trigger-fallback-polling',
+        metadata: {
+          businessId: subscription.businessId,
+          emailAddress: subscription.emailAddress
+        }
+      });
+      return;
+    }
+
+    const emailId = (emailResult.rows[0] as { id: number }).id;
+    
+    // Use lastNotificationDate as lastChecked timestamp for fallback polling
+    const lastChecked = subscription.lastNotificationDate || undefined;
+
+    monitoringLogger.info('Triggering fallback polling after renewal failure', {
+      operation: 'trigger-fallback-polling',
+      metadata: {
+        businessId: subscription.businessId,
+        emailAddress: subscription.emailAddress,
+        lastChecked: lastChecked?.toISOString()
+      }
+    });
+
+    await microsoftEmailSyncService.performFallbackPolling(
+      subscription.businessId,
+      emailId,
+      subscription.emailAddress,
+      lastChecked
+    );
+  }
+
+  /**
    * Renew subscriptions that are expiring soon
    */
   private async renewExpiringSubscriptions(): Promise<void> {
@@ -130,7 +177,21 @@ class MicrosoftSubscriptionRenewalScheduler {
               subscriptionId: subscription.subscriptionId
             }
           }, error as Error);
-          // Continue with other subscriptions even if one fails
+          
+          // Trigger fallback polling when renewal fails
+          // This ensures emails are still monitored even if subscription expires
+          try {
+            await this.triggerFallbackPolling(subscription);
+          } catch (fallbackError) {
+            monitoringLogger.error('Failed to trigger fallback polling after renewal failure', {
+              operation: 'renew-expiring-subscriptions',
+              metadata: {
+                businessId: subscription.businessId,
+                emailAddress: subscription.emailAddress
+              }
+            }, fallbackError as Error);
+            // Don't throw - continue with other subscriptions
+          }
         }
       }
     } catch (error) {
