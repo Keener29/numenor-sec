@@ -18,6 +18,7 @@ import oauthRoutes from './routes/oauth/index.js';
 import statusRoutes from './routes/status.js';
 import accountsRoutes from './routes/accounts.js';
 import gmailNotifyRoutes from './routes/gmail-notify.js';
+import microsoftNotifyRoutes from './routes/microsoft-notify.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -78,9 +79,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Pub/Sub webhook route - must be registered BEFORE express.json() to handle raw body
+// Pub/Sub webhook route and MS graph webhook route - must be registered BEFORE express.json() to handle raw body
 // Pub/Sub sends Base64-encoded payloads that must be decoded before JSON parsing
 app.use('/api/gmail-notify', express.raw({ type: 'application/json', limit: '10mb' }), gmailNotifyRoutes);
+app.use('/api/microsoft-notify', microsoftNotifyRoutes);
 
 // Body parsing middleware (for all other routes)
 app.use(express.json({ limit: '10mb' }));

@@ -45,6 +45,12 @@ export interface MonitoredEmail {
   readonly updatedAt: Date;
 }
 
+export interface EmailRecord {
+  id: number;
+  business_id: number;
+  email_address: string;
+}
+
 // =============================================================================
 // OAUTH TYPES
 // =============================================================================
