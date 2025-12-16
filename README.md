@@ -576,6 +576,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 1. **Register any needed emails** - Set up proper email addresses for production use
 2. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
 3. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
+4. **'node-html-parser' for extractanchors**
 
 ### Future Enhancements
 
