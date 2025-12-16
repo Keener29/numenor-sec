@@ -6,6 +6,27 @@ import { monitoringLogger } from '../../../utils/logger.js';
  */
 export class ProcessedEmailsService {
   /**
+   * Atomically try to mark a message as processing
+   * Returns true if we successfully acquired the lock (message not already processed)
+   * Returns false if message was already processed or being processed
+   * This prevents race conditions where multiple requests try to process the same message
+   */
+  async tryMarkAsProcessing(
+    businessId: number,
+    emailAddress: string,
+    messageId: string
+  ): Promise<boolean> {
+    const result = await query(
+      `INSERT INTO processed_emails (business_id, email_address, message_id, processed_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       ON CONFLICT (business_id, email_address, message_id) DO NOTHING
+       RETURNING 1`,
+      [businessId, emailAddress, messageId]
+    );
+    return result.rows.length > 0; // true if we got the lock
+  }
+
+  /**
    * Check if a message has already been processed
    */
   async isMessageProcessed(businessId: number, emailAddress: string, messageId: string): Promise<boolean> {
@@ -18,12 +39,30 @@ export class ProcessedEmailsService {
 
   /**
    * Mark a message as processed
-   */
+   * Note: For new code, use tryMarkAsProcessing() for atomic check-and-reserve
+   
   async markMessageProcessed(businessId: number, emailAddress: string, messageId: string): Promise<void> {
     await query(
-      `INSERT INTO processed_emails (business_id, email_address, message_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO processed_emails (business_id, email_address, message_id, processed_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
        ON CONFLICT (business_id, email_address, message_id) DO NOTHING`,
+      [businessId, emailAddress, messageId]
+    );
+  }
+    */
+
+  /**
+   * Unmark a message as processed (for retry after failure)
+   * Removes the processing marker so the message can be retried
+   */
+  async unmarkMessageProcessed(
+    businessId: number,
+    emailAddress: string,
+    messageId: string
+  ): Promise<void> {
+    await query(
+      `DELETE FROM processed_emails 
+       WHERE business_id = $1 AND email_address = $2 AND message_id = $3`,
       [businessId, emailAddress, messageId]
     );
   }

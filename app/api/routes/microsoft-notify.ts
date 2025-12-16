@@ -10,6 +10,7 @@ import { monitoringLogger } from '../../utils/logger.js';
 import { microsoftSubscriptionService } from '../services/oauth/outlook/MicrosoftSubscriptionService.js';
 import { verifyClientState } from '../services/oauth/outlook/clientStateUtils.js';
 import { findMonitoredEmail } from '../utils/monitoredEmailUtils.js';
+import { isRetryableGraphError } from '../utils/microsoftGraphErrorUtils.js';
 const router = Router();
 
 interface GraphNotification {
@@ -94,38 +95,6 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 
-export function isRetryableGraphError(error: unknown): boolean {
-    if (!error || typeof error !== 'object') return false;
-
-    // Axios-style errors
-    const anyErr = error as any;
-    const status = anyErr?.response?.status;
-    const code = anyErr?.response?.data?.error?.code;
-
-    // Fetch-style errors
-    const fetchStatus = anyErr?.status;
-
-    // Retryable HTTP status codes
-    if ([408, 429, 500, 502, 503, 504].includes(status ?? fetchStatus)) {
-        return true;
-    }
-
-    // Microsoft Graph-specific transient error
-    if (status === 404 && code === 'ErrorItemNotFound') {
-        return true;
-    }
-
-    // Network / timeout errors
-    if (
-        anyErr?.code === 'ECONNRESET' ||
-        anyErr?.code === 'ETIMEDOUT' ||
-        anyErr?.name === 'FetchError'
-    ) {
-        return true;
-    }
-
-    return false;
-}
 
 /**
  * Extract message ID from Graph resource path
