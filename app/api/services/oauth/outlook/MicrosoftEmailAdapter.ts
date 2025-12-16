@@ -4,7 +4,7 @@
  */
 
 import type { EmailMessage } from '../../../types/email.js';
-import type { GraphMessage } from './MicrosoftGraphClient.js';
+import type { GraphMessage } from './types.js';
 import { extractAnchors } from '../../../utils/tagExtractor.js';
 
 /**
@@ -74,9 +74,11 @@ export function parseGraphMessage(
   // Extract subject
   const subject = message.subject || 'No Subject';
 
-  // Extract sender
-  const senderEmail = message.sender?.emailAddress?.address || '';
-  const senderName = message.sender?.emailAddress?.name || '';
+  // Extract sender - prefer 'from' (what user sees) over 'sender' (actual sender)
+  // This is critical for phishing detection: 'from' is what the user trusts
+  // 'sender' can differ when emails are sent "on behalf of" someone (delegation)
+  const senderEmail = message.from?.emailAddress?.address || message.sender?.emailAddress?.address || '';
+  const senderName = message.from?.emailAddress?.name || message.sender?.emailAddress?.name || '';
   const sender = senderName ? `${senderName} <${senderEmail}>` : senderEmail || 'Unknown Sender';
 
   // Extract recipient

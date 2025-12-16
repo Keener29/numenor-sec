@@ -11,22 +11,8 @@ import { microsoftSubscriptionService } from '../services/oauth/outlook/Microsof
 import { verifyClientState } from '../services/oauth/outlook/clientStateUtils.js';
 import { findMonitoredEmail } from '../utils/monitoredEmailUtils.js';
 import { isRetryableGraphError } from '../utils/microsoftGraphErrorUtils.js';
+import type { GraphNotification } from '../services/oauth/outlook/types.js';
 const router = Router();
-
-interface GraphNotification {
-  value: Array<{
-    subscriptionId: string;
-    changeType: string;
-    resource: string;
-    resourceData?: {
-      id?: string;
-    };
-    clientState?: string;
-    subscriptionExpirationDateTime?: string;
-    tenantId?: string;
-  }>;
-  validationTokens?: string[];
-}
 
 /**
  * Parse and validate Microsoft Graph notification body

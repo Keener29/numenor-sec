@@ -11,7 +11,7 @@ import { emailProcessor } from './emailProcessor.js';
 import { MicrosoftGraphClient } from '../oauth/outlook/MicrosoftGraphClient.js';
 import { parseGraphMessage } from '../oauth/outlook/MicrosoftEmailAdapter.js';
 import type { MonitoredEmail } from './types.js';
-import type { GraphMessage } from '../oauth/outlook/MicrosoftGraphClient.js';
+import type { GraphMessage } from '../oauth/outlook/types.js';
 import { isRetryableGraphError } from '../../utils/microsoftGraphErrorUtils.js';
 
 /**

@@ -40,7 +40,7 @@ export interface OutlookAuthUrlOptions {
   redirect_uri: string;
   scope: string;
   state: string;
-  response_mode: 'query';
+  response_mode?: 'query' | 'form_post';
 }
 
 /**
@@ -55,6 +55,8 @@ export interface GraphSubscription {
   notificationUrl: string;
   expirationDateTime: string;
   clientState?: string;
+  lifecycleNotificationUrl?: string;
+  latestSupportedTlsVersion?: string;
 }
 
 export interface GraphMessage {
@@ -62,6 +64,12 @@ export interface GraphMessage {
   subject?: string;
   bodyPreview?: string;
   receivedDateTime: string;
+  from?: {
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  };
   sender?: {
     emailAddress?: {
       address?: string;
