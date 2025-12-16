@@ -1,0 +1,80 @@
+# Render Blueprint Configuration
+# This file can be used to deploy both services via Render Dashboard → New → Blueprint
+
+services:
+  # Backend API Service
+  - type: web
+    name: numenor-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile.api
+    dockerContext: .
+    plan: free # Change to 'starter' or 'standard' for production
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false # Set manually in Render Dashboard
+      - key: DB_PORT
+        value: 5432
+      - key: DB_NAME
+        sync: false # Set manually
+      - key: DB_USER
+        sync: false # Set manually
+      - key: DB_PASSWORD
+        sync: false # Set manually - use Render secret
+      - key: DB_SSL
+        value: "true"
+      - key: JWT_SECRET
+        sync: false # Set manually - use Render secret
+      - key: TOKEN_SECRET
+        sync: false # Set manually - use Render secret
+      - key: CORS_ORIGINS
+        sync: false # Set manually: https://yourdomain.com,https://www.yourdomain.com
+      - key: FRONTEND_URL
+        sync: false # Set manually: https://www.yourdomain.com
+      - key: GOOGLE_CLIENT_ID
+        sync: false # Set manually
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false # Set manually - use Render secret
+      - key: GOOGLE_REDIRECT_URI
+        sync: false # Set manually after deployment
+      - key: SMTP_HOST
+        sync: false # Set manually
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_SECURE
+        value: "false"
+      - key: SMTP_USER
+        sync: false # Set manually
+      - key: SMTP_PASS
+        sync: false # Set manually - use Render secret
+      - key: SMTP_FROM
+        sync: false # Set manually
+      - key: PROCESSED_EMAIL_RETENTION_HOURS
+        value: "168"
+    healthCheckPath: /health
+
+  # Frontend Service
+  - type: web
+    name: numenor-frontend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free # Change to 'starter' or 'standard' for production
+    buildCommand: "" # Handled by Dockerfile
+    startCommand: "" # Handled by Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_URL
+        sync: false # Set manually: https://numenor-api.onrender.com/api (update after backend deploys)
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false # Set manually - same as backend GOOGLE_CLIENT_ID
+    # Note: VITE_* variables are build-time and must be set before first deployment
+
+# Note: After creating services, you'll need to:
+# 1. Set all sync: false variables manually in Render Dashboard
+# 2. Update GOOGLE_REDIRECT_URI with the actual backend URL
+# 3. Update VITE_API_URL with the actual backend URL
+# 4. Configure custom domains if needed
+
