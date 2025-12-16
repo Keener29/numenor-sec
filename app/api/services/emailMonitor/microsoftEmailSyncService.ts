@@ -125,14 +125,13 @@ export class MicrosoftEmailSyncService {
         filter = `receivedDateTime ge ${lastChecked.toISOString()}`;
       }
 
-      // Fetch recent messages
-      const response = await graphClient.listMessages(filter, 50, {
+      // Fetch all messages with pagination (to catch all missed emails)
+      // Uses listAllMessages to automatically follow pagination links
+      const messages = await graphClient.listAllMessages(filter, 50, {
         operation: 'fallback-polling',
         businessId,
         emailAddress
       });
-
-      const messages = response.value || [];
 
       if (messages.length === 0) {
         monitoringLogger.debug('No new messages in fallback polling', {

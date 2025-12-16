@@ -3,9 +3,11 @@
  * Shared functions for determining if Microsoft Graph API errors are retryable
  */
 
+import { ErrorCodes } from '../services/errorHandler.js';
+
 /**
  * Check if a Microsoft Graph API error is retryable
- * Handles both Axios-style and Fetch-style errors
+ * Handles both Axios-style and Fetch-style errors, plus typed OAuthServiceError
  * 
  * @param error - The error object to check
  * @returns true if the error is retryable (network errors, rate limits, transient failures)
@@ -15,8 +17,13 @@ export function isRetryableGraphError(error: unknown): boolean {
 
   const anyErr = error as any;
   
+  // Check for typed rate limit error (OAuthServiceError with RATE_LIMIT_EXCEEDED code)
+  if ('code' in anyErr && anyErr.code === ErrorCodes.RATE_LIMIT_EXCEEDED) {
+    return true;
+  }
+  
   // Extract status code from different error formats
-  const status = anyErr?.response?.status || anyErr?.status;
+  const status = anyErr?.response?.status || anyErr?.status || anyErr?.statusCode;
   const code = anyErr?.response?.data?.error?.code;
   
   // Extract error message/name
@@ -37,7 +44,7 @@ export function isRetryableGraphError(error: unknown): boolean {
     return true;
   }
 
-  // Retryable HTTP status codes
+  // Retryable HTTP status codes (including 429 rate limit)
   if ([408, 429, 500, 502, 503, 504].includes(status)) {
     return true;
   }
