@@ -5,18 +5,14 @@
 
 import { OAuthProvider } from './base/OAuthProvider.js';
 import { gmailOAuthService } from './gmail/GmailOAuthService.js';
+import { outlookOAuthService } from './outlook/OutlookOAuthService.js';
 import type { OAuthProviderType } from './base/types.js';
 
-// Import future providers here
-// import { outlookOAuthService } from './outlook/OutlookOAuthService.js';
-// import { yahooOAuthService } from './yahoo/YahooOAuthService.js';
 
 export class OAuthProviderFactory {
-  private static readonly providers: Map<OAuthProviderType, OAuthProvider> = new Map([
+  private static readonly providers = new Map<OAuthProviderType, OAuthProvider>([
     ['gmail', gmailOAuthService],
-    // Add future providers here
-    // ['outlook', outlookOAuthService],
-    // ['yahoo', yahooOAuthService],
+    ['outlook', outlookOAuthService],
   ]);
 
   /**
@@ -56,6 +52,7 @@ export class OAuthProviderFactory {
 
 // Export individual services for direct access
 export { gmailOAuthService } from './gmail/GmailOAuthService.js';
+export { outlookOAuthService } from './outlook/OutlookOAuthService.js';
 
 // Export types
 export type { OAuthProviderType } from './base/types.js';
