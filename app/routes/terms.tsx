@@ -1,5 +1,13 @@
 import { Link } from 'react-router';
 
+export function meta() {
+  // return metadata for the dashboard
+  return [
+    { title: "Terms and Conditions - Numenor Security" },
+    { name: "description", content: "Terms and conditions for using Numenor Security" },
+  ];
+}
+
 export default function Terms() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
