@@ -26,7 +26,7 @@ export const links: Route.LinksFunction = () => [
 ];
 
 // Provider wrapper that handles SSR gracefully
-function ClientProviders({ children, googleClientId }: { children: React.ReactNode; googleClientId: string }) {
+function ClientProviders({ children, googleClientId }: { readonly children: React.ReactNode; readonly googleClientId: string }) {
   // Always render GoogleOAuthProvider (handles SSR fine)
   // For MsalProvider, we need to ensure it's always rendered to satisfy useMsal() hook
   // During SSR, msalInstance will be undefined, but we'll handle that in components

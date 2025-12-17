@@ -1,9 +1,8 @@
 // Client-side authentication utilities
 
 import { googleLogout } from "@react-oauth/google";
-import type { IPublicClientApplication } from "@azure/msal-browser";
+import type { IPublicClientApplication, AuthenticationResult } from "@azure/msal-browser";
 import { authAPI } from "./api";
-import type { AuthenticationResult } from "@azure/msal-browser";
 
 /**
  * Handles logout for all authentication providers (Google, Microsoft, Email/Password)

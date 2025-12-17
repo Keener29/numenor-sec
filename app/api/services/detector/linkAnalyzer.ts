@@ -485,11 +485,12 @@ export class LinkAnalyzerService {
   private checkRepetition(url: URL): number {
     let score = 0;
     // Repetition / gibberish heuristic
-    // Use /([^-]+-)\1/ instead of /(.*-)\1/ to prevent ReDoS (requires at least one non-hyphen char)
     // Domain labels are already limited to 63 chars, so this is safe
     const repeats = url.hostname.split('.').filter(Boolean).some(l => {
       // Check for repeated pattern ending with hyphen (e.g., "abc-abc-")
-      if (/([^-]+-)\1/.test(l)) return true;
+      const parts = l.split('-');
+      const hasDuplicate = parts.length > 1 && parts[0] + '-' === parts[1] + '-';
+      if (hasDuplicate) return true;
       // Check for same character repeated 6+ times (e.g., "aaaaaa")
       if (/(.)\1{6,}/.test(l)) return true;
       return false;

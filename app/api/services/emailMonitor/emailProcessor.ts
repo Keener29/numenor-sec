@@ -1,6 +1,6 @@
 import { phishingDetector, type EmailAnalysis } from '../detector/phishingDetector.js';
 import { monitoringLogger } from '../../../utils/logger.js';
-import { extractEmailAddress, isFromOwnService } from '../../utils/emailUtils.js';
+import { extractEmailAddress, isFromOwnService, isReplyOrForward } from '../../utils/emailUtils.js';
 import { securityEventLogger } from '../../utils/securityEventLogger.js';
 import { threatAlertService } from './threatAlertService.js';
 import type { MonitoredEmail, EmailMessage } from './types.js';
@@ -39,6 +39,9 @@ export class EmailProcessor {
         return;
       }
 
+      const IS_REPLY_OR_FORWARD = isReplyOrForward(emailMessage.headers);
+      
+
       // Prepare email data for analysis
       const emailData: EmailAnalysis = {
         subject: emailMessage.subject,
@@ -51,7 +54,7 @@ export class EmailProcessor {
       };
 
       // Analyze email for phishing threats
-      const threatAssessment = await phishingDetector.analyzeEmail(emailData, monitoredEmail.businessId);
+      const threatAssessment = await phishingDetector.analyzeEmail(emailData, IS_REPLY_OR_FORWARD, monitoredEmail.businessId);
 
       monitoringLogger.info('Threat assessment completed', {
         operation: 'process-email-message',

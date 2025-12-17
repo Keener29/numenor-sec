@@ -22,7 +22,7 @@ interface ConnectedEmailsDropdownProps {
 }
 
 const MAX_EMAILS = 5;
-const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const BASIC_EMAIL_REGEX = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,63}$/;
 
 export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, emails, onEmailsUpdate, oauthStatuses }: ConnectedEmailsDropdownProps) {
   const [isAddingEmail, setIsAddingEmail] = useState(false);

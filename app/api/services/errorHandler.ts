@@ -49,6 +49,7 @@ export const ErrorCodes = {
   OAUTH_TOKEN_REFRESH_FAILED: 'OAUTH_TOKEN_REFRESH_FAILED',
   OAUTH_AUTHORIZATION_FAILED: 'OAUTH_AUTHORIZATION_FAILED',
   OAUTH_STATE_VALIDATION_FAILED: 'OAUTH_STATE_VALIDATION_FAILED',
+  OAUTH_INSUFFICIENT_SCOPES: 'OAUTH_INSUFFICIENT_SCOPES',
 
   // Token Validation Errors
   TOKEN_INVALID: 'TOKEN_INVALID',
@@ -362,7 +363,7 @@ export function asyncHandler<T extends any[]>(
  * Validate email address format
  */
 export function validateEmailAddress(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,63}$/;
   return emailRegex.test(email);
 }
 

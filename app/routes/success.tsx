@@ -5,6 +5,14 @@ export async function loader({ request }: { request: Request }) {
   return null;
 }
 
+export function meta() {
+  // return metadata for the dashboard
+  return [
+    { title: "Success - Numenor Security" },
+    { name: "description", content: "Successfully connected your email account" },
+  ];
+}
+
 export default function Success() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get('email');

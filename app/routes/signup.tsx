@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { authAPI } from "../utils/api";
-import { loginWithGoogle } from "../utils/authUtils";
-import { loginWithMicrosoft } from "../utils/authUtils";
+import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
 import { useMsal } from "@azure/msal-react";
 import AzureLogin from "~/components/AzureLogin";
 import { GoogleLogin } from "@react-oauth/google";export function meta() {

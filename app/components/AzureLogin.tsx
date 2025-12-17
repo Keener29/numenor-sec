@@ -1,7 +1,7 @@
 interface AzureLoginProps {
-    handleAzureLogin: () => void;
-    isLoading: boolean;
-    text: string;
+    readonly handleAzureLogin: () => void;
+    readonly isLoading: boolean;
+    readonly text: string;
 }
 
 const MicrosoftIcon = () => (

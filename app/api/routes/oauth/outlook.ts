@@ -3,10 +3,11 @@ import { authenticateToken, requireBusiness, type AuthRequest } from '../../midd
 import { validateBody, validateQuery } from '../../middleware/validation.js';
 import { oauthAuthUrlLimiter, oauthCallbackLimiter } from '../../middleware/rateLimit.js';
 import { query } from '../../../db/connection.js';
-import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.js';
+import { outlookOAuthService } from '../../services/oauth/outlook/OutlookOAuthService.js';
 import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
+import { securityEventLogger } from '../../utils/securityEventLogger.js';
 import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError, handleOAuthStateValidationError } from '../../utils/oauthUtils.js';
 import { validateOAuthState } from '../../services/oauth/base/stateValidation.js';
 
@@ -16,10 +17,9 @@ const connectEmailSchema = z.object({
   emailAddress: z.string().email('Valid email address is required')
 });
 
-
 /**
- * @route GET /api/oauth/gmail/auth-url
- * @desc Generate Gmail OAuth authorization URL
+ * @route GET /api/oauth/outlook/auth-url
+ * @desc Generate Outlook OAuth authorization URL
  * @access Public (email approval flow) or Private (dashboard)
  */
 router.get(
@@ -52,12 +52,12 @@ router.get(
       }
 
       // Generate OAuth URL and redirect
-      const authUrl = await gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+      const authUrl = await outlookOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
       res.redirect(authUrl);
 
     } catch (error) {
       oauthLogger.error(
-        'Error generating Gmail OAuth URL',
+        'Error generating Outlook OAuth URL',
         { operation: 'generate-auth-url', emailAddress, businessId },
         error as Error
       );
@@ -66,10 +66,9 @@ router.get(
   }
 );
 
-
 /**
- * @route GET /api/oauth/gmail/callback
- * @desc Handle Gmail OAuth callback from Google
+ * @route GET /api/oauth/outlook/callback
+ * @desc Handle Outlook OAuth callback from Microsoft
  * @access Public (OAuth callback)
  */
 router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
@@ -81,7 +80,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
   // Handle OAuth error parameter first (before validation)
   const { error } = req.query;
   if (error) {
-    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'gmail');
+    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'outlook');
     if (errorRedirectUrl) {
       return res.redirect(errorRedirectUrl);
     }
@@ -101,14 +100,14 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
     const { code, state } = req.query;
 
     // SECURITY: Validate and parse signed state (prevents tampering)
-    const stateData = await validateOAuthState(state as string, 'gmail');
+    const stateData = await validateOAuthState(state as string, 'outlook');
     const { businessId, emailAddress } = stateData;
 
     // Exchange code for tokens
-    const tokens = await gmailOAuthService.exchangeCodeForTokens(code as string);
+    const tokens = await outlookOAuthService.exchangeCodeForTokens(code as string);
 
-    // Store tokens in database
-    await gmailOAuthService.storeTokens(businessId, emailAddress, tokens);
+    // Store tokens in database (this also creates the subscription)
+    await outlookOAuthService.storeTokens(businessId, emailAddress, tokens);
 
     // Update monitored email timestamp (OAuth connected)
     await query(
@@ -116,40 +115,36 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
       [businessId, emailAddress]
     );
 
-    // Set up Gmail watch for push notifications
-    try {
-      const watchResult = await gmailOAuthService.watchMailbox(businessId, emailAddress);
-      oauthLogger.info('Gmail watch subscription created during OAuth callback', {
-        operation: 'oauth-callback',
-        businessId,
-        emailAddress,
-        metadata: {
-          historyId: watchResult.historyId,
-          expiration: watchResult.expiration.toISOString()
-        }
-      });
-    } catch (watchError) {
-      // Log error but don't fail the OAuth flow
-      oauthLogger.error('Failed to create Gmail watch during OAuth callback', {
-        operation: 'oauth-callback',
-        businessId,
-        emailAddress
-      }, watchError as Error);
-      // Continue - watch can be set up later via renewal scheduler
-    }
+    // Log successful OAuth connection
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'oauth_connected',
+      `Outlook OAuth connected for: ${emailAddress}`,
+      {
+        provider: 'outlook',
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
+
+    oauthLogger.info('Outlook OAuth connection completed', {
+      operation: 'oauth-callback',
+      businessId,
+      emailAddress
+    });
 
     // Redirect to success page (no login required)
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'gmail');
+    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'outlook');
     return res.redirect(redirectUrl);
   }
 });
 
 /**
- * @route POST /api/oauth/gmail/disconnect
- * @desc Disconnect Gmail OAuth for an email
+ * @route POST /api/oauth/outlook/disconnect
+ * @desc Disconnect Outlook OAuth for an email
  * @access Private (Business users only)
  */
 router.post('/disconnect', authenticateToken, requireBusiness, validateBody(connectEmailSchema), async (req: AuthRequest, res, next) => {
@@ -157,26 +152,8 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
     const businessId = req.user!.business_id!;
     const { emailAddress } = req.body;
 
-    // Stop Gmail watch before disconnecting
-    try {
-      await gmailOAuthService.stopWatch(businessId, emailAddress);
-    } catch (watchError) {
-      // Log but continue - watch may not exist
-      oauthLogger.warn('Failed to stop Gmail watch during disconnect', {
-        operation: 'disconnect-oauth',
-        businessId,
-        emailAddress
-      }, {
-        error: watchError instanceof Error ? {
-          name: watchError.name,
-          message: watchError.message,
-          stack: watchError.stack
-        } : String(watchError)
-      });
-    }
-
-    // Remove OAuth tokens
-    await gmailOAuthService.disconnect(businessId, emailAddress);
+    // Disconnect OAuth (this also deletes the subscription)
+    await outlookOAuthService.disconnect(businessId, emailAddress);
 
     // Update monitored email timestamp (OAuth disconnected)
     await query(
@@ -184,10 +161,22 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
       [businessId, emailAddress]
     );
 
+    // Log OAuth disconnection
+    await securityEventLogger.logSecurityEvent(
+      businessId,
+      'oauth_disconnected',
+      `Outlook OAuth disconnected for: ${emailAddress}`,
+      {
+        provider: 'outlook',
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      }
+    );
+
     res.status(204).send();
 
   } catch (error) {
-    oauthLogger.error('Error disconnecting Gmail OAuth', {
+    oauthLogger.error('Error disconnecting Outlook OAuth', {
       operation: 'disconnect-oauth',
       businessId: req.user!.business_id!,
       emailAddress: req.body.emailAddress
@@ -197,8 +186,8 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
 });
 
 /**
- * @route POST /api/oauth/gmail/test
- * @desc Test Gmail OAuth connection
+ * @route POST /api/oauth/outlook/test
+ * @desc Test Outlook OAuth connection
  * @access Private (Business users only)
  */
 router.post('/test', authenticateToken, requireBusiness, validateBody(connectEmailSchema), async (req: AuthRequest, res, next) => {
@@ -206,7 +195,7 @@ router.post('/test', authenticateToken, requireBusiness, validateBody(connectEma
     const businessId = req.user!.business_id!;
     const { emailAddress } = req.body;
 
-    const testResult = await gmailOAuthService.testConnection(businessId, emailAddress);
+    const testResult = await outlookOAuthService.testConnection(businessId, emailAddress);
 
     if (testResult.success) {
       res.json(testResult);
@@ -215,17 +204,18 @@ router.post('/test', authenticateToken, requireBusiness, validateBody(connectEma
     }
 
   } catch (error) {
-    oauthLogger.error('Error testing Gmail OAuth connection', {
+    oauthLogger.error('Error testing Outlook OAuth connection', {
       operation: 'test-oauth-connection',
       businessId: req.user!.business_id!,
       emailAddress: req.body.emailAddress
     }, error as Error);
     res.status(400).json({
       success: false,
-      error: 'Gmail connection test failed',
+      error: 'Outlook connection test failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
 export default router;
+

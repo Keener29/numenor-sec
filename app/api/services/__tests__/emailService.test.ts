@@ -1,7 +1,6 @@
 /**
  * @file emailService.test.ts
  */
-  
 // Mock logger so tests don't explode
 jest.mock('../../../utils/logger.js', () => ({
 emailLogger: {
@@ -32,6 +31,11 @@ return {
     ErrorCodes: original.ErrorCodes
 };
 });
+
+jest.mock('../../utils/emailUtils.js', () => ({
+  ...jest.requireActual('../../utils/emailUtils.js'),
+  getOAuthProvider: jest.fn().mockResolvedValue('gmail')
+}));
 
 describe('emailService', () => {
   const OLD_ENV = process.env;
@@ -95,9 +99,9 @@ describe('emailService', () => {
   // ============================================================================
   // generatePermissionRequestTemplate()
   // ============================================================================
-  test('generatePermissionRequestTemplate returns correct subject/text/html', () => {
+  test('generatePermissionRequestTemplate returns correct subject/text/html', async () => {
     const { generatePermissionRequestTemplate } = require('../emailService.js');
-    const template = generatePermissionRequestTemplate({
+    const template = await generatePermissionRequestTemplate({
       businessName: 'Test Corp',
       businessEmail: 'contact@test.com',
       emailAddress: 'victim@test.com',
@@ -112,9 +116,9 @@ describe('emailService', () => {
     expect(template.html).toContain('abc123');
   });
 
-  test('generatePermissionRequestTemplate handles missing businessName', () => {
+  test('generatePermissionRequestTemplate handles missing businessName', async () => {
     const { generatePermissionRequestTemplate } = require('../emailService.js');
-    const template = generatePermissionRequestTemplate({
+    const template = await generatePermissionRequestTemplate({
       businessName: '',
       businessEmail: 'contact@test.com',
       emailAddress: 'victim@test.com',

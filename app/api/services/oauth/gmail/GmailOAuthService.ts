@@ -62,7 +62,7 @@ export class GmailOAuthService extends OAuthProvider {
   /**
    * Generate OAuth authorization URL
    */
-  generateAuthUrl(businessId: number, emailAddress: string): string {
+  async generateAuthUrl(businessId: number, emailAddress: string): Promise<string> {
     return Auth.generateAuthUrl(this.oauth2Client, businessId, emailAddress);
   }
 
@@ -155,7 +155,7 @@ export class GmailOAuthService extends OAuthProvider {
   /**
    * Validate OAuth state parameter
    */
-  validateState(state: string): OAuthState {
+  async validateState(state: string): Promise<OAuthState> {
     return Auth.validateState(state);
   }
 

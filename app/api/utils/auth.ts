@@ -57,7 +57,7 @@ export const verifyMicrosoftToken = async (idToken: string, clientId: string): P
       // Extract tenant ID from issuer
       const tenantRegex = /https:\/\/login\.microsoftonline\.com\/([^/]+)/;
       const tenantMatch = tenantRegex.exec(issuer);
-      if (tenantMatch && tenantMatch[1]) {
+      if (tenantMatch?.[1]) {
         jwksUri = `https://login.microsoftonline.com/${tenantMatch[1]}/discovery/v2.0/keys`;
       } else {
         jwksUri = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
