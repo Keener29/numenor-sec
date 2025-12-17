@@ -73,23 +73,33 @@ router.get(
  * @desc Handle Gmail OAuth callback from Google
  * @access Public (OAuth callback)
  */
-router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async (req, res, next) => {
+router.get("/callback", oauthLimiter, async (req, res, next) => {
   const frontendUrl = process.env.FRONTEND_URL;
   if (!frontendUrl) {
     return res.status(500).send('Frontend URL is not configured');
   }
-  try {
-    const { code, state, error } = req.query;
-    
-    // Handle OAuth callback error
-    const errorRedirectUrl = await handleOAuthCallbackError(error, state as string | undefined, req, frontendUrl, 'gmail');
+  
+  // Handle OAuth error parameter first (before validation)
+  const { error } = req.query;
+  if (error) {
+    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'gmail');
     if (errorRedirectUrl) {
       return res.redirect(errorRedirectUrl);
     }
-
-    if (!code || !state) {
+  }
+  
+  // Validate query parameters (code and state required when error is not present)
+  try {
+    req.query = oauthCallbackSchema.parse(req.query);
+  } catch (validationError) {
+    if (validationError instanceof z.ZodError) {
       return res.redirect(`${frontendUrl}/success?oauth_error=missing_parameters`);
     }
+    throw validationError;
+  }
+  
+  try {
+    const { code, state } = req.query;
 
     // SECURITY: Validate and parse signed state (prevents tampering)
     const stateData = await validateOAuthState(state as string, 'gmail');
@@ -199,10 +209,7 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
       [businessId, emailAddress]
     );
 
-    res.json({
-      success: true,
-      message: 'Gmail account disconnected successfully'
-    });
+    res.status(204).send();
 
   } catch (error) {
     oauthLogger.error('Error disconnecting Gmail OAuth', {
