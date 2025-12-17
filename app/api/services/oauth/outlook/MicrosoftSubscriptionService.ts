@@ -19,11 +19,11 @@ export interface MicrosoftSubscription {
   lastNotificationDate: Date | null;
 }
 
-const SUBSCRIPTION_EXPIRATION_HOURS = parseInt(
+const SUBSCRIPTION_EXPIRATION_HOURS = Number.parseInt(
   process.env.MICROSOFT_SUBSCRIPTION_EXPIRATION_HOURS || '72',
   10
 );
-const RENEWAL_THRESHOLD_HOURS = parseInt(
+const RENEWAL_THRESHOLD_HOURS = Number.parseInt(
   process.env.MICROSOFT_SUBSCRIPTION_RENEWAL_THRESHOLD_HOURS || '24',
   10
 );
@@ -39,8 +39,10 @@ export class MicrosoftSubscriptionService {
     emailAddress: string,
     accessToken: string,
     notificationUrl: string,
-    context: LogContext = { operation: 'create-subscription' }
+    context?: LogContext
   ): Promise<MicrosoftSubscription> {
+    const logContext: LogContext = context ?? { operation: 'create-subscription' };
+
     try {
       const graphClient = new MicrosoftGraphClient(accessToken);
       
@@ -56,7 +58,7 @@ export class MicrosoftSubscriptionService {
         notificationUrl,
         expirationDate.toISOString(),
         signedClientState, // HMAC-signed clientState: {businessId}:{emailAddress}:{signature}
-        context
+        logContext
       );
 
       // Store in database
@@ -79,9 +81,9 @@ export class MicrosoftSubscriptionService {
       );
 
       oauthLogger.info('Microsoft subscription created', {
-        ...context,
+        ...logContext,
         metadata: {
-          ...context?.metadata,
+          ...logContext?.metadata,
           subscriptionId: subscription.id,
           expirationDate: expirationDate.toISOString(),
         },
@@ -96,7 +98,7 @@ export class MicrosoftSubscriptionService {
         lastNotificationDate: null,
       };
     } catch (error) {
-      oauthLogger.error('Failed to create Microsoft subscription', context, error as Error);
+      oauthLogger.error('Failed to create Microsoft subscription', logContext, error as Error);
       throw ErrorFactory.oauthService(
         ErrorCodes.INTERNAL_SERVER_ERROR,
         'Failed to create Microsoft Graph subscription'
@@ -111,8 +113,10 @@ export class MicrosoftSubscriptionService {
     businessId: number,
     emailAddress: string,
     accessToken: string,
-    context: LogContext = { operation: 'renew-subscription' }
+    context?: LogContext
   ): Promise<MicrosoftSubscription> {
+    const logContext: LogContext = context ?? { operation: 'renew-subscription' };
+
     try {
       // Get subscription from database
       const subResult = await query(
@@ -142,7 +146,7 @@ export class MicrosoftSubscriptionService {
       const lastNotificationDate = dbRow.last_notification_date;
 
       // Renew via Graph API
-      await graphClient.renewSubscription(subscriptionId, expirationDate.toISOString(), context);
+      await graphClient.renewSubscription(subscriptionId, expirationDate.toISOString(), logContext);
 
       // Update database
       await query(
@@ -153,9 +157,9 @@ export class MicrosoftSubscriptionService {
       );
 
       oauthLogger.info('Microsoft subscription renewed', {
-        ...context,
+        ...logContext,
         metadata: {
-          ...context?.metadata,
+          ...logContext?.metadata,
           subscriptionId,
           expirationDate: expirationDate.toISOString(),
         },
@@ -191,8 +195,10 @@ export class MicrosoftSubscriptionService {
     businessId: number,
     emailAddress: string,
     accessToken: string,
-    context: LogContext = { operation: 'delete-subscription' }
+    context?: LogContext
   ): Promise<void> {
+    const logContext: LogContext = context ?? { operation: 'delete-subscription' };
+
     try {
       // Get subscription ID
       const subResult = await query(
@@ -202,7 +208,7 @@ export class MicrosoftSubscriptionService {
       );
 
       if (subResult.rows.length === 0) {
-        oauthLogger.warn('Subscription not found for deletion', context);
+        oauthLogger.warn('Subscription not found for deletion', logContext);
         return;
       }
 
@@ -210,7 +216,7 @@ export class MicrosoftSubscriptionService {
       const graphClient = new MicrosoftGraphClient(accessToken);
 
       // Delete via Graph API
-      await graphClient.deleteSubscription(subscriptionId, context);
+      await graphClient.deleteSubscription(subscriptionId, logContext);
 
       // Delete from database
       await query(
@@ -220,11 +226,11 @@ export class MicrosoftSubscriptionService {
       );
 
       oauthLogger.info('Microsoft subscription deleted', {
-        ...context,
+        ...logContext,
         metadata: { subscriptionId },
       });
     } catch (error) {
-      oauthLogger.error('Failed to delete Microsoft subscription', context || {}, error as Error);
+      oauthLogger.error('Failed to delete Microsoft subscription', logContext, error as Error);
       // Don't throw - subscription might already be deleted
     }
   }

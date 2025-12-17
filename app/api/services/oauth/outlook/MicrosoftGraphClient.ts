@@ -14,7 +14,7 @@ export type { GraphSubscription, GraphMessage };
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 
 export class MicrosoftGraphClient {
-  private accessToken: string;
+  private readonly accessToken: string;
 
   constructor(accessToken: string) {
     this.accessToken = accessToken;
@@ -27,7 +27,7 @@ export class MicrosoftGraphClient {
     // Handle rate limiting with typed, retryable error
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
-      const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : undefined;
+      const retryAfterSeconds = retryAfter ? Number.parseInt(retryAfter, 10) : undefined;
       
       oauthLogger.warn('Microsoft Graph API rate limited', {
         ...context,
@@ -66,8 +66,7 @@ export class MicrosoftGraphClient {
         method,
         headers: {
           'Authorization': `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/json',
-          ...(body ? {} : {}),
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
