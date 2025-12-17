@@ -74,6 +74,9 @@ router.get(
  */
 router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async (req, res, next) => {
   const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    return res.status(500).send('Frontend URL is not configured');
+  }
   try {
     const { code, state, error } = req.query;
     
