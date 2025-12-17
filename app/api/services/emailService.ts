@@ -95,7 +95,7 @@ export function createTransporter(): Transporter {
 /**
  * Generate permission request email template
  */
-export function generatePermissionRequestTemplate(params: PermissionRequestParams): EmailTemplate {
+export async function generatePermissionRequestTemplate(params: PermissionRequestParams): Promise<EmailTemplate> {
   const {
     businessName,
     emailAddress,
@@ -115,7 +115,7 @@ export function generatePermissionRequestTemplate(params: PermissionRequestParam
   }
 
   // Determine OAuth provider based on email domain
-  const oauthProvider = getOAuthProvider(emailAddress) || 'gmail'; // Default to Gmail if unknown
+  const oauthProvider = await getOAuthProvider(emailAddress) || 'gmail'; // Default to Gmail if unknown
   const oauthUrl = `${apiUrl}/oauth/${oauthProvider}/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}`;
 
   return {
@@ -605,7 +605,7 @@ class EmailService {
       const approvalToken = tokenService.generateApprovalToken(emailId, businessId);
 
       // Generate email template
-      const template = generatePermissionRequestTemplate({
+      const template = await generatePermissionRequestTemplate({
         businessName,
         emailAddress,
         businessEmail,
