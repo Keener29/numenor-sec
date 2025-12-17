@@ -175,12 +175,6 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
       }))
     };
     
-    oauthLogger.debug('Alert stats response generated', {
-      operation: 'get-alert-stats',
-      businessId,
-      metadata: { stats, dailyAlertsCount: dailyResult.rows.length }
-    });
-    
     res.json({
       stats
     });

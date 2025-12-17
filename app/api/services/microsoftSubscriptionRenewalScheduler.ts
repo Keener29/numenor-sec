@@ -20,10 +20,6 @@ class MicrosoftSubscriptionRenewalScheduler {
    * Start the subscription renewal scheduler
    */
   async start(): Promise<void> {
-    monitoringLogger.info('Starting Microsoft subscription renewal scheduler', {
-      operation: 'microsoft-subscription-renewal-start'
-    });
-
     // Run initial renewal check
     await this.renewExpiringSubscriptions();
 
