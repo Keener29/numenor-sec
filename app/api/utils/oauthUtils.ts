@@ -7,6 +7,7 @@ import type { Request, Response } from 'express';
 import { query } from '../../db/connection.js';
 import { securityEventLogger } from './securityEventLogger.js';
 import { oauthLogger } from '../../utils/logger.js';
+import { OAuthStateValidationError } from '../services/oauth/base/stateValidation.js';
 
 /**
  * Get target business ID from request (either from query params, approve token, or JWT)
@@ -139,5 +140,47 @@ export async function handleOAuthCallbackError(
   }
 
   return `${frontendUrl}/success?oauth_error=${encodeURIComponent(msg)}`;
+}
+
+/**
+ * Handle OAuth state validation errors and log security events
+ * @param err - Error caught from OAuth callback handler
+ * @param req - Express request object
+ * @param frontendUrl - Frontend URL for redirect
+ * @param provider - OAuth provider name (e.g., 'outlook', 'gmail')
+ * @returns Redirect URL string for invalid state error
+ */
+export async function handleOAuthStateValidationError(
+  err: unknown,
+  req: Request,
+  frontendUrl: string,
+  provider: 'gmail' | 'outlook'
+): Promise<string> {
+  // Handle OAuth state validation errors with safe metadata extraction
+  if (err instanceof OAuthStateValidationError && err.metadata) {
+    try {
+      const { businessId, emailAddress } = err.metadata;
+      if (businessId && emailAddress) {
+        await securityEventLogger.logSecurityEvent(
+          businessId,
+          'oauth_failed',
+          `${provider === 'outlook' ? 'Outlook' : 'Gmail'} OAuth connection failed - invalid state for: ${emailAddress}`,
+          {
+            error: err.message,
+            ipAddress: req.ip,
+            userAgent: req.get('User-Agent')
+          }
+        );
+      }
+    } catch (logError) {
+      // Don't fail the redirect if logging fails
+      oauthLogger.warn('Failed to log OAuth failure event', {
+        operation: 'oauth-callback-logging'
+      }, {
+        error: logError instanceof Error ? logError.message : String(logError)
+      });
+    }
+  }
+  return `${frontendUrl}/success?oauth_error=invalid_state`;
 }
 

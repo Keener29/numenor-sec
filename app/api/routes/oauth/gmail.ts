@@ -7,9 +7,8 @@ import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.
 import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
-import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError } from '../../utils/oauthUtils.js';
-import { validateOAuthState, OAuthStateValidationError } from '../../services/oauth/base/stateValidation.js';
-import { securityEventLogger } from '../../utils/securityEventLogger.js';
+import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError, handleOAuthStateValidationError } from '../../utils/oauthUtils.js';
+import { validateOAuthState } from '../../services/oauth/base/stateValidation.js';
 
 const router = Router();
 
@@ -143,32 +142,8 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    // Handle OAuth state validation errors with safe metadata extraction
-    if (err instanceof OAuthStateValidationError && err.metadata) {
-      try {
-        const { businessId, emailAddress } = err.metadata;
-        if (businessId && emailAddress) {
-          await securityEventLogger.logSecurityEvent(
-            businessId,
-            'oauth_failed',
-            `Gmail OAuth connection failed - invalid state for: ${emailAddress}`,
-            {
-              error: err.message,
-              ipAddress: req.ip,
-              userAgent: req.get('User-Agent')
-            }
-          );
-        }
-      } catch (logError) {
-        // Don't fail the redirect if logging fails
-        oauthLogger.warn('Failed to log OAuth failure event', {
-          operation: 'oauth-callback-logging'
-        }, {
-          error: logError instanceof Error ? logError.message : String(logError)
-        });
-      }
-    }
-    return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
+    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'gmail');
+    return res.redirect(redirectUrl);
   }
 });
 

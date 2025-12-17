@@ -5,7 +5,7 @@
 
 import { query } from '../../../../db/connection.js';
 import { oauthLogger } from '../../../../utils/logger.js';
-import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
+import { ErrorCodes } from '../../errorHandler.js';
 import crypto from 'node:crypto';
 import type { OAuthState, LogContext } from './types.js';
 import { verifyOAuthState } from './stateSigning.js';
@@ -153,6 +153,6 @@ export async function validateOAuthState(
     metadata: { provider: expectedProvider }
   });
 
-  return stateData as OAuthState;
+  return stateData;
 }
 
