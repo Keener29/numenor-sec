@@ -9,7 +9,7 @@ import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js'
 import { z } from 'zod';
 import { securityEventLogger } from '../../utils/securityEventLogger.js';
 import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError } from '../../utils/oauthUtils.js';
-import { validateOAuthState } from '../../services/oauth/base/stateValidation.js';
+import { validateOAuthState, OAuthStateValidationError } from '../../services/oauth/base/stateValidation.js';
 
 const router = Router();
 
@@ -127,31 +127,21 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    // State validation errors are handled by validateOAuthState
-    // Log security event if we can extract business info from error
-    if (err instanceof Error && err.message.includes('OAuth state')) {
+    // Handle OAuth state validation errors with safe metadata extraction
+    if (err instanceof OAuthStateValidationError && err.metadata) {
       try {
-        // Try to extract state info for logging (if state exists but is invalid)
-        if (req.query.state) {
-          const stateStr = req.query.state as string;
-          // Try to parse as unsigned JSON for logging purposes
-          try {
-            const stateData = JSON.parse(stateStr);
-            if (stateData.businessId && stateData.emailAddress) {
-              await securityEventLogger.logSecurityEvent(
-                stateData.businessId,
-                'oauth_failed',
-                `Outlook OAuth connection failed - invalid state for: ${stateData.emailAddress}`,
-                {
-                  error: err.message,
-                  ipAddress: req.ip,
-                  userAgent: req.get('User-Agent')
-                }
-              );
+        const { businessId, emailAddress } = err.metadata;
+        if (businessId && emailAddress) {
+          await securityEventLogger.logSecurityEvent(
+            businessId,
+            'oauth_failed',
+            `Outlook OAuth connection failed - invalid state for: ${emailAddress}`,
+            {
+              error: err.message,
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent')
             }
-          } catch {
-            // State couldn't be parsed - skip logging
-          }
+          );
         }
       } catch (logError) {
         // Don't fail the redirect if logging fails

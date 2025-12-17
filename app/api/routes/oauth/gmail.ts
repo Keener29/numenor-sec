@@ -8,7 +8,8 @@ import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
 import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError } from '../../utils/oauthUtils.js';
-import { validateOAuthState } from '../../services/oauth/base/stateValidation.js';
+import { validateOAuthState, OAuthStateValidationError } from '../../services/oauth/base/stateValidation.js';
+import { securityEventLogger } from '../../utils/securityEventLogger.js';
 
 const router = Router();
 
@@ -132,7 +133,31 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    // State validation errors are handled by validateOAuthState
+    // Handle OAuth state validation errors with safe metadata extraction
+    if (err instanceof OAuthStateValidationError && err.metadata) {
+      try {
+        const { businessId, emailAddress } = err.metadata;
+        if (businessId && emailAddress) {
+          await securityEventLogger.logSecurityEvent(
+            businessId,
+            'oauth_failed',
+            `Gmail OAuth connection failed - invalid state for: ${emailAddress}`,
+            {
+              error: err.message,
+              ipAddress: req.ip,
+              userAgent: req.get('User-Agent')
+            }
+          );
+        }
+      } catch (logError) {
+        // Don't fail the redirect if logging fails
+        oauthLogger.warn('Failed to log OAuth failure event', {
+          operation: 'oauth-callback-logging'
+        }, {
+          error: logError instanceof Error ? logError.message : String(logError)
+        });
+      }
+    }
     return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
   }
 });

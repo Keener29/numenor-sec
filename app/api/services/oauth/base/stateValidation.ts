@@ -11,6 +11,33 @@ import type { OAuthState, LogContext } from './types.js';
 import { verifyOAuthState } from './stateSigning.js';
 
 /**
+ * OAuth State Validation Error
+ * Includes metadata for safe logging without parsing attacker-controlled input
+ */
+export class OAuthStateValidationError extends Error {
+  public readonly code: string;
+  public readonly statusCode: number;
+  public readonly metadata?: {
+    businessId?: number;
+    emailAddress?: string;
+    provider?: string;
+  };
+
+  constructor(
+    message: string,
+    code: string = ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+    statusCode: number = 400,
+    metadata?: { businessId?: number; emailAddress?: string; provider?: string }
+  ) {
+    super(message);
+    this.name = 'OAuthStateValidationError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.metadata = metadata;
+  }
+}
+
+/**
  * Generate a cryptographically secure nonce for OAuth state parameter
  * Uses crypto.randomBytes() for security (128 bits of entropy)
  * Returns base64url-encoded string (URL-safe, no padding)
@@ -35,25 +62,24 @@ export async function validateOAuthState(
   const context: LogContext = { operation: 'validate-state' };
   
   // SECURITY: Verify signature first to prevent tampering
-  // If state is unsigned (legacy), try to parse as JSON for backward compatibility
-  let stateData: OAuthState | null = verifyOAuthState(state);
+  // Never parse attacker-controlled input - only use verified state
+  const stateData: OAuthState | null = verifyOAuthState(state);
   
   if (!stateData) {
-    // Fallback: Try parsing as unsigned JSON for backward compatibility
-    // This allows existing OAuth flows to continue working during migration
-    try {
-      stateData = JSON.parse(state) as OAuthState;
-      oauthLogger.warn('OAuth state is unsigned - consider migrating to signed state', {
-        ...context,
-        metadata: { provider: expectedProvider }
-      });
-    } catch {
-      throw ErrorFactory.oauthService(
-        ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-        'Invalid or expired OAuth state parameter'
-      );
-    }
+    // Signature verification failed - do not parse attacker-controlled input
+    throw new OAuthStateValidationError(
+      'Invalid or expired OAuth state parameter',
+      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+      400
+    );
   }
+
+  // Extract metadata safely from verified state (for error reporting)
+  const extractedMetadata = {
+    businessId: stateData.businessId,
+    emailAddress: stateData.emailAddress,
+    provider: expectedProvider
+  };
 
   // Validate structure
   if (
@@ -62,18 +88,22 @@ export async function validateOAuthState(
     !stateData.nonce ||
     !stateData.timestamp
   ) {
-    throw ErrorFactory.oauthService(
+    throw new OAuthStateValidationError(
+      'Invalid or expired OAuth state parameter',
       ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
+      400,
+      extractedMetadata
     );
   }
 
   // Check timestamp age (10 minute max)
   const stateAge = Date.now() - stateData.timestamp;
   if (stateAge > 10 * 60 * 1000) {
-    throw ErrorFactory.oauthService(
+    throw new OAuthStateValidationError(
+      'Invalid or expired OAuth state parameter',
       ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
+      400,
+      extractedMetadata
     );
   }
 
@@ -104,9 +134,15 @@ export async function validateOAuthState(
         rowsDeleted: nonceResult.rows.length
       }
     });
-    throw ErrorFactory.oauthService(
+    throw new OAuthStateValidationError(
+      'Invalid or expired OAuth state parameter',
       ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
+      400,
+      {
+        businessId: stateData.businessId,
+        emailAddress: stateData.emailAddress,
+        provider: expectedProvider
+      }
     );
   }
 
