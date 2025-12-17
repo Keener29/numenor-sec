@@ -87,7 +87,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 function extractMessageIdFromResource(resource: string): string | null {
   // Resource format: /me/messages/{messageId} or /Users/{userId}/Messages/{messageId}
-  const match = resource.match(/\/(?:me|Users\/[^\/]+)\/messages\/([^\/]+)/i);
+  const match = resource.match(/\/(?:me|Users\/[^/]+)\/messages\/([^/]+)/i);
   return match ? match[1] : null;
 }
 
@@ -112,13 +112,13 @@ interface ProcessedNotification {
  * - ClientState verification
  * - Business/email lookup fallback
  */
-async function processNotificationItem(
+async function verifyNotificationItem(
   item: GraphNotification['value'][0]
 ): Promise<ProcessedNotification | null> {
   // Handle subscription expiration notification
   if (item.subscriptionExpirationDateTime) {
     monitoringLogger.debug('Subscription expiration notification received', {
-      operation: 'process-notification-item',
+      operation: 'verify-notification-item',
       metadata: {
         subscriptionId: item.subscriptionId,
         expirationDateTime: item.subscriptionExpirationDateTime
@@ -132,7 +132,7 @@ async function processNotificationItem(
   // Ignore 'updated' and 'deleted' to prevent processing modified/deleted emails
   if (item.changeType !== 'created') {
     monitoringLogger.debug('Skipping non-created changeType', {
-      operation: 'process-notification-item',
+      operation: 'verify-notification-item',
       metadata: {
         subscriptionId: item.subscriptionId,
         changeType: item.changeType,
@@ -146,7 +146,7 @@ async function processNotificationItem(
   const messageId = extractMessageIdFromResource(item.resource);
   if (!messageId) {
     monitoringLogger.debug('Could not extract message ID from resource', {
-      operation: 'process-notification-item',
+      operation: 'verify-notification-item',
       metadata: { resource: item.resource }
     });
     return null;
@@ -164,7 +164,7 @@ async function processNotificationItem(
     } else {
       // Invalid signature - log and skip (prevents spoofed notifications)
       monitoringLogger.warn('Invalid clientState signature - rejecting notification', {
-        operation: 'process-notification-item',
+        operation: 'verify-notification-item',
         metadata: {
           subscriptionId: item.subscriptionId,
           messageId,
@@ -189,7 +189,7 @@ async function processNotificationItem(
 
   if (!businessId || !emailAddress) {
     monitoringLogger.debug('Could not determine business/email for notification', {
-      operation: 'process-notification-item',
+      operation: 'verify-notification-item',
       metadata: {
         subscriptionId: item.subscriptionId,
         resource: item.resource,
@@ -292,75 +292,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Process each notification asynchronously
     for (const item of notification.value) {
-      try {
-        // Validate and extract notification data (handles all filtering/validation)
-        const processed = await processNotificationItem(item);
-        if (!processed) {
-          continue; // Item was skipped (expiration, wrong changeType, invalid, etc.)
-        }
-
-        const { subscriptionId, messageId, businessId, emailAddress } = processed;
-
-        // Find monitored email record (filter by 'outlook' provider)
-        const emailRecord = await findMonitoredEmail(emailAddress, 'outlook');
-        if (!emailRecord) {
-          monitoringLogger.debug('Monitored email not found for notification', {
-            operation: 'microsoft-notify',
-            metadata: { emailAddress, businessId }
-          });
-          continue;
-        }
-
-        // IDEMPOTENCY: Check if notification already processed (before processing)
-        // Uses messageId which is globally unique in Microsoft Graph
-        if (await isNotificationProcessed(businessId, emailAddress, subscriptionId, messageId)) {
-          monitoringLogger.debug('Notification already processed - skipping duplicate', {
-            operation: 'microsoft-notify',
-            metadata: { subscriptionId, messageId, businessId, emailAddress }
-          });
-          continue;
-        }
-
-        // Mark as processed IMMEDIATELY to prevent race conditions
-        // This happens before actual processing to ensure idempotency
-        await markNotificationProcessed(businessId, emailAddress, subscriptionId, messageId);
-
-        // Update last notification date
-        await microsoftSubscriptionService.updateLastNotificationDate(businessId, emailAddress);
-
-        // Process the email
-        monitoringLogger.info('Processing Microsoft Graph notification', {
-          operation: 'microsoft-notify',
-          metadata: {
-            emailAddress,
-            businessId,
-            messageId,
-            changeType: item.changeType
-          }
-        });
-
-        try {
-          await microsoftEmailSyncService.processMessageNotification(
-            businessId,
-            emailRecord.id,
-            emailAddress,
-            messageId
-          );
-        } catch (err) {
-          if (isRetryableGraphError(err)) {
-            await unmarkNotificationProcessed(businessId, emailAddress, subscriptionId, messageId);
-          }
-          throw err; // still logged, still safe
-        }
-
-      } catch (error) {
-        // Log error but continue processing other notifications
-        // Don't throw - already sent 202 response
-        monitoringLogger.error('Error processing individual notification', {
-          operation: 'microsoft-notify',
-          metadata: { subscriptionId: item?.subscriptionId || 'unknown' }
-        }, error as Error);
-      }
+      await processNotificationItemInternal(item);
     }
   } catch (error) {
     // Log error but don't throw - already sent 202 response
@@ -370,6 +302,78 @@ router.post('/', async (req: Request, res: Response) => {
     }, error as Error);
   }
 });
+
+async function processNotificationItemInternal(item: GraphNotification['value'][0]): Promise<void> {
+  try {
+    // Validate and extract notification data (handles all filtering/validation)
+    const processed = await verifyNotificationItem(item);
+    if (!processed) {
+      return; // Item was skipped (expiration, wrong changeType, invalid, etc.)
+    }
+
+    const { subscriptionId, messageId, businessId, emailAddress } = processed;
+
+    // Find monitored email record (filter by 'outlook' provider)
+    const emailRecord = await findMonitoredEmail(emailAddress, 'outlook');
+    if (!emailRecord) {
+      monitoringLogger.debug('Monitored email not found for notification', {
+        operation: 'microsoft-notify',
+        metadata: { emailAddress, businessId }
+      });
+      return;
+    }
+
+    // IDEMPOTENCY: Check if notification already processed (before processing)
+    // Uses messageId which is globally unique in Microsoft Graph
+    if (await isNotificationProcessed(businessId, emailAddress, subscriptionId, messageId)) {
+      monitoringLogger.debug('Notification already processed - skipping duplicate', {
+        operation: 'microsoft-notify',
+        metadata: { subscriptionId, messageId, businessId, emailAddress }
+      });
+      return;
+    }
+
+    // Mark as processed IMMEDIATELY to prevent race conditions
+    // This happens before actual processing to ensure idempotency
+    await markNotificationProcessed(businessId, emailAddress, subscriptionId, messageId);
+
+    // Update last notification date
+    await microsoftSubscriptionService.updateLastNotificationDate(businessId, emailAddress);
+
+    // Process the email
+    monitoringLogger.info('Processing Microsoft Graph notification', {
+      operation: 'microsoft-notify',
+      metadata: {
+        emailAddress,
+        businessId,
+        messageId,
+        changeType: item.changeType
+      }
+    });
+
+    try {
+      await microsoftEmailSyncService.processMessageNotification(
+        businessId,
+        emailRecord.id,
+        emailAddress,
+        messageId
+      );
+    } catch (err) {
+      if (isRetryableGraphError(err)) {
+        await unmarkNotificationProcessed(businessId, emailAddress, subscriptionId, messageId);
+      }
+      throw err; // still logged, still safe
+    }
+
+  } catch (error) {
+    // Log error but continue processing other notifications
+    // Don't throw - already sent 202 response
+    monitoringLogger.error('Error processing individual notification', {
+      operation: 'microsoft-notify',
+      metadata: { subscriptionId: item?.subscriptionId || 'unknown' }
+    }, error as Error);
+  }
+}
 
 export default router;
 

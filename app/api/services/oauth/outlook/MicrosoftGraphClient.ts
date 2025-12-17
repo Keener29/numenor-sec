@@ -20,6 +20,36 @@ export class MicrosoftGraphClient {
     this.accessToken = accessToken;
   }
 
+  private async handleBadResponse(response: Response, method: string, endpoint: string, context?: LogContext): Promise<void> {
+    const errorData = await response.json().catch(() => ({}));
+    const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
+    
+    // Handle rate limiting with typed, retryable error
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('Retry-After');
+      const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : undefined;
+      
+      oauthLogger.warn('Microsoft Graph API rate limited', {
+        ...context,
+        operation: 'graph-api-rate-limit',
+        metadata: { endpoint, retryAfterSeconds }
+      });
+      
+      throw ErrorFactory.oauthService(
+        ErrorCodes.RATE_LIMIT_EXCEEDED,
+        'Microsoft Graph API rate limit exceeded',
+        429,
+        { retryAfter: retryAfterSeconds }
+      );
+    }
+
+    oauthLogger.error(`Graph API request failed: ${method} ${endpoint}`, context || { operation: 'graph-api-request' }, new Error(errorMessage));
+    throw ErrorFactory.oauthService(
+      ErrorCodes.INTERNAL_SERVER_ERROR,
+      `Microsoft Graph API error: ${errorMessage}`
+    );
+  }
+
   /**
    * Make authenticated request to Microsoft Graph API
    */
@@ -43,33 +73,7 @@ export class MicrosoftGraphClient {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
-        
-        // Handle rate limiting with typed, retryable error
-        if (response.status === 429) {
-          const retryAfter = response.headers.get('Retry-After');
-          const retryAfterSeconds = retryAfter ? parseInt(retryAfter, 10) : undefined;
-          
-          oauthLogger.warn('Microsoft Graph API rate limited', {
-            ...context,
-            operation: 'graph-api-rate-limit',
-            metadata: { endpoint, retryAfterSeconds }
-          });
-          
-          throw ErrorFactory.oauthService(
-            ErrorCodes.RATE_LIMIT_EXCEEDED,
-            'Microsoft Graph API rate limit exceeded',
-            429,
-            { retryAfter: retryAfterSeconds }
-          );
-        }
-
-        oauthLogger.error(`Graph API request failed: ${method} ${endpoint}`, context || { operation: 'graph-api-request' }, new Error(errorMessage));
-        throw ErrorFactory.oauthService(
-          ErrorCodes.INTERNAL_SERVER_ERROR,
-          `Microsoft Graph API error: ${errorMessage}`
-        );
+        this.handleBadResponse(response, method, endpoint, context);
       }
 
       // Handle 204 No Content
