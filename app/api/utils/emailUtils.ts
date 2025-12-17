@@ -20,7 +20,7 @@ export function stripHtmlTags(text: string, maxLength: number = 10 * 1024 * 1024
   }
   
   // The + quantifier requires at least one character, reducing backtracking potential
-  return text.replaceAll(/<[^>]*?>/g, ''); // safe from ReDoS
+  return text.replaceAll(/<[^>]{0,1000}>/g, ''); // safe from ReDoS
 }
 
 // Simple safe HTML-entity decoder
