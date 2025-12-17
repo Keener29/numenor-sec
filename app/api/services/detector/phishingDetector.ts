@@ -91,12 +91,12 @@ class PhishingDetector {
       headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.sender, businessId);
       riskFactors.push(...headerAnalysis.risks);
       threatScore += headerAnalysis.score;
-    } else if (isAllowListed) {
+    } else if (isAllowListed && !isReplyOrForward) {
       // No headers available - this is a CRITICAL risk factor    
       riskFactors.push('No email headers available - sender domain is allow-listed');
       threatScore += 20; // Reduced penalty for allow-listed domains
       recommendations.push('Email headers missing - sender domain is trusted');
-    } else {
+    } else if (!isReplyOrForward) {
       riskFactors.push('No email headers available for authentication analysis');
       threatScore += 100; // Critical - cannot verify email authenticity at all
       recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');
