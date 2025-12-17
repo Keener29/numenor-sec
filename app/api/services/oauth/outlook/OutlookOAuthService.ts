@@ -4,7 +4,6 @@
  */
 
 import { OAuthProvider } from '../base/OAuthProvider.js';
-import { query } from '../../../../db/connection.js';
 import { oauthLogger } from '../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import type {
@@ -22,10 +21,10 @@ import { withLock } from '../../../utils/distributedLock.js';
 import { createConcurrencyLimiter } from '../../../utils/concurrencyLimiter.js';
 
 export class OutlookOAuthService extends OAuthProvider {
-  private clientId: string;
-  private clientSecret: string;
-  private redirectUri: string;
-  private webhookUrl: string;
+  private readonly clientId: string;
+  private readonly clientSecret: string;
+  private readonly redirectUri: string;
+  private readonly webhookUrl: string;
 
   constructor() {
     super('outlook');
@@ -395,7 +394,7 @@ export class OutlookOAuthService extends OAuthProvider {
             context
           );
         } catch (error) {
-          oauthLogger.warn('Failed to delete subscription during disconnect', context as LogContext, { message: (error as Error).message });
+          oauthLogger.warn('Failed to delete subscription during disconnect', context, { message: (error as Error).message });
           // Continue with token deletion
         }
       }

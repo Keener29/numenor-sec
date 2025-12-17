@@ -87,7 +87,8 @@ router.get('/', async (req: Request, res: Response) => {
  */
 function extractMessageIdFromResource(resource: string): string | null {
   // Resource format: /me/messages/{messageId} or /Users/{userId}/Messages/{messageId}
-  const match = resource.match(/\/(?:me|Users\/[^/]+)\/messages\/([^/]+)/i);
+  const regex = /\/(?:me|Users\/[^/]+)\/messages\/([^/]+)/i;
+  const match = regex.exec(resource);
   return match ? match[1] : null;
 }
 

@@ -7,6 +7,7 @@
 import type {
   AuthenticationResults
 } from '../services/detector/emailAuthDetector.js';
+import type { OAuthProviderType } from '../services/oauth/base/types.js';
 
 // Import header analysis types
 import type { HeaderAnalysis } from '../services/detector/headerAnalyzer.js';
@@ -73,7 +74,7 @@ export interface OAuthState {
 export interface OAuthConnectionStatus {
   readonly isConnected: boolean;
   readonly connectedAt: Date | null;
-  readonly provider: 'gmail' | 'outlook' | 'yahoo';
+  readonly provider: OAuthProviderType;
   readonly lastSyncAt?: Date;
   readonly tokenExpiry?: Date;
 }
@@ -289,7 +290,7 @@ export interface ThreatAssessment {
 // UTILITY TYPES
 // =============================================================================
 
-export type EmailProvider = 'gmail' | 'outlook' | 'yahoo' | 'custom';
+export type EmailProvider = OAuthProviderType | 'custom';
 
 export interface EmailProviderConfig {
   readonly provider: EmailProvider;

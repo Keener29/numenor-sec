@@ -5,6 +5,7 @@ import { outlookOAuthService } from '../services/oauth/outlook/OutlookOAuthServi
 import { query } from '../../db/connection.js';
 import { oauthLogger } from '../../utils/logger.js';
 import type { OAuthConnectionStatus } from '../types/email.js';
+import type { OAuthProviderType } from '../services/oauth/base/types.js';
 
 const router = Router();
 
@@ -42,49 +43,29 @@ router.get('/:emailAddress', authenticateToken, requireBusiness, async (req: Aut
       
       // Check Gmail first (for backward compatibility)
       if (providers.has('gmail')) {
-        try {
-          const gmailStatus = await gmailOAuthService.getConnectionStatus(businessId, emailAddress);
-          connectionStatus = {
-            ...gmailStatus,
-            provider: gmailStatus.provider as 'gmail' | 'outlook' | 'yahoo'
-          };
-        } catch (error) {
-          oauthLogger.warn('Failed to get Gmail OAuth status', {
-            operation: 'get-oauth-status',
-            businessId,
-            emailAddress,
-            metadata: { provider: 'gmail' }
-          });
-        }
+        const gmailStatus = await gmailOAuthService.getConnectionStatus(businessId, emailAddress);
+        connectionStatus = {
+          ...gmailStatus,
+          provider: gmailStatus.provider as OAuthProviderType
+        };
       }
       
       // Check Outlook if Gmail didn't return a connection
       if (!connectionStatus?.isConnected && providers.has('outlook')) {
-        try {
-          const outlookStatus = await outlookOAuthService.getConnectionStatus(businessId, emailAddress);
-          connectionStatus = {
-            ...outlookStatus,
-            provider: outlookStatus.provider as 'gmail' | 'outlook' | 'yahoo'
-          };
-        } catch (error) {
-          oauthLogger.warn('Failed to get Outlook OAuth status', {
-            operation: 'get-oauth-status',
-            businessId,
-            emailAddress,
-            metadata: { provider: 'outlook' }
-          });
-        }
+        const outlookStatus = await outlookOAuthService.getConnectionStatus(businessId, emailAddress);
+        connectionStatus = {
+          ...outlookStatus,
+          provider: outlookStatus.provider as OAuthProviderType
+        };
       }
     }
 
     // If no provider has tokens, return disconnected status
-    if (!connectionStatus) {
-      connectionStatus = {
-        isConnected: false,
-        connectedAt: null,
-        provider: 'gmail' // Default provider for backward compatibility
-      };
-    }
+    connectionStatus ??= {
+      isConnected: false,
+      connectedAt: null,
+      provider: 'gmail' // Default provider for backward compatibility
+    };
 
     res.json({
       success: true,

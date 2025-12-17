@@ -36,7 +36,7 @@ export interface LogContext {
   metadata?: Record<string, any>;
 }
 
-export type OAuthProviderType = 'gmail' | 'outlook' | 'yahoo';
+export type OAuthProviderType = 'gmail' | 'outlook';
 
 export interface OAuthProviderConfig {
   clientId: string;

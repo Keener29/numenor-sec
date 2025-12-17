@@ -27,7 +27,14 @@ export function isRetryableGraphError(error: unknown): boolean {
   const code = anyErr?.response?.data?.error?.code;
   
   // Extract error message/name
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  let errorMessage: string;
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
+  } else {
+    errorMessage = JSON.stringify(error);
+  }
   const errorName = anyErr?.name;
   const errorCode = anyErr?.code;
 

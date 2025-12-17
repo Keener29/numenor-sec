@@ -8,9 +8,6 @@ import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import type { LogContext } from '../base/types.js';
 import type { GraphSubscription, GraphMessage } from './types.js';
 
-// Re-export types for backward compatibility
-export type { GraphSubscription, GraphMessage };
-
 const GRAPH_API_BASE = 'https://graph.microsoft.com/v1.0';
 
 export class MicrosoftGraphClient {

@@ -117,7 +117,7 @@ export function verifyClientState(clientState: string): { businessId: number; em
   const [businessIdStr, emailAddress, signature] = parts;
   const businessId = Number.parseInt(businessIdStr, 10);
 
-  if (isNaN(businessId) || !emailAddress || !signature) {
+  if (Number.isNaN(businessId) || !emailAddress || !signature) {
     return null;
   }
 
