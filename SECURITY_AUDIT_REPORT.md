@@ -233,7 +233,7 @@ export const authLimiter = rateLimit({
 export const oauthLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 10, // Limit each IP to 10 OAuth attempts per hour
-  message: "Too many OAuth attempts, please try again later.",
+  message: "Too many OAuth authorization requests, please try again later.",
   standardHeaders: true,
   legacyHeaders: false,
 });
