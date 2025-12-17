@@ -3,8 +3,8 @@
  */
 
 import { getDomain, parse } from "tldts";
-import { resolveMx } from 'dns/promises';
-
+import { resolveMx, resolveTxt } from 'dns/promises';
+import { emailLogger } from '../../utils/logger.js';
 /**
  * Safely strip HTML tags from text to prevent ReDoS attacks
  * Uses /<[^>]+>/g instead of /<[^>]*>/g to avoid catastrophic backtracking
@@ -102,6 +102,21 @@ export function isFromOwnService(emailAddress: string | null): boolean {
     return depth <= 2;
   });
 }
+
+
+async function checkSPF(domain: string) {
+  try {
+    const records = await resolveTxt(domain);
+    for (const recordSet of records) {
+      const txt = recordSet.join('');
+      if (txt.includes('spf.protection.outlook.com')) return 'outlook';
+      if (txt.includes('_spf.google.com')) return 'gmail';
+    }
+    return null;
+  } catch (err) {
+    return null;
+  }
+}
 /**
  * Determine OAuth provider based on email domain
  * @param emailAddress - The email address to check
@@ -128,11 +143,11 @@ export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 
       if (exchange.includes('google.com')) return 'gmail';
       if (exchange.includes('outlook.com') || exchange.includes('office365.com') || exchange.includes('protection.outlook.com')) return 'outlook';
     }
+    return await checkSPF(domain);
+    
   } catch (err) {
     // DNS lookup failed
     return null;
   }
-
-  return null; // could not determine provider
 }
 
