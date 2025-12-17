@@ -123,7 +123,7 @@ describe('PhishingDetector', () => {
         }
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       // Score calculation: textAnalysis (25) + linkAnalysis (20) + auth (15) + header (10) = 70, which is "high" (>= 60)
       expect(result.threatLevel).toBe('high');
@@ -151,7 +151,7 @@ describe('PhishingDetector', () => {
         // No headers provided
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       expect(result.threatLevel).toBe('critical');
       expect(result.confidence).toBeGreaterThanOrEqual(100);
@@ -171,7 +171,7 @@ describe('PhishingDetector', () => {
         // No headers provided
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       expect(result.threatLevel).toBe('low');
       expect(result.riskFactors).toContain('No email headers available - sender domain is allow-listed');
@@ -197,7 +197,7 @@ describe('PhishingDetector', () => {
         }
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       expect(result.riskFactors.some(risk => risk.includes('Executive impersonation'))).toBe(true);
       expect(result.riskFactors.some(risk => risk.includes('Wire transfer request'))).toBe(true);
@@ -234,7 +234,7 @@ describe('PhishingDetector', () => {
         headers: {}
       };
 
-      const criticalResult = await phishingDetector.analyzeEmail(criticalEmail, 1);
+      const criticalResult = await phishingDetector.analyzeEmail(criticalEmail, false, 1);
       expect(criticalResult.threatLevel).toBe('critical');
 
       // Test high threshold (>= 60)
@@ -270,7 +270,7 @@ describe('PhishingDetector', () => {
         }
       };
 
-      const highResult = await phishingDetector.analyzeEmail(highEmail, 1);
+      const highResult = await phishingDetector.analyzeEmail(highEmail, false, 1);
       // Score: textAnalysis (50) + linkAnalysis (10) = 60, which is "high" (>= 60)
       expect(highResult.threatLevel).toBe('high');
 
@@ -292,7 +292,7 @@ describe('PhishingDetector', () => {
         headers: {}
       };
 
-      const mediumResult = await phishingDetector.analyzeEmail(mediumEmail, 1);
+      const mediumResult = await phishingDetector.analyzeEmail(mediumEmail, false, 1);
       // Score: textAnalysis (25) + missing headers penalty for allowlisted (20) = 45, which is "medium" (>= 30)
       expect(mediumResult.threatLevel).toBe('medium');
 
@@ -316,7 +316,7 @@ describe('PhishingDetector', () => {
         }
       };
 
-      const lowResult = await phishingDetector.analyzeEmail(lowEmail, 1);
+      const lowResult = await phishingDetector.analyzeEmail(lowEmail, false, 1);
       expect(lowResult.threatLevel).toBe('low');
     });
 
@@ -337,7 +337,7 @@ describe('PhishingDetector', () => {
         headers: {}
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       expect(result.recommendations).toContain('IMMEDIATE ACTION REQUIRED: Do not click any links or download attachments');
       expect(result.recommendations).toContain('Never provide personal information via email');
@@ -356,7 +356,7 @@ describe('PhishingDetector', () => {
         }
       };
 
-      const result = await phishingDetector.analyzeEmail(emailData, 1);
+      const result = await phishingDetector.analyzeEmail(emailData, false, 1);
 
       expect(result).toBeDefined();
       expect(result.threatLevel).toBeDefined();

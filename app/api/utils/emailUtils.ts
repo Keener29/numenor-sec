@@ -151,3 +151,25 @@ export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 
   }
 }
 
+/**
+ * Check if an email is a reply or forward
+ * @param subject - Email subject line
+ * @param headers - Email headers
+ * @returns true if the email is a reply or forward
+ */
+export function isReplyOrForward(headers: Record<string, string>): boolean {
+   // Check for In-Reply-To header (indicates this is a reply)
+  const inReplyTo = headers['in-reply-to'] || headers['In-Reply-To'] || headers['IN-REPLY-TO'];
+  if (inReplyTo && inReplyTo.trim().length > 0) {
+    return true;
+  }
+
+  // Check for References header (indicates this is part of a thread)
+  const references = headers['references'] || headers['References'] || headers['REFERENCES'];
+  if (references && references.trim().length > 0) {
+    return true;
+  }
+
+  return false;
+}
+
