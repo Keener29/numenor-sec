@@ -8,6 +8,7 @@ import { oauthLogger } from '../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../base/types.js';
 import { validateOAuthState, generateNonce } from '../base/stateValidation.js';
+import { signOAuthState } from '../base/stateSigning.js';
 
 const GRAPH_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 
@@ -48,13 +49,16 @@ export async function generateAuthUrl(
       provider: 'outlook'
     };
 
+    // SECURITY: Sign state to prevent tampering
+    const signedState = signOAuthState(state);
+
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: 'code',
       redirect_uri: redirectUri,
       response_mode: 'query',
       scope: scopes,
-      state: JSON.stringify(state),
+      state: signedState,
       prompt: 'select_account'
     });
 

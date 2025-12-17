@@ -8,7 +8,7 @@ import { oauthLogger } from '../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import { MicrosoftGraphClient } from './MicrosoftGraphClient.js';
 import type { LogContext } from '../base/types.js';
-import { signClientState } from './clientStateUtils.js';
+import { signClientState } from '../base/stateSigning.js';
 
 export interface MicrosoftSubscription {
   businessId: number;

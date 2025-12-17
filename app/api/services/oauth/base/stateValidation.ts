@@ -1,6 +1,6 @@
 /**
  * Shared OAuth State Validation
- * Validates OAuth state parameters with nonce verification to prevent CSRF attacks
+ * Validates OAuth state parameters with signature verification and nonce verification to prevent CSRF attacks and tampering
  */
 
 import { query } from '../../../../db/connection.js';
@@ -8,6 +8,7 @@ import { oauthLogger } from '../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import crypto from 'node:crypto';
 import type { OAuthState, LogContext } from './types.js';
+import { verifyOAuthState } from './stateSigning.js';
 
 /**
  * Generate a cryptographically secure nonce for OAuth state parameter
@@ -32,16 +33,26 @@ export async function validateOAuthState(
   expectedProvider: 'gmail' | 'outlook'
 ): Promise<OAuthState> {
   const context: LogContext = { operation: 'validate-state' };
-  let stateData: any;
-
-  // Parse JSON state
-  try {
-    stateData = JSON.parse(state);
-  } catch {
-    throw ErrorFactory.oauthService(
-      ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
-      'Invalid or expired OAuth state parameter'
-    );
+  
+  // SECURITY: Verify signature first to prevent tampering
+  // If state is unsigned (legacy), try to parse as JSON for backward compatibility
+  let stateData: OAuthState | null = verifyOAuthState(state);
+  
+  if (!stateData) {
+    // Fallback: Try parsing as unsigned JSON for backward compatibility
+    // This allows existing OAuth flows to continue working during migration
+    try {
+      stateData = JSON.parse(state) as OAuthState;
+      oauthLogger.warn('OAuth state is unsigned - consider migrating to signed state', {
+        ...context,
+        metadata: { provider: expectedProvider }
+      });
+    } catch {
+      throw ErrorFactory.oauthService(
+        ErrorCodes.OAUTH_STATE_VALIDATION_FAILED,
+        'Invalid or expired OAuth state parameter'
+      );
+    }
   }
 
   // Validate structure

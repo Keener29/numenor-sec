@@ -3,6 +3,7 @@ import { oauthLogger } from '../../../../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from '../../../errorHandler.js';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../../base/types.js';
 import { validateOAuthState, generateNonce } from '../../base/stateValidation.js';
+import { signOAuthState } from '../../base/stateSigning.js';
 
 export async function generateAuthUrl(
   oauth2Client: any,
@@ -40,10 +41,13 @@ export async function generateAuthUrl(
       provider: 'gmail'
     };
 
+    // SECURITY: Sign state to prevent tampering
+    const signedState = signOAuthState(state);
+
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
-      state: JSON.stringify(state),
+      state: signedState,
       prompt: 'consent'
     });
 

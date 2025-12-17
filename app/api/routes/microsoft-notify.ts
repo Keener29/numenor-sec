@@ -8,7 +8,7 @@ import { query } from '../../db/connection.js';
 import { microsoftEmailSyncService } from '../services/emailMonitor/microsoftEmailSyncService.js';
 import { monitoringLogger } from '../../utils/logger.js';
 import { microsoftSubscriptionService } from '../services/oauth/outlook/MicrosoftSubscriptionService.js';
-import { verifyClientState } from '../services/oauth/outlook/clientStateUtils.js';
+import { verifyClientState } from '../services/oauth/base/stateSigning.js';
 import { findMonitoredEmail } from '../utils/monitoredEmailUtils.js';
 import { isRetryableGraphError } from '../utils/microsoftGraphErrorUtils.js';
 import type { GraphNotification } from '../services/oauth/outlook/types.js';
