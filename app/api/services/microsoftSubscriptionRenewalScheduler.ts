@@ -37,10 +37,6 @@ class MicrosoftSubscriptionRenewalScheduler {
         }, error as Error);
       }
     }, this.RENEWAL_CHECK_INTERVAL_MS);
-
-    monitoringLogger.info('Microsoft subscription renewal scheduler started', {
-      operation: 'microsoft-subscription-renewal-start'
-    });
   }
 
   /**
