@@ -69,7 +69,7 @@ export class MicrosoftGraphClient {
       });
 
       if (!response.ok) {
-        this.handleBadResponse(response, method, endpoint, context);
+        await this.handleBadResponse(response, method, endpoint, context);
       }
 
       // Handle 204 No Content
@@ -153,8 +153,8 @@ export class MicrosoftGraphClient {
   /**
    * Delete a subscription
    */
-  async deleteSubscription(subscriptionId: string, context?: LogContext): Promise<void> {
-    await this.request('DELETE', `/subscriptions/${subscriptionId}`, undefined, context);
+  async deleteSubscription(subscriptionId: string, context?: LogContext): Promise<Record<string, never>> {
+    return this.request<Record<string, never>>('DELETE', `/subscriptions/${subscriptionId}`, undefined, context);
   }
 
   /**
