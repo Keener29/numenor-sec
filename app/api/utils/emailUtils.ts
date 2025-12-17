@@ -19,9 +19,8 @@ export function stripHtmlTags(text: string, maxLength: number = 10 * 1024 * 1024
     throw new Error(`Input text exceeds maximum length of ${maxLength} characters`);
   }
   
-  // Use /<[^>]+>/g instead of /<[^>]*>/g to avoid catastrophic backtracking
   // The + quantifier requires at least one character, reducing backtracking potential
-  return text.replaceAll(/<[^>]+>/g, '');
+  return text.replaceAll(/<[^>]*?>/g, ''); // safe from ReDoS
 }
 
 // Simple safe HTML-entity decoder

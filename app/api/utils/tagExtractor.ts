@@ -52,7 +52,7 @@ function extractInnerText(inner: string): string {
     return stripHtmlTags(clipped).replaceAll(/\s+/g, ' ').trim();
   } catch {
     // Fallback
-    return clipped.replaceAll(/<[^>]+>/g, ' ').replaceAll(/\s+/g, ' ').trim();
+    return clipped.replaceAll(/<[^>]*?>/g, ' ').replaceAll(/\s+/g, ' ').trim(); // safe from ReDoS
   }
 }
 function extractAttributes(attrsRaw: string): Record<string, string> {

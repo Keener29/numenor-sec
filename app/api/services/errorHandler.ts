@@ -363,7 +363,7 @@ export function asyncHandler<T extends any[]>(
  * Validate email address format
  */
 export function validateEmailAddress(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,63}$/;
   return emailRegex.test(email);
 }
 

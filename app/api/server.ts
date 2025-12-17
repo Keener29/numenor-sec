@@ -108,7 +108,9 @@ app.get('/api', (req, res) => {
         'POST /api/auth/register': 'Register new user',
         'POST /api/auth/login': 'Login user',
         'GET /api/auth/me': 'Get current user profile',
-        'POST /api/auth/change-password': 'Change user password',
+        'POST /api/auth/change-password': 'User changes their password',
+        'POST /api/auth/forgot-password': 'User requests a password reset',
+        'POST /api/auth/reset-password': 'User resets their password using a token',
         'POST /api/auth/logout': 'Logout user'
       },
       business: {
