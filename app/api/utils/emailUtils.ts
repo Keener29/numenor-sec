@@ -3,6 +3,7 @@
  */
 
 import { getDomain, parse } from "tldts";
+import { resolveMx } from 'dns/promises';
 
 /**
  * Safely strip HTML tags from text to prevent ReDoS attacks
@@ -101,3 +102,37 @@ export function isFromOwnService(emailAddress: string | null): boolean {
     return depth <= 2;
   });
 }
+/**
+ * Determine OAuth provider based on email domain
+ * @param emailAddress - The email address to check
+ * @returns 'gmail' for Gmail accounts, 'outlook' for Microsoft/Outlook accounts, or null if unknown
+ */
+export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 'outlook' | null> {
+  if (!emailAddress) return null;
+
+  const parts = emailAddress.split("@");
+  if (parts.length !== 2) return null;
+
+  const domain = parts[1]?.toLowerCase().trim();
+  if (!domain) return null;
+
+  const gmailDomains = ['gmail.com', 'googlemail.com'];
+  const outlookDomains = ['outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office365.com'];
+  if (gmailDomains.includes(domain)) return 'gmail';
+  if (outlookDomains.includes(domain)) return 'outlook';
+
+  try {
+    const mxRecords = await resolveMx(domain);
+    for (const record of mxRecords) {
+      const exchange = record.exchange.toLowerCase();
+      if (exchange.includes('google.com')) return 'gmail';
+      if (exchange.includes('outlook.com') || exchange.includes('office365.com') || exchange.includes('protection.outlook.com')) return 'outlook';
+    }
+  } catch (err) {
+    // DNS lookup failed
+    return null;
+  }
+
+  return null; // could not determine provider
+}
+
