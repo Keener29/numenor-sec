@@ -36,10 +36,12 @@ router.get('/:emailAddress', authenticateToken, requireBusiness, async (req: Aut
     let connectionStatus: OAuthConnectionStatus | null = null;
 
     if (tokenResult.rows.length > 0) {
-      const providers = tokenResult.rows.map(row => (row as { provider: string }).provider);
+      const providers = new Set<string>(
+        tokenResult.rows.map(row => (row as { provider: string }).provider)
+      );
       
       // Check Gmail first (for backward compatibility)
-      if (providers.includes('gmail')) {
+      if (providers.has('gmail')) {
         try {
           const gmailStatus = await gmailOAuthService.getConnectionStatus(businessId, emailAddress);
           connectionStatus = {
@@ -57,7 +59,7 @@ router.get('/:emailAddress', authenticateToken, requireBusiness, async (req: Aut
       }
       
       // Check Outlook if Gmail didn't return a connection
-      if (!connectionStatus?.isConnected && providers.includes('outlook')) {
+      if (!connectionStatus?.isConnected && providers.has('outlook')) {
         try {
           const outlookStatus = await outlookOAuthService.getConnectionStatus(businessId, emailAddress);
           connectionStatus = {
