@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../../middleware/auth.js';
 import { validateBody, validateQuery } from '../../middleware/validation.js';
-import { oauthLimiter } from '../../middleware/rateLimit.js';
+import { oauthAuthUrlLimiter, oauthCallbackLimiter } from '../../middleware/rateLimit.js';
 import { query } from '../../../db/connection.js';
 import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.js';
 import { oauthLogger } from '../../../utils/logger.js';
@@ -25,7 +25,7 @@ const connectEmailSchema = z.object({
  */
 router.get(
   '/auth-url',
-  oauthLimiter,
+  oauthAuthUrlLimiter,
   validateQuery(oauthAuthUrlSchema),
   async (req, res, next) => {
     const emailAddress = req.query.emailAddress as string;
@@ -73,7 +73,7 @@ router.get(
  * @desc Handle Gmail OAuth callback from Google
  * @access Public (OAuth callback)
  */
-router.get("/callback", oauthLimiter, async (req, res, next) => {
+router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
   const frontendUrl = process.env.FRONTEND_URL;
   if (!frontendUrl) {
     return res.status(500).send('Frontend URL is not configured');

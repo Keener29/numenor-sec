@@ -19,12 +19,24 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// OAuth endpoint rate limiter
-export const oauthLimiter = rateLimit({
+// Strict rate limiter for OAuth auth-url endpoints (prevent abuse of URL generation)
+export const oauthAuthUrlLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 OAuth attempts per hour
-  message: 'Too many OAuth attempts, please try again later.',
+  max: 10, // Limit each IP to 10 OAuth URL generation attempts per hour
+  message: 'Too many OAuth authorization requests, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Looser rate limiter for OAuth callback endpoints (callbacks come from OAuth providers)
+export const oauthCallbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 50, // Limit each IP to 50 OAuth callbacks per hour (looser since these are from providers)
+  message: 'Too many OAuth callback requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Legacy: Keep oauthLimiter for backward compatibility (use oauthAuthUrlLimiter instead)
+export const oauthLimiter = oauthAuthUrlLimiter;
 
