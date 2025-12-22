@@ -75,14 +75,17 @@ cp docker.env.example .env
 #Mac
 brew install ngrok
 #Windows at https://ngrok.com/download/windows
-
 npm install
+npm run typecheck
 
-# 4. Start all services
+# 4. bash exec conversion (Windows only)
+sed -i 's/\r$//' docker-entrypoint-api.sh
+
+# 5. Start all services
 docker-compose up -d
 ngrok http 3001 # copy to google cloud console
 
-# 5. Access the application
+# 6. Access the application
 # Frontend: http://localhost:3000
 # API: http://localhost:3001
 ```
