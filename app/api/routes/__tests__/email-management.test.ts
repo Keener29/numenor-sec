@@ -30,9 +30,14 @@ jest.mock('../../../utils/logger.js', () => ({
   },
 }));
 
+jest.mock('../../utils/emailUtils.js', () => ({
+  getOAuthProvider: jest.fn()
+    .mockResolvedValue('gmail' as never)
+}));
+
 jest.mock('../../middleware/auth.js', () => ({
   authenticateToken: (req: AuthRequest, resp: any, next: any) => {
-    req.user = { id: 1, email: 'test@example.com', business_id: 1 };
+    req.user = { id: 1, email: 'test@gmail.com', business_id: 1 };
     next();
   },
   requireBusiness: (req: AuthRequest, resp: any, next: any) => {
@@ -65,14 +70,14 @@ describe('POST /api/emails (connect email)', () => {
   it('should successfully connect an email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com',
+      email_address: 'monitor@gmail.com',
       last_checked: null,
       created_at: new Date(),
       updated_at: new Date()
     };
     const mockBusiness = {
       business_name: 'Test Business',
-      owner_email: 'owner@example.com'
+      owner_email: 'owner@gmail.com'
     };
 
     (query as any)
@@ -87,12 +92,12 @@ describe('POST /api/emails (connect email)', () => {
       .post('/api/emails')
       .set('Content-Type', 'application/json')
       .send({
-        emailAddress: 'monitor@example.com'
+        emailAddress: 'monitor@gmail.com'
       });
 
     expect(response.status).toBe(201);
     expect(response.body.message).toBe('Email added successfully and permission request sent');
-    expect(response.body.email.emailAddress).toBe('monitor@example.com');
+    expect(response.body.email.emailAddress).toBe('monitor@gmail.com');
   });
 
   it('should return 409 when email already exists', async () => {
@@ -104,7 +109,7 @@ describe('POST /api/emails (connect email)', () => {
     const response = await request(app)
       .post('/api/emails')
       .send({
-        emailAddress: 'existing@example.com'
+        emailAddress: 'existing@gmail.com'
       });
 
     expect(response.status).toBe(409);
@@ -125,14 +130,14 @@ describe('POST /api/emails (connect email)', () => {
   it('should handle failed permission request email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com',
+      email_address: 'monitor@gmail.com',
       last_checked: null,
       created_at: new Date(),
       updated_at: new Date()
     };
     const mockBusiness = {
       business_name: 'Test Business',
-      owner_email: 'owner@example.com'
+      owner_email: 'owner@gmail.com'
     };
 
     (query as any)
@@ -146,11 +151,11 @@ describe('POST /api/emails (connect email)', () => {
     const response = await request(app)
       .post('/api/emails')
       .send({
-        emailAddress: 'monitor@example.com'
+        emailAddress: 'monitor@gmail.com'
       });
     expect(response.status).toBe(201);
     expect(response.body.message).toBe('Email added successfully but failed to send permission request');
-    expect(response.body.email.emailAddress).toBe('monitor@example.com');
+    expect(response.body.email.emailAddress).toBe('monitor@gmail.com');
     expect(response.body.warning).toBe('Permission request email could not be sent. Please try resending from the dashboard.');
 
   });
@@ -181,7 +186,7 @@ describe('DELETE /api/emails/:id (disconnect email)', () => {
   it('should successfully disconnect an email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com'
+      email_address: 'monitor@gmail.com'
     };
 
     (query as any)
@@ -195,13 +200,13 @@ describe('DELETE /api/emails/:id (disconnect email)', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.message).toBe('Email removed from monitoring successfully');
-    expect(response.body.emailAddress).toBe('monitor@example.com');
+    expect(response.body.emailAddress).toBe('monitor@gmail.com');
   });
 
   it('should disconnect OAuth tokens when deleting email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com'
+      email_address: 'monitor@gmail.com'
     };
 
     (query as any)
@@ -217,7 +222,7 @@ describe('DELETE /api/emails/:id (disconnect email)', () => {
     expect(response.status).toBe(200);
     expect(query).toHaveBeenCalledWith(
       'DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
-      [1, 'monitor@example.com']
+      [1, 'monitor@gmail.com']
     );
   });
 
@@ -256,14 +261,14 @@ describe('GET /api/emails', () => {
     const mockEmails = [
       {
         id: 1,
-        email_address: 'monitor@example.com',
+        email_address: 'monitor@gmail.com',
         last_checked: null,
         created_at: new Date(),
         updated_at: new Date()
       },
       {
         id: 2,
-        email_address: 'monitor2@example.com',
+        email_address: 'monitor2@gmail.com',
         last_checked: null,
         created_at: new Date(),
         updated_at: new Date()
@@ -278,8 +283,8 @@ describe('GET /api/emails', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.emails).toHaveLength(2);
-    expect(response.body.emails[0].emailAddress).toBe('monitor@example.com');
-    expect(response.body.emails[1].emailAddress).toBe('monitor2@example.com');
+    expect(response.body.emails[0].emailAddress).toBe('monitor@gmail.com');
+    expect(response.body.emails[1].emailAddress).toBe('monitor2@gmail.com');
   });
 
   it('should return 400 when validation fails', async () => {
@@ -314,11 +319,11 @@ describe('PUT /api/emails/:id', () => {
   it('should successfully update an email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com'
+      email_address: 'monitor@gmail.com'
     };
     const updatedEmail = {
       id: 1,
-      email_address: 'new@example.com',
+      email_address: 'new@gmail.com',
       last_checked: null,
       created_at: new Date(),
       updated_at: new Date()
@@ -331,18 +336,18 @@ describe('PUT /api/emails/:id', () => {
     const response = await request(app)
       .put('/api/emails/1')
       .send({
-        emailAddress: 'new@example.com'
+        emailAddress: 'new@gmail.com'
       });
     expect(response.status).toBe(200);
     expect(response.body.message).toBe('Email updated successfully');
-    expect(response.body.email.emailAddress).toBe('new@example.com');
+    expect(response.body.email.emailAddress).toBe('new@gmail.com');
   });
   it('should return 404 when email does not exist', async () => {
     (query as any).mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const response = await request(app)
       .put('/api/emails/999')
       .send({
-        emailAddress: 'monitor@example.com'
+        emailAddress: 'monitor@gmail.com'
       });
     expect(response.status).toBe(404);
     expect(response.body.error).toBe('Email not found');
@@ -381,7 +386,7 @@ describe('DELETE /api/emails/:id', () => {
   it('should successfully delete an email', async () => {
     const mockEmail = {
       id: 1,
-      email_address: 'monitor@example.com'
+      email_address: 'monitor@gmail.com'
     };
     (query as any)
       .mockResolvedValueOnce({ rows: [mockEmail], rowCount: 1 }) // Get email info
@@ -392,7 +397,7 @@ describe('DELETE /api/emails/:id', () => {
       .delete('/api/emails/1');
     expect(response.status).toBe(200);
     expect(response.body.message).toBe('Email removed from monitoring successfully');
-    expect(response.body.emailAddress).toBe('monitor@example.com');
+    expect(response.body.emailAddress).toBe('monitor@gmail.com');
   });
   it('should return 404 when email does not exist', async () => {
     (query as any).mockResolvedValueOnce({ rows: [], rowCount: 0 });
@@ -432,18 +437,18 @@ describe('POST /api/emails/bulk', () => {
   it('should successfully add multiple emails', async () => {
     const mockBusiness = {
       business_name: 'Test Business',
-      owner_email: 'owner@example.com'
+      owner_email: 'owner@gmail.com'
     };
     const mockInsertedEmail1 = {
       id: 1,
-      email_address: 'monitor@example.com',
+      email_address: 'monitor@gmail.com',
       last_checked: null,
       created_at: new Date(),
       updated_at: new Date()
     };
     const mockInsertedEmail2 = {
       id: 2,
-      email_address: 'monitor2@example.com',
+      email_address: 'monitor2@gmail.com',
       last_checked: null,
       created_at: new Date(),
       updated_at: new Date()
@@ -475,14 +480,14 @@ describe('POST /api/emails/bulk', () => {
     const response = await request(app)
       .post('/api/emails/bulk')
       .send({
-        emailAddresses: ['monitor@example.com', 'monitor2@example.com']
+        emailAddresses: ['monitor@gmail.com', 'monitor2@gmail.com']
       });
 
     expect(response.status).toBe(201);
     expect(response.body.message).toBe('Successfully added 2 email(s)');
     expect(response.body.emails).toHaveLength(2);
-    expect(response.body.emails[0].emailAddress).toBe('monitor@example.com');
-    expect(response.body.emails[1].emailAddress).toBe('monitor2@example.com');
+    expect(response.body.emails[0].emailAddress).toBe('monitor@gmail.com');
+    expect(response.body.emails[1].emailAddress).toBe('monitor2@gmail.com');
   });
   it('should return 400 when validation fails', async () => {
     const mockEmails = [

@@ -7,6 +7,7 @@ import { emailService } from '../services/emailService.js';
 import { emailLogger } from '../../utils/logger.js';
 import type { MonitoredEmail } from '../types/email.js';
 import { securityEventLogger } from '../utils/securityEventLogger.js';
+import { getOAuthProvider } from '../utils/emailUtils.js';
 
 const router = Router();
 
@@ -81,6 +82,14 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       businessId,
       emailAddress
     });
+
+    // Check if email is Gmail (only Gmail is supported)
+    const oauthProvider = await getOAuthProvider(emailAddress);
+    if (oauthProvider !== 'gmail') {
+      return res.status(400).json({ 
+        error: 'Only Gmail accounts are currently supported for email monitoring' 
+      });
+    }
 
     // Check if email already exists for this business
     const existingEmail = await query(
@@ -249,6 +258,22 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
       operation: 'add-bulk-emails',
       businessId
     });
+
+    // Validate that all emails are Gmail (only Gmail is supported)
+    const invalidEmails: string[] = [];
+    for (const email of normalizedEmails) {
+      const oauthProvider = await getOAuthProvider(email);
+      if (oauthProvider !== 'gmail') {
+        invalidEmails.push(email);
+      }
+    }
+
+    if (invalidEmails.length > 0) {
+      return res.status(400).json({ 
+        error: 'Only Gmail accounts are currently supported for email monitoring',
+        invalidEmails
+      });
+    }
 
     // Get business info once
     const businessResult = await client.query(
