@@ -78,8 +78,10 @@ brew install ngrok
 npm install
 npm run typecheck
 
-# 4. bash exec conversion (Windows only)
-sed -i 's/\r$//' docker-entrypoint-api.sh
+# 4. (Optional) Fix line endings for entrypoint script (Windows only, if needed)
+# The Dockerfile now handles this automatically, but if you see issues, run:
+# PowerShell: (Get-Content docker-entrypoint-api.sh -Raw) -replace "`r`n", "`n" | Set-Content docker-entrypoint-api.sh -NoNewline
+# Git Bash/WSL: sed -i 's/\r$//' docker-entrypoint-api.sh
 
 # 5. Start all services
 docker-compose up -d
