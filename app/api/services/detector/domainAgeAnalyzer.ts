@@ -341,7 +341,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     'aws.amazon.com', 'azure.microsoft.com', 'cloud.google.com',
 
     // Extra
-    'boxd.it'
+    'boxd.it', 'opentable.com'
   ];
 
   return trustedDomains.some(trusted => 

@@ -104,6 +104,14 @@ export const authAPI = {
     });
   },
 
+  // Microsoft Login with MSAL ID token
+  microsoftLogin: async (data: { idToken: string }) => {
+    return apiRequest('/auth/microsoft', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Delete account and business
   deleteAccount: async (accountId: number, reason?: string) => {
     return apiRequest(`/accounts/${accountId}`, {

@@ -34,6 +34,10 @@ export const googleAuthSchema = z.object({
   credential: z.string().min(1, 'Google credential is required')
 });
 
+export const microsoftAuthSchema = z.object({
+  idToken: z.string().min(1, 'Microsoft ID token is required')
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Valid email address is required')
 });

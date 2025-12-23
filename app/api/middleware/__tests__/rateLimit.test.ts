@@ -35,7 +35,7 @@ describe('Rate limiters config', () => {
     expect(oauthLimiter).toMatchObject({
       windowMs: 60 * 60 * 1000,
       max: 10,
-      message: 'Too many OAuth attempts, please try again later.',
+      message: 'Too many OAuth authorization requests, please try again later.',
       standardHeaders: true,
       legacyHeaders: false,
     });

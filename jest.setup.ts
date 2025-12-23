@@ -127,3 +127,23 @@ if (globalThis.fetch === undefined || !jest.isMockFunction(globalThis.fetch)) {
   globalThis.fetch = createDefaultFetchMock();
 }
 
+// Cleanup: Stop all background schedulers and close database connections after tests
+afterAll(async () => {
+  try {
+    // Stop schedulers if they were started
+    const { watchRenewalScheduler } = await import('./app/api/services/watchRenewalScheduler.js');
+    const { microsoftSubscriptionRenewalScheduler } = await import('./app/api/services/microsoftSubscriptionRenewalScheduler.js');
+    const { emailMonitor } = await import('./app/api/services/emailMonitor/index.js');
+    
+    watchRenewalScheduler.stop();
+    microsoftSubscriptionRenewalScheduler.stop();
+    emailMonitor.stopMonitoring();
+    
+    // Close database pool if it exists
+    const { closePool } = await import('./app/db/connection.js');
+    await closePool();
+  } catch (error) {
+    // Ignore errors during cleanup - tests may not have initialized these services
+  }
+}, 10000); // 10 second timeout for cleanup
+

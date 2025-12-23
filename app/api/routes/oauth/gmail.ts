@@ -1,89 +1,20 @@
 import { Router } from 'express';
 import { authenticateToken, requireBusiness, type AuthRequest } from '../../middleware/auth.js';
 import { validateBody, validateQuery } from '../../middleware/validation.js';
-import { oauthLimiter } from '../../middleware/rateLimit.js';
+import { oauthAuthUrlLimiter, oauthCallbackLimiter } from '../../middleware/rateLimit.js';
 import { query } from '../../../db/connection.js';
 import { gmailOAuthService } from '../../services/oauth/gmail/GmailOAuthService.js';
 import { oauthLogger } from '../../../utils/logger.js';
 import { oauthAuthUrlSchema, oauthCallbackSchema } from '../../schemas/oauth.js';
 import { z } from 'zod';
-import type { Request, Response } from 'express';
-import { securityEventLogger } from '../../utils/securityEventLogger.js';
+import { getTargetBusinessId, handleApprovalToken, handleOAuthCallbackError, handleOAuthStateValidationError } from '../../utils/oauthUtils.js';
+import { validateOAuthState } from '../../services/oauth/base/stateValidation.js';
 
 const router = Router();
 
 const connectEmailSchema = z.object({
   emailAddress: z.string().email('Valid email address is required')
 });
-// utils/oauthHelpers.ts
-
-export async function getTargetBusinessId(
-  req: Request,
-  res: Response,
-  businessId?: number,
-  approveToken?: string
-): Promise<number | null> {
-  if (businessId || approveToken) {
-    if (!businessId) {
-      res.status(400).json({ success: false, error: 'businessId is required when using approveToken' });
-      return null;
-    }
-    return businessId;
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ success: false, error: 'Authentication required' });
-    return null;
-  }
-
-  const jwt = require('jsonwebtoken');
-  try {
-    const decoded = jwt.verify(authHeader.substring(7), process.env.JWT_SECRET!) as { business_id: number };
-    return decoded.business_id;
-  } catch (err) {
-    if (err instanceof jwt.JsonWebTokenError || err instanceof jwt.TokenExpiredError) {
-      res.status(401).json({ success: false, error: 'Invalid authentication token' });
-      return null;
-    }
-    throw err; // unexpected
-  }
-}
-
-export async function handleApprovalToken(
-  req: Request,
-  emailId: number,
-  businessId: number,
-  approveToken: string
-): Promise<boolean> {
-  const { tokenService } = await import('../../utils/tokenService.js');
-
-  if (!tokenService.validateApprovalToken(approveToken, emailId, businessId)) {
-    return false;
-  }
-
-  // Mark email as approved
-  await query('UPDATE monitored_emails SET updated_at = CURRENT_TIMESTAMP WHERE id = $1', [emailId]);
-
-  // Log the approval event
-  const emailAddress = req.query.emailAddress;
-
-  if (typeof emailAddress !== 'string') {
-    throw new TypeError('Invalid emailAddress parameter, expected string');
-  }
-  
-  await securityEventLogger.logSecurityEvent(
-    businessId,
-    'email_approved',
-    `Email monitoring approved for: ${emailAddress}`,
-    {
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent')
-    }
-  );
-
-  return true;
-}
 
 
 /**
@@ -93,7 +24,7 @@ export async function handleApprovalToken(
  */
 router.get(
   '/auth-url',
-  oauthLimiter,
+  oauthAuthUrlLimiter,
   validateQuery(oauthAuthUrlSchema),
   async (req, res, next) => {
     const emailAddress = req.query.emailAddress as string;
@@ -121,7 +52,7 @@ router.get(
       }
 
       // Generate OAuth URL and redirect
-      const authUrl = gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
+      const authUrl = await gmailOAuthService.generateAuthUrl(targetBusinessId, emailAddress);
       res.redirect(authUrl);
 
     } catch (error) {
@@ -141,29 +72,36 @@ router.get(
  * @desc Handle Gmail OAuth callback from Google
  * @access Public (OAuth callback)
  */
-router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async (req, res, next) => {
-  const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://numenorsecurity.com' : 'http://localhost:3000');
-  try {
-    const { code, state, error } = req.query;
-    if (error) {
-
-      let msg: string;
-
-      if (error instanceof Error) {
-        msg = error.message;
-      } else if (typeof error === 'string') {
-        msg = error;
-      } else {
-        msg = JSON.stringify(error, Object.getOwnPropertyNames(error));
-      }
-      return res.redirect(`${frontendUrl}/success?oauth_error=${msg}`);
+router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
+  const frontendUrl = process.env.FRONTEND_URL;
+  if (!frontendUrl) {
+    return res.status(500).send('Frontend URL is not configured');
+  }
+  
+  // Handle OAuth error parameter first (before validation)
+  const { error } = req.query;
+  if (error) {
+    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'gmail');
+    if (errorRedirectUrl) {
+      return res.redirect(errorRedirectUrl);
     }
-
-    if (!code || !state) {
+  }
+  
+  // Validate query parameters (code and state required when error is not present)
+  try {
+    req.query = oauthCallbackSchema.parse(req.query);
+  } catch (validationError) {
+    if (validationError instanceof z.ZodError) {
       return res.redirect(`${frontendUrl}/success?oauth_error=missing_parameters`);
     }
+    throw validationError;
+  }
+  
+  try {
+    const { code, state } = req.query;
 
-    const stateData = JSON.parse(state as string);
+    // SECURITY: Validate and parse signed state (prevents tampering)
+    const stateData = await validateOAuthState(state as string, 'gmail');
     const { businessId, emailAddress } = stateData;
 
     // Exchange code for tokens
@@ -204,10 +142,8 @@ router.get("/callback", oauthLimiter, validateQuery(oauthCallbackSchema), async 
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    if (err instanceof SyntaxError || err instanceof TypeError || err instanceof Error) {
-      return res.redirect(`${frontendUrl}/success?oauth_error=invalid_state`);
-    }
-    throw err;
+    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'gmail');
+    return res.redirect(redirectUrl);
   }
 });
 
@@ -248,43 +184,13 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
       [businessId, emailAddress]
     );
 
-    res.json({
-      success: true,
-      message: 'Gmail account disconnected successfully'
-    });
+    res.status(204).send();
 
   } catch (error) {
     oauthLogger.error('Error disconnecting Gmail OAuth', {
       operation: 'disconnect-oauth',
       businessId: req.user!.business_id!,
       emailAddress: req.body.emailAddress
-    }, error as Error);
-    next(error);
-  }
-});
-
-/**
- * @route GET /api/oauth/gmail/status/:emailAddress
- * @desc Get Gmail OAuth connection status for an email
- * @access Private (Business users only)
- */
-router.get('/status/:emailAddress', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
-  try {
-    const businessId = req.user!.business_id!;
-    const emailAddress = req.params.emailAddress;
-
-    const connectionStatus = await gmailOAuthService.getConnectionStatus(businessId, emailAddress);
-
-    res.json({
-      success: true,
-      ...connectionStatus
-    });
-
-  } catch (error) {
-    oauthLogger.error('Error checking Gmail OAuth status', {
-      operation: 'check-oauth-status',
-      businessId: req.user!.business_id!,
-      emailAddress: req.params.emailAddress
     }, error as Error);
     next(error);
   }

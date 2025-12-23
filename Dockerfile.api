@@ -1,8 +1,8 @@
 # Dockerfile for API server only (standalone backend service)
 FROM node:20-alpine
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init && \ 
+# Install dumb-init and dos2unix for proper signal handling and line ending conversion
+RUN apk add --no-cache dumb-init dos2unix && \ 
   addgroup -g 1001 -S nodejs && \
   adduser -S numenor -u 1001
 
@@ -24,8 +24,12 @@ COPY app/utils ./app/utils
 COPY tsconfig.json ./
 
 # Copy entrypoint script (runs migrations automatically - needed for free tier)
+# Convert line endings from CRLF to LF (handles Windows line endings)
 COPY docker-entrypoint-api.sh /docker-entrypoint-api.sh
-RUN chmod +x /docker-entrypoint-api.sh && mkdir -p /app/logs && chown -R numenor:nodejs /app/logs
+RUN dos2unix /docker-entrypoint-api.sh && \
+  chmod +x /docker-entrypoint-api.sh && \
+  mkdir -p /app/logs && \
+  chown -R numenor:nodejs /app/logs
 
 # Switch to non-root user
 USER numenor

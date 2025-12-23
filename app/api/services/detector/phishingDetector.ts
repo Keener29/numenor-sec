@@ -26,9 +26,10 @@ class PhishingDetector {
   /**
    * Analyze email content for phishing indicators
    * @param emailData - Email data to analyze
+   * @param isReplyOrForward - Whether the email is a reply or forward
    * @param businessId - Business ID to check for allow-listed domains
    */
-  async analyzeEmail(emailData: EmailAnalysis, businessId?: number): Promise<ThreatAssessment> {
+  async analyzeEmail(emailData: EmailAnalysis,  isReplyOrForward: boolean, businessId?: number): Promise<ThreatAssessment> {
     const detectedPatterns: string[] = [];
     const riskFactors: string[] = [];
     const recommendations: string[] = [];
@@ -79,7 +80,7 @@ class PhishingDetector {
     // Analyze email authentication (SPF, DKIM, DMARC)
     let authenticationResults;
     let headerAnalysis: HeaderAnalysis | undefined;
-    if (emailData.headers && Object.keys(emailData.headers).length > 0) {
+    if (emailData.headers && Object.keys(emailData.headers).length > 0 && !isReplyOrForward) {
       authenticationResults = emailAuthenticationService.analyzeEmailAuthentication(emailData.headers);
       const authAnalysis = emailAuthenticationService.getAuthenticationRiskScore(authenticationResults, isAllowListed);
       riskFactors.push(...authAnalysis.risks);
@@ -90,12 +91,12 @@ class PhishingDetector {
       headerAnalysis = await headerAnalyzerService.analyzeHeaders(emailData.sender, businessId);
       riskFactors.push(...headerAnalysis.risks);
       threatScore += headerAnalysis.score;
-    } else if (isAllowListed) {
+    } else if (isAllowListed && !isReplyOrForward) {
       // No headers available - this is a CRITICAL risk factor    
       riskFactors.push('No email headers available - sender domain is allow-listed');
       threatScore += 20; // Reduced penalty for allow-listed domains
       recommendations.push('Email headers missing - sender domain is trusted');
-    } else {
+    } else if (!isReplyOrForward) {
       riskFactors.push('No email headers available for authentication analysis');
       threatScore += 100; // Critical - cannot verify email authenticity at all
       recommendations.push('CRITICAL: Email headers missing - unable to verify sender authenticity');

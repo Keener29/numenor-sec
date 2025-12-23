@@ -10,7 +10,7 @@ import authRoutes from '../auth.js';
 import { errorHandler } from '../../middleware/errorHandler.js';
 
 import { query } from '../../../db/connection.js';
-import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword, verifyGoogleToken, getUserByEmail } from '../../utils/auth.js';
+import { createUser, verifyUserPassword, generateToken, getUserById, hashPassword, verifyGoogleToken, verifyMicrosoftToken, getUserByEmail } from '../../utils/auth.js';
 import { emailService } from '../../services/emailService.js';
 import { type AuthRequest } from '../../middleware/auth.js';
 // Mock dependencies
@@ -26,6 +26,7 @@ jest.mock('../../utils/auth.js', () => {
         generateToken: jest.fn(),
         getUserByEmail: jest.fn(),
         verifyGoogleToken: jest.fn(),
+        verifyMicrosoftToken: jest.fn(),
         hashPassword: async (password: string) => password,
         comparePassword: async (password: string, hash: string) => password === hash
     }
@@ -518,6 +519,138 @@ describe('POST /api/auth/google', () => {
     expect(response.body.error).toBe('Google client not configured');
   });
 });
+
+describe('POST /api/auth/microsoft', () => {
+  let app: express.Application;
+
+  beforeEach(() => {
+    process.env.AZURE_CLIENT_ID = 'test-azure-client-id';
+    process.env.NODE_ENV = 'development';
+    app = express();
+    app.use(express.json());
+    app.use('/api/auth', authRoutes);
+    app.use(errorHandler);
+    jest.clearAllMocks();
+  });
+
+  it('should successfully login with valid credentials', async () => {
+    const mockMicrosoftPayload = {
+      email: 'test@example.com',
+      name: 'Test User',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: 'Test Business',
+      business_id: 1
+    };
+    (verifyMicrosoftToken as any).mockResolvedValueOnce(mockMicrosoftPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(mockUser);
+    (generateToken as any).mockReturnValueOnce("mock-jwt-token");
+
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: 'mock-id-token' });  
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Microsoft login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+    expect(response.headers['set-cookie']).toBeDefined();
+  });
+
+  it('should successfully sign up with valid credentials', async () => {
+    const mockMicrosoftPayload = {
+      email: 'test@example.com',
+      name: 'Test User',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+    };
+    const mockBusiness = { id: 1, business_name: null };
+    (verifyMicrosoftToken as any).mockResolvedValueOnce(mockMicrosoftPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(null);
+    (createUser as any).mockResolvedValueOnce(mockUser);
+    (query as any).mockResolvedValueOnce({ rows: [mockBusiness], rowCount: 1 });
+    (generateToken as any).mockReturnValueOnce("mock-jwt-token");
+
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: 'mock-id-token' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Microsoft login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+
+  it('should successfully login when user exists but no business_id', async () => {
+    const mockMicrosoftPayload = {
+      email: 'test@example.com',
+      name: 'Test User',
+      given_name: 'Test',
+      family_name: 'User',
+    };
+    const mockUser = {
+      id: 1,
+      email: 'test@example.com',
+      first_name: 'Test',
+      last_name: 'User',
+      business_name: null,
+      business_id: undefined
+    };
+    const mockBusiness = { id: 1, business_name: 'Test Business' };
+    (verifyMicrosoftToken as any).mockResolvedValueOnce(mockMicrosoftPayload);
+    (getUserByEmail as any).mockResolvedValueOnce(mockUser);
+    (query as any).mockResolvedValueOnce({ rows: [mockBusiness], rowCount: 1 });
+    (generateToken as any).mockReturnValueOnce("mock-jwt-token");
+    
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: 'mock-id-token' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Microsoft login successful');
+    expect(response.body.user.email).toBe('test@example.com');
+    expect(response.body.user.businessId).toBe(1);
+  });
+
+  it('should return 401 when credentials are invalid', async () => {
+    (verifyMicrosoftToken as any).mockResolvedValueOnce(null);
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: 'invalid-id-token' });
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid Microsoft credential');
+  });
+
+  it('should return 400 when validation fails', async () => {
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: '' });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Validation failed');
+  });
+
+  it('should return 500 when Azure client is not configured', async () => {
+    delete process.env.AZURE_CLIENT_ID;
+    const response = await request(app)
+      .post('/api/auth/microsoft')
+      .send({ idToken: 'mock-id-token' });
+    expect(response.status).toBe(500);
+    expect(response.body.error).toBe('Microsoft client not configured');
+  });
+});
+
 describe('GET /api/auth/me', () => {
   let app: express.Application;
 

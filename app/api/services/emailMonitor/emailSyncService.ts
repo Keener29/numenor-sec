@@ -79,9 +79,14 @@ export class EmailSyncService {
       // Process each email individually - if one fails, continue with others
       // This ensures we acknowledge the notification even if some emails fail to process
       for (const emailMessage of messages) {
-        const seen = await processedEmailsService.isMessageProcessed(businessId, emailAddress, emailMessage.id);
-        if (seen) {
-          monitoringLogger.debug('Message already processed, skipping', {
+        // Atomic check-and-reserve: only one process can claim this message
+        const acquired = await processedEmailsService.tryMarkAsProcessing(
+          businessId,
+          emailAddress,
+          emailMessage.id
+        );
+        if (!acquired) {
+          monitoringLogger.debug('Message already processed or being processed, skipping', {
             operation: 'process-new-emails-history',
             emailAddress,
             metadata: { messageId: emailMessage.id }
@@ -89,17 +94,13 @@ export class EmailSyncService {
           continue;
         }
 
-        // Mark as processed IMMEDIATELY to prevent duplicate processing
-        // This prevents race conditions if multiple notifications arrive for the same email
-        await processedEmailsService.markMessageProcessed(businessId, emailAddress, emailMessage.id);
-
         try {
           await emailProcessor.processEmailMessage(monitoredEmail, emailMessage);
           emailsProcessed++;
+          // Success - message is already marked as processed by tryMarkAsProcessing
         } catch (emailError) {
-          // Log error but continue processing other emails
-          // Email is already marked as processed, so it won't be reprocessed
-          // This ensures we acknowledge the notification even if individual emails fail
+          // On failure, unmark the message so it can be retried
+          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, emailMessage.id);
           monitoringLogger.error('Error processing individual email message', {
             operation: 'process-new-emails-history',
             emailAddress,
@@ -236,20 +237,23 @@ export class EmailSyncService {
       // Process each email individually - if one fails, continue with others
       // This ensures we acknowledge the notification even if some emails fail to process
       for (const emailMessage of filteredMessages) {
-        const seen = await processedEmailsService.isMessageProcessed(businessId, emailAddress, emailMessage.id);
-        if (seen) continue;
-
-        // Mark as processed IMMEDIATELY to prevent duplicate processing
-        // This prevents race conditions if multiple notifications arrive for the same email
-        await processedEmailsService.markMessageProcessed(businessId, emailAddress, emailMessage.id);
+        // Atomic check-and-reserve: only one process can claim this message
+        const acquired = await processedEmailsService.tryMarkAsProcessing(
+          businessId,
+          emailAddress,
+          emailMessage.id
+        );
+        if (!acquired) {
+          continue; // Already processed or being processed
+        }
 
         try {
           await emailProcessor.processEmailMessage(monitoredEmail, emailMessage);
           emailsProcessed++;
+          // Success - message is already marked as processed by tryMarkAsProcessing
         } catch (emailError) {
-          // Log error but continue processing other emails
-          // Email is already marked as processed, so it won't be reprocessed
-          // This ensures we acknowledge the notification even if individual emails fail
+          // On failure, unmark the message so it can be retried
+          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, emailMessage.id);
           monitoringLogger.error('Error processing individual email message', {
             operation: 'full-sync-fallback',
             emailAddress,

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { authAPI } from "../utils/api";
-import { loginWithGoogle } from "~/utils/googleAuth";
-import { GoogleLogin } from "@react-oauth/google";
-
-export function meta() {
+import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
+// import { useMsal } from "@azure/msal-react";
+// import AzureLogin from "~/components/AzureLogin";
+import { GoogleLogin } from "@react-oauth/google";export function meta() {
   return [
     { title: "Sign Up - Numenor Security" },
     { name: "description", content: "Create your Numenor Security account" },
@@ -24,6 +24,7 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordLengthError, setPasswordLengthError] = useState("");
+  // const { instance } = useMsal();
 
   const handleGoogleSignup = async (credentialResponse: any) => {
     try {
@@ -37,6 +38,19 @@ export default function Signup() {
       setIsLoading(false);
     }
   };
+
+  // const handleAzureSignup = async () => {
+  //   try {
+  //     setIsLoading(true);
+  //     setError("");
+  //     const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+  //     await loginWithMicrosoft(response);
+  //     navigate("/dashboard");
+  //   } catch (err) {
+  //     setError(err instanceof Error ? err.message : "Azure sign-up failed");
+  //     setIsLoading(false);
+  //   }
+  // };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,7 +186,7 @@ export default function Signup() {
             </div>
           )}
           <div className="mb-6">
-            <div className="w-full flex justify-center">
+            <div className="w-full flex justify-center mb-3">
               <GoogleLogin 
                 onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
                 onError={()=>setError("Google sign-up failed")} 
@@ -181,8 +195,11 @@ export default function Signup() {
                 shape="pill"
                 auto_select={true}
                 useOneTap={true}
+                width="220px"
+                logo_alignment="center"
               />
             </div>
+            {/* <AzureLogin handleAzureLogin={handleAzureSignup} isLoading={isLoading} text="Sign up with Microsoft" /> */}
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">

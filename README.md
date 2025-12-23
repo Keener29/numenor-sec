@@ -75,14 +75,19 @@ cp docker.env.example .env
 #Mac
 brew install ngrok
 #Windows at https://ngrok.com/download/windows
-
 npm install
+npm run typecheck
 
-# 4. Start all services
+# 4. (Optional) Fix line endings for entrypoint script (Windows only, if needed)
+# The Dockerfile now handles this automatically, but if you see issues, run:
+# PowerShell: (Get-Content docker-entrypoint-api.sh -Raw) -replace "`r`n", "`n" | Set-Content docker-entrypoint-api.sh -NoNewline
+# Git Bash/WSL: sed -i 's/\r$//' docker-entrypoint-api.sh
+
+# 5. Start all services
 docker-compose up -d
 ngrok http 3001 # copy to google cloud console
 
-# 5. Access the application
+# 6. Access the application
 # Frontend: http://localhost:3000
 # API: http://localhost:3001
 ```
@@ -576,6 +581,7 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 1. **Register any needed emails** - Set up proper email addresses for production use
 2. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
 3. **GMAIL has numenor dev setup for connecting gmail, needs for prod too**
+4. **'node-html-parser' for extractanchors**
 
 ### Future Enhancements
 

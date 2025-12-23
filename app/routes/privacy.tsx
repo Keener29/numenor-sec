@@ -1,5 +1,13 @@
 import { Link } from 'react-router';
 
+export function meta() {
+  // return metadata for the dashboard
+  return [
+    { title: "Privacy Policy - Numenor Security" },
+    { name: "description", content: "Privacy policy for using Numenor Security" },
+  ];
+}
+
 export default function Privacy() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">

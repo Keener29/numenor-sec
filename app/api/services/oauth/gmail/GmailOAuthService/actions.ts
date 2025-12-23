@@ -192,7 +192,7 @@ export async function createDraftWithContent(
     ];
     
     const rawMessage = messageParts.join('\r\n');
-    const encodedMessage = Buffer.from(rawMessage).toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+    const encodedMessage = Buffer.from(rawMessage).toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, ''); // safe from ReDoS
     
     const response = await gmail.users.drafts.create({
       userId: 'me',
