@@ -132,6 +132,35 @@ CREATE TABLE IF NOT EXISTS gmail_watches (
     CONSTRAINT fk_gmail_watches_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
 );
 
+-- Microsoft Graph subscriptions (for change notifications webhooks)
+CREATE TABLE IF NOT EXISTS microsoft_subscriptions (
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    subscription_id TEXT NOT NULL UNIQUE,
+    resource_path TEXT NOT NULL,
+    expiration_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    last_notification_date TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (business_id, email_address),
+    CONSTRAINT fk_microsoft_subscriptions_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+);
+
+-- OAuth nonces for state verification (prevents CSRF attacks)
+CREATE TABLE IF NOT EXISTS oauth_nonces (
+    nonce TEXT PRIMARY KEY,
+    business_id INTEGER NOT NULL,
+    email_address TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT fk_oauth_nonces_business_id FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE CASCADE
+);
+
+-- Index for cleanup queries
+CREATE INDEX IF NOT EXISTS idx_oauth_nonces_expires_at ON oauth_nonces(expires_at);
+CREATE INDEX IF NOT EXISTS idx_oauth_nonces_business_email_provider ON oauth_nonces(business_id, email_address, provider);
+
 CREATE TABLE IF NOT EXISTS account_deletions (
     id SERIAL PRIMARY KEY,
     user_email VARCHAR(255) NOT NULL,
@@ -268,6 +297,8 @@ CREATE INDEX IF NOT EXISTS idx_email_offsets_business_id ON email_offsets(busine
 CREATE INDEX IF NOT EXISTS idx_processed_emails_business_id ON processed_emails(business_id);
 CREATE INDEX IF NOT EXISTS idx_gmail_watches_business_id ON gmail_watches(business_id);
 CREATE INDEX IF NOT EXISTS idx_gmail_watches_expiration ON gmail_watches(watch_expiration);
+CREATE INDEX IF NOT EXISTS idx_microsoft_subscriptions_business_id ON microsoft_subscriptions(business_id);
+CREATE INDEX IF NOT EXISTS idx_microsoft_subscriptions_expiration ON microsoft_subscriptions(expiration_date);
 
 -- Indexes for account_deletions (for analytics queries)
 CREATE INDEX IF NOT EXISTS idx_account_deletions_user_email ON account_deletions(user_email);
@@ -292,3 +323,6 @@ CREATE TRIGGER update_oauth_tokens_updated_at BEFORE UPDATE ON oauth_tokens FOR 
 
 DROP TRIGGER IF EXISTS update_gmail_watches_updated_at ON gmail_watches;
 CREATE TRIGGER update_gmail_watches_updated_at BEFORE UPDATE ON gmail_watches FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_microsoft_subscriptions_updated_at ON microsoft_subscriptions;
+CREATE TRIGGER update_microsoft_subscriptions_updated_at BEFORE UPDATE ON microsoft_subscriptions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

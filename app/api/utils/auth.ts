@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import { query } from '../../db/connection.js';
 import { OAuth2Client, type TokenPayload } from 'google-auth-library';
+import jwksClient from 'jwks-rsa';
 
 
 export interface User {
@@ -21,6 +22,79 @@ export const verifyGoogleToken = async (credential: string, clientId: string): P
   });
 
   return ticket.getPayload();
+};
+
+export interface MicrosoftTokenPayload {
+  email?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  sub?: string;
+  aud?: string;
+  iss?: string;
+  exp?: number;
+  iat?: number;
+}
+
+export const verifyMicrosoftToken = async (idToken: string, clientId: string): Promise<MicrosoftTokenPayload | undefined> => {
+  try {
+    // Decode token to get header and payload without verification
+    const decoded = jwt.decode(idToken, { complete: true });
+    if (!decoded || typeof decoded === 'string' || !decoded.header.kid) {
+      throw new Error('Invalid token structure');
+    }
+
+    const payload = decoded.payload as MicrosoftTokenPayload;
+    const issuer = payload.iss;
+
+    // Determine JWKS URI based on issuer
+    // For common tenant: https://login.microsoftonline.com/common/discovery/v2.0/keys
+    // For specific tenant: https://login.microsoftonline.com/{tenantid}/discovery/v2.0/keys
+    let jwksUri: string;
+    if (issuer?.includes('/common/')) {
+      jwksUri = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
+    } else if (issuer) {
+      // Extract tenant ID from issuer
+      const tenantRegex = /https:\/\/login\.microsoftonline\.com\/([^/]+)/;
+      const tenantMatch = tenantRegex.exec(issuer);
+      if (tenantMatch?.[1]) {
+        jwksUri = `https://login.microsoftonline.com/${tenantMatch[1]}/discovery/v2.0/keys`;
+      } else {
+        jwksUri = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
+      }
+    } else {
+      jwksUri = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
+    }
+    
+    // Create JWKS client
+    const client = jwksClient({
+      jwksUri,
+      cache: true,
+      cacheMaxAge: 86400000, // 24 hours
+    });
+
+    // Get signing key
+    const key = await client.getSigningKey(decoded.header.kid);
+    const signingKey = key.getPublicKey();
+
+    // Verify token signature and audience (issuer validation done manually below)
+    const verifiedPayload = jwt.verify(idToken, signingKey, {
+      algorithms: ['RS256'],
+      audience: clientId,
+      // Issuer validation is done manually after verification since it varies by tenant
+    }) as MicrosoftTokenPayload;
+
+    // Manually validate issuer - must be from Microsoft
+    if (!verifiedPayload.iss?.startsWith('https://login.microsoftonline.com/') && 
+        !verifiedPayload.iss?.startsWith('https://sts.windows.net/')) {
+      throw new Error('Invalid issuer: token must be from Microsoft');
+    }
+
+    return verifiedPayload;
+  } catch (error) {
+    console.error('Microsoft token verification failed:', error);
+    throw error;
+  }
 };
 
 export const hashPassword = async (password: string): Promise<string> => {

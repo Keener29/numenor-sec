@@ -28,7 +28,7 @@ export abstract class OAuthProvider {
   /**
    * Generate OAuth authorization URL
    */
-  abstract generateAuthUrl(businessId: number, emailAddress: string): string;
+  abstract generateAuthUrl(businessId: number, emailAddress: string): Promise<string>;
 
   /**
    * Exchange authorization code for tokens
@@ -93,7 +93,7 @@ export abstract class OAuthProvider {
   /**
    * Validate OAuth state parameter
    */
-  abstract validateState(state: string): OAuthState;
+  abstract validateState(state: string): Promise<OAuthState>;
 
   /**
    * Test OAuth connection

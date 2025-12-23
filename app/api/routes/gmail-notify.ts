@@ -10,6 +10,7 @@ import { gmailOAuthService } from '../services/oauth/gmail/GmailOAuthService.js'
 import { emailMonitor } from '../services/emailMonitor/index.js';
 import { pubsubService } from '../services/pubsub/pubsubService.js';
 import { monitoringLogger } from '../../utils/logger.js';
+import { findMonitoredEmail } from '../utils/monitoredEmailUtils.js';
 
 const router = Router();
 
@@ -26,12 +27,6 @@ interface PubSubMessage {
 interface GmailNotification {
   emailAddress: string;
   historyId: string;
-}
-
-interface EmailRecord {
-  id: number;
-  business_id: number;
-  email_address: string;
 }
 
 /**
@@ -103,24 +98,6 @@ function decodePubSubMessage(body: Buffer): GmailNotification | null {
   }
 }
 
-/**
- * Find monitored email record for the given email address
- */
-async function findMonitoredEmail(emailAddress: string): Promise<EmailRecord | null> {
-  const emailResult = await query(
-    `SELECT me.id, me.business_id, me.email_address
-     FROM monitored_emails me
-     INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
-     WHERE me.email_address = $1`,
-    [emailAddress]
-  );
-
-  if (emailResult.rows.length === 0) {
-    return null;
-  }
-
-  return emailResult.rows[0] as EmailRecord;
-}
 
 /**
  * Get stored historyId for an email, or null if not found
@@ -313,8 +290,8 @@ router.post('/', async (req: Request, res: Response) => {
       metadata: { emailAddress, historyId }
     });
 
-    // Find monitored email record
-    const emailRecord = await findMonitoredEmail(emailAddress);
+    // Find monitored email record (filter by 'gmail' provider)
+    const emailRecord = await findMonitoredEmail(emailAddress, 'gmail');
     if (!emailRecord) {
       monitoringLogger.warn('No monitored email found for notification', {
         operation: 'gmail-notify',

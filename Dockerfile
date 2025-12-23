@@ -9,8 +9,12 @@ FROM node:20-alpine AS builder
 # These are injected at build time and baked into the frontend bundle
 ARG VITE_GOOGLE_CLIENT_ID
 ARG VITE_API_URL
+ARG VITE_AZURE_CLIENT_ID
+ARG VITE_AZURE_REDIRECT_URI
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_AZURE_CLIENT_ID=$VITE_AZURE_CLIENT_ID
+ENV VITE_AZURE_REDIRECT_URI=$VITE_AZURE_REDIRECT_URI
 
 # Set working directory
 WORKDIR /app
@@ -29,7 +33,7 @@ COPY app/hooks ./app/hooks
 COPY app/root.tsx ./app/root.tsx
 COPY app/routes.ts ./app/routes.ts
 COPY app/app.css ./app/app.css
-COPY app/welcome ./app/welcome
+COPY app/msalConfig.ts ./app/msalConfig.ts
 COPY public ./public
 COPY react-router.config.ts ./
 COPY vite.config.ts ./

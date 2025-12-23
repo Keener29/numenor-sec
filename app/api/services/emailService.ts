@@ -8,6 +8,7 @@ import type { Transporter } from 'nodemailer';
 import { tokenService } from '../utils/tokenService.js';
 import { emailLogger } from '../../utils/logger.js';
 import { ErrorFactory, ErrorCodes } from './errorHandler.js';
+import { getOAuthProvider } from '../utils/emailUtils.js';
 import type {
   EmailConfig,
   EmailTemplate,
@@ -94,7 +95,7 @@ export function createTransporter(): Transporter {
 /**
  * Generate permission request email template
  */
-export function generatePermissionRequestTemplate(params: PermissionRequestParams): EmailTemplate {
+export async function generatePermissionRequestTemplate(params: PermissionRequestParams): Promise<EmailTemplate> {
   const {
     businessName,
     emailAddress,
@@ -103,7 +104,7 @@ export function generatePermissionRequestTemplate(params: PermissionRequestParam
     approvalToken
   } = params;
 
-  const apiUrl = process.env.VITE_API_URL;
+  const apiUrl = process.env.API_URL;
   const currentYear = new Date().getFullYear();
   let subject = "Permission Request: Email Security Monitoring";
   let businessNameDisplay = businessName;
@@ -112,6 +113,10 @@ export function generatePermissionRequestTemplate(params: PermissionRequestParam
   } else {
     businessNameDisplay = 'the business';
   }
+
+  // Determine OAuth provider based on email domain
+  const oauthProvider = await getOAuthProvider(emailAddress) || 'gmail'; // Default to Gmail if unknown
+  const oauthUrl = `${apiUrl}/oauth/${oauthProvider}/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}`;
 
   return {
     subject,
@@ -167,7 +172,7 @@ export function generatePermissionRequestTemplate(params: PermissionRequestParam
           </ul>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${apiUrl}/oauth/gmail/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}" 
+            <a href="${oauthUrl}" 
                class="button" style="background-color: #10b981; border: none; color: white; padding: 12px 24px; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; margin-right: 10px;">
               ✅ Grant Permission
             </a>
@@ -218,7 +223,7 @@ You can choose to:
 - Contact for Questions: Reach out to ${businessNameDisplay} for more information
 
 To accept, please visit the secure link:
-- Grant Permission: ${apiUrl}/oauth/gmail/auth-url?emailAddress=${encodeURIComponent(emailAddress)}&businessId=${businessId}&approveToken=${approvalToken}
+- Grant Permission: ${oauthUrl}
 
 Questions or Concerns?
 If you have any questions about this request or need more information, please contact:
@@ -600,7 +605,7 @@ class EmailService {
       const approvalToken = tokenService.generateApprovalToken(emailId, businessId);
 
       // Generate email template
-      const template = generatePermissionRequestTemplate({
+      const template = await generatePermissionRequestTemplate({
         businessName,
         emailAddress,
         businessEmail,

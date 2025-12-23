@@ -40,5 +40,76 @@ export interface OutlookAuthUrlOptions {
   redirect_uri: string;
   scope: string;
   state: string;
-  response_mode: 'query';
+  response_mode?: 'query' | 'form_post';
+}
+
+/**
+ * Microsoft Graph API Types
+ * Types for Microsoft Graph API requests and responses
+ */
+
+export interface GraphSubscription {
+  id: string;
+  resource: string;
+  changeType: string;
+  notificationUrl: string;
+  expirationDateTime: string;
+  clientState?: string;
+  lifecycleNotificationUrl?: string;
+  latestSupportedTlsVersion?: string;
+}
+
+export interface GraphMessage {
+  id: string;
+  subject?: string;
+  bodyPreview?: string;
+  receivedDateTime: string;
+  from?: {
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  };
+  sender?: {
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  };
+  toRecipients?: Array<{
+    emailAddress?: {
+      address?: string;
+      name?: string;
+    };
+  }>;
+  body?: {
+    contentType: string;
+    content: string;
+  };
+  internetMessageHeaders?: Array<{
+    name: string;
+    value: string;
+  }>;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    contentType: string;
+    size: number;
+  }>;
+  webLink?: string;
+}
+
+export interface GraphNotification {
+  value: Array<{
+    subscriptionId: string;
+    changeType: string;
+    resource: string;
+    resourceData?: {
+      id?: string;
+    };
+    clientState?: string;
+    subscriptionExpirationDateTime?: string;
+    tenantId?: string;
+  }>;
+  validationTokens?: string[];
 }

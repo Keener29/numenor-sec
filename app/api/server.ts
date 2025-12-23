@@ -18,6 +18,7 @@ import oauthRoutes from './routes/oauth/index.js';
 import statusRoutes from './routes/status.js';
 import accountsRoutes from './routes/accounts.js';
 import gmailNotifyRoutes from './routes/gmail-notify.js';
+import microsoftNotifyRoutes from './routes/microsoft-notify.js';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -78,9 +79,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Pub/Sub webhook route - must be registered BEFORE express.json() to handle raw body
+// Pub/Sub webhook route and MS graph webhook route - must be registered BEFORE express.json() to handle raw body
 // Pub/Sub sends Base64-encoded payloads that must be decoded before JSON parsing
 app.use('/api/gmail-notify', express.raw({ type: 'application/json', limit: '10mb' }), gmailNotifyRoutes);
+app.use('/api/microsoft-notify', microsoftNotifyRoutes);
 
 // Body parsing middleware (for all other routes)
 app.use(express.json({ limit: '10mb' }));
@@ -106,7 +108,9 @@ app.get('/api', (req, res) => {
         'POST /api/auth/register': 'Register new user',
         'POST /api/auth/login': 'Login user',
         'GET /api/auth/me': 'Get current user profile',
-        'POST /api/auth/change-password': 'Change user password',
+        'POST /api/auth/change-password': 'User changes their password',
+        'POST /api/auth/forgot-password': 'User requests a password reset',
+        'POST /api/auth/reset-password': 'User resets their password using a token',
         'POST /api/auth/logout': 'Logout user'
       },
       business: {
@@ -142,8 +146,11 @@ app.get('/api', (req, res) => {
         'GET /api/oauth/gmail/auth-url': 'Generate Gmail OAuth authorization URL',
         'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
         'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
-        'GET /api/oauth/gmail/status/:emailAddress': 'Get Gmail OAuth connection status',
-        'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection'
+        'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection',
+        'GET /api/oauth/outlook/auth-url': 'Generate Outlook OAuth authorization URL',
+        'GET /api/oauth/outlook/callback': 'Handle Outlook OAuth callback',
+        'POST /api/oauth/outlook/disconnect': 'Disconnect Outlook OAuth',
+        'POST /api/oauth/outlook/test': 'Test Outlook OAuth connection'
       },
       gmailNotify: {
         'POST /api/gmail-notify': 'Handle Gmail push notifications'
