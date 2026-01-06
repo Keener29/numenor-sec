@@ -1,10 +1,5 @@
 import { useSearchParams } from "react-router";
 
-export async function loader({ request }: { request: Request }) {
-  // This is a public page, no authentication required
-  return null;
-}
-
 export function meta() {
   // return metadata for the dashboard
   return [
