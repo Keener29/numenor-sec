@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import type { Route } from "./+types/login";
+// import type { Route } from "./+types/login";
 import { authAPI } from "../utils/api";
-import { redirectIfAuthenticated } from "../utils/serverAuth";
+// import { redirectIfAuthenticated } from "../utils/serverAuth";
 import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
 import { GoogleLogin } from "@react-oauth/google";
 // import { useMsal } from "@azure/msal-react";
@@ -14,11 +14,11 @@ export function meta() {
   ];
 }
 
-// Server-side authentication check - redirect if already logged in
-export async function loader({ request }: Route.LoaderArgs) {
-  await redirectIfAuthenticated(request);
-  return null;
-}
+// // Server-side authentication check - redirect if already logged in
+// export async function loader({ request }: Route.LoaderArgs) {
+//   await redirectIfAuthenticated(request);
+//   return null;
+// }
 
 export default function Login() {
   const navigate = useNavigate();

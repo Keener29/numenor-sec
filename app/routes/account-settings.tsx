@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/account-settings";
-import { requireServerAuth } from "../utils/serverAuth";
+// import { requireServerAuth } from "../utils/serverAuth";
 import DeleteAccountCard from "../components/DeleteAccountCard";
 import { useMsal } from "@azure/msal-react";
 import { handleLogout } from "../utils/authUtils";
@@ -12,23 +12,23 @@ export function meta() {
   ];
 }
 
-// Server-side authentication check
-export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireServerAuth(request);
-  return { user };
-}
+// // Server-side authentication check
+// export async function loader({ request }: Route.LoaderArgs) {
+//   const user = await requireServerAuth(request);
+//   return { user };
+// }
 
 export default function AccountSettings({ loaderData }: Route.ComponentProps) {
-  const user = loaderData?.user;
+  // const user = loaderData?.user;
   const { instance } = useMsal();
 
   const onLogout = () => {
     handleLogout(instance);
   };
 
-  if (!user) {
-    return null;
-  }
+  // if (!user) {
+  //   return null;
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,7 +72,8 @@ export default function AccountSettings({ loaderData }: Route.ComponentProps) {
 
         {/* Delete Account Card */}
         <div className="px-4 mb-8">
-          <DeleteAccountCard accountId={user.id} />
+          {/* <DeleteAccountCard accountId={user.id} /> */}
+          <DeleteAccountCard accountId={1} />
         </div>
       </div>
     </div>

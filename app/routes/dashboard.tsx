@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/dashboard";
 import { emailsAPI, alertsAPI, businessAPI } from "../utils/api";
-import { requireServerAuth } from "../utils/serverAuth";
+// import { requireServerAuth } from "../utils/serverAuth";
 import { useOAuthStatuses } from "../hooks/useOAuthStatuses";
 import PhishingAlertChart from "../components/PhishingAlertChart";
 import RecentActivity from "../components/RecentActivity";
@@ -21,11 +21,11 @@ export function meta() {
   ];
 }
 
-// Server-side authentication check
-export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireServerAuth(request);
-  return { user };
-}
+// // Server-side authentication check
+// export async function loader({ request }: Route.LoaderArgs) {
+//   const user = await requireServerAuth(request);
+//   return { user };
+// }
 
 // Function to process daily alerts data for the chart
 const processChartData = (dailyAlerts: any[]) => {
@@ -73,7 +73,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const [isBusinessNameModalOpen, setIsBusinessNameModalOpen] = useState(false);
 
   // Get user data from server-side loader
-  const user = loaderData?.user;
+  // const user = loaderData?.user;
   const { instance } = useMsal();
 
   // Use the OAuth statuses hook
@@ -85,11 +85,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   }, []);
 
   // Check if business name is missing and show modal
-  useEffect(() => {
-    if (user && stats.businessName === null) {
-      setIsBusinessNameModalOpen(true);
-    }
-  }, [user, stats.businessName]);
+  // useEffect(() => {
+  //   if (user && stats.businessName === null) {
+  //     setIsBusinessNameModalOpen(true);
+  //   }
+  // }, [user, stats.businessName]);
 
   const loadDashboardData = async () => {
     try {
