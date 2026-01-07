@@ -25,12 +25,6 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-// Set headers to allow OAuth popups to communicate via postMessage
-export const headers: Route.HeadersFunction = () => {
-  return {
-    "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
-  };
-};
 
 // Provider wrapper that handles SSR gracefully
 function ClientProviders({ children, googleClientId }: { readonly children: React.ReactNode; readonly googleClientId: string }) {

@@ -35,7 +35,6 @@ app.use(enforceHttps);
 
 // Security middleware (XSS Protection, HTTP Strict Transport Security, etc)
 app.use(helmet({
-  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' }, // Allow OAuth popups to communicate via postMessage
   hsts: process.env.NODE_ENV === 'production' ? {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
