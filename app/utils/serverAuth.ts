@@ -23,7 +23,6 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
     // Get the token from cookies (SSR) if available
     const cookieHeader = request.headers.get('cookie');
     const userAgent = request.headers.get('user-agent') || '';
-    console.log('Cookies received by Frontend Server:', cookieHeader);
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
     // Use internal Docker URL if available (SSR), otherwise use the public URL (Client)
@@ -33,7 +32,7 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
       console.error('API URL not configured - DOCKER_API_URL and VITE_API_URL are both undefined');
       return { user: null, isAuthenticated: false };
     }
-    console.log('Verifying auth at:', `${apiUrl}/auth/me`);
+
     const response = await fetch(`${apiUrl}/auth/me`, cookieHeader ? {
       headers: {
         'Content-Type': 'application/json',
