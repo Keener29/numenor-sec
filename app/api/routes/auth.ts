@@ -180,6 +180,7 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.numenorsecurity.com' : 'localhost',
       maxAge: 24 * 60 * 60 * 1000
     });
 
