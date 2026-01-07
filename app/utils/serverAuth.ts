@@ -25,7 +25,12 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
     // Use internal Docker URL if available (SSR), otherwise use the public URL (Client)
-    const apiUrl = process.env.DOCKER_API_URL;
+    const apiUrl = process.env.DOCKER_API_URL || process.env.VITE_API_URL;
+    
+    if (!apiUrl) {
+      console.error('API URL not configured - DOCKER_API_URL and VITE_API_URL are both undefined');
+      return { user: null, isAuthenticated: false };
+    }
 
     const response = await fetch(`${apiUrl}/auth/me`, cookieHeader ? {
       headers: {
@@ -40,6 +45,7 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
     });
 
     if (!response.ok) {
+      console.error(`Auth check failed: ${response.status} ${response.statusText}`);
       return { user: null, isAuthenticated: false };
     }
 
