@@ -50,6 +50,7 @@ router.post('/register', authLimiter, validateBody(registerSchema), async (req, 
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.numenorsecurity.com' : 'localhost',
       maxAge: 24 * 60 * 60 * 1000 // 1 day
     });
 
@@ -88,6 +89,7 @@ router.post('/login', authLimiter, validateBody(loginSchema), async (req, res, n
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.numenorsecurity.com' : 'localhost',
       maxAge: (rememberMe ? 30 : 1) * 24 * 60 * 60 * 1000
     });
 
@@ -275,6 +277,7 @@ router.post('/microsoft', authLimiter, validateBody(microsoftAuthSchema), async 
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.numenorsecurity.com' : 'localhost',
       maxAge: 24 * 60 * 60 * 1000
     });
 
@@ -459,7 +462,8 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res, next) =>
     res.clearCookie('authToken', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax'
+      sameSite: 'lax',
+      domain: process.env.NODE_ENV === 'production' ? '.numenorsecurity.com' : 'localhost'
     });
 
     res.json({ message: 'Logout successful' });
