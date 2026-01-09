@@ -30,7 +30,6 @@ interface ThreatStatistics {
       total_emails: number;
       connected_emails: number;
       disconnected_emails: number;
-      recently_checked: number;
     };
     scans: {
       total_scans: number;
@@ -103,8 +102,7 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
           emails: {
             total_emails: 0,
             connected_emails: 0,
-            disconnected_emails: 0,
-            recently_checked: 0
+            disconnected_emails: 0
           },
           scans: {
             total_scans: 0,
@@ -436,10 +434,6 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Disconnected</span>
                     <span className="text-sm font-medium text-red-600">{statistics?.monitoring?.emails?.disconnected_emails || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Recently Checked</span>
-                    <span className="text-sm font-medium text-blue-600">{statistics?.monitoring?.emails?.recently_checked || 0}</span>
                   </div>
                 </div>
               </div>

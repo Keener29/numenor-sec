@@ -56,7 +56,6 @@ describe('MonitoringStatsService', () => {
           total_emails: 10,
           connected_emails: 8,
           disconnected_emails: 2,
-          recently_checked: 5
         }]
       });
 
@@ -76,7 +75,6 @@ describe('MonitoringStatsService', () => {
           total_emails: 10,
           connected_emails: 8,
           disconnected_emails: 2,
-          recently_checked: 5
         },
         scans: {
           total_scans: 100,
@@ -107,7 +105,6 @@ describe('MonitoringStatsService', () => {
           total_emails: 0,
           connected_emails: 0,
           disconnected_emails: 0,
-          recently_checked: 0
         },
         scans: {
           total_scans: 0,
@@ -144,7 +141,6 @@ describe('MonitoringStatsService', () => {
           total_emails: 0,
           connected_emails: 0,
           disconnected_emails: 0,
-          recently_checked: 0
         },
         scans: {
           total_scans: 0,
@@ -161,7 +157,6 @@ describe('MonitoringStatsService', () => {
           total_emails: 5,
           connected_emails: 4,
           disconnected_emails: 1,
-          recently_checked: 2
         }]
       });
 
@@ -180,8 +175,7 @@ describe('MonitoringStatsService', () => {
         rows: [{
           total_emails: null,
           connected_emails: null,
-          disconnected_emails: null,
-          recently_checked: null
+          disconnected_emails: null
         }]
       });
 

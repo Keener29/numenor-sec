@@ -24,8 +24,7 @@ export class MonitoringStatsService {
         `SELECT 
           COUNT(*) as total_emails,
           COUNT(CASE WHEN ot.id IS NOT NULL THEN 1 END) as connected_emails,
-          COUNT(CASE WHEN ot.id IS NULL THEN 1 END) as disconnected_emails,
-          COUNT(CASE WHEN me.last_checked > NOW() - INTERVAL '1 hour' THEN 1 END) as recently_checked
+          COUNT(CASE WHEN ot.id IS NULL THEN 1 END) as disconnected_emails
          FROM monitored_emails me
          LEFT JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address`,
         []
@@ -42,11 +41,10 @@ export class MonitoringStatsService {
       );
 
       // Handle empty data gracefully
-      const emailStats = (stats.rows[0] as { total_emails: number; connected_emails: number; disconnected_emails: number; recently_checked: number }) || {
+      const emailStats = (stats.rows[0] as { total_emails: number; connected_emails: number; disconnected_emails: number }) || {
         total_emails: 0,
         connected_emails: 0,
-        disconnected_emails: 0,
-        recently_checked: 0
+        disconnected_emails: 0
       };
 
       const scanStatsData = (scanStats.rows[0] as { total_scans: number; successful_scans: number; failed_scans: number }) || {
@@ -68,8 +66,7 @@ export class MonitoringStatsService {
         emails: {
           total_emails: 0,
           connected_emails: 0,
-          disconnected_emails: 0,
-          recently_checked: 0
+          disconnected_emails: 0
         },
         scans: {
           total_scans: 0,

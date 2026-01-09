@@ -132,8 +132,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
         emails: {
           total_emails: 0,
           connected_emails: 0,
-          disconnected_emails: 0,
-          recently_checked: 0
+          disconnected_emails: 0
         },
         scans: {
           total_scans: 0,
@@ -202,8 +201,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           emails: {
             total_emails: 0,
             connected_emails: 0,
-            disconnected_emails: 0,
-            recently_checked: 0
+            disconnected_emails: 0
           },
           scans: {
             total_scans: 0,
@@ -235,8 +233,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
           emails: {
             total_emails: 0,
             connected_emails: 0,
-            disconnected_emails: 0,
-            recently_checked: 0
+            disconnected_emails: 0
           },
           scans: {
             total_scans: 0,
@@ -334,8 +331,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
         emails: {
           total_emails: 0,
           connected_emails: 0,
-          disconnected_emails: 0,
-          recently_checked: 0
+          disconnected_emails: 0
         },
         scans: {
           total_scans: 0,
@@ -353,8 +349,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           emails: {
             total_emails: 0,
             connected_emails: 0,
-            disconnected_emails: 0,
-            recently_checked: 0
+            disconnected_emails: 0
           },
           scans: {
             total_scans: 0,
@@ -378,8 +373,7 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
           emails: {
             total_emails: 0,
             connected_emails: 0,
-            disconnected_emails: 0,
-            recently_checked: 0
+            disconnected_emails: 0
           },
           scans: {
             total_scans: 0,
