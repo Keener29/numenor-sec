@@ -425,7 +425,7 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Total Emails</span>
-                    <span className="text-sm font-medium">{statistics?.monitoring?.emails?.total_emails || 0}</span>
+                    <span className="text-sm font-medium text-blue-600">{statistics?.monitoring?.emails?.total_emails || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Connected</span>

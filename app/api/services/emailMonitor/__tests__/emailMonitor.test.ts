@@ -205,23 +205,25 @@ describe('EmailMonitor', () => {
 
   describe('getMonitoringStats', () => {
     it('should delegate to monitoringStatsService', async () => {
+      const businessId = 1;
       const stats = {
         emails: { total_emails: 10, connected_emails: 8 },
         scans: { total_scans: 100 }
       };
       mockGetMonitoringStats.mockResolvedValueOnce(stats);
 
-      const result = await emailMonitor.getMonitoringStats();
+      const result = await emailMonitor.getMonitoringStats(businessId);
 
       expect(result).toEqual(stats);
-      expect(mockGetMonitoringStats).toHaveBeenCalled();
+      expect(mockGetMonitoringStats).toHaveBeenCalledWith(businessId);
     });
 
     it('should propagate errors from monitoringStatsService', async () => {
+      const businessId = 1;
       const statsError = new Error('Stats failed');
       mockGetMonitoringStats.mockRejectedValueOnce(statsError);
 
-      await expect(emailMonitor.getMonitoringStats()).rejects.toThrow('Stats failed');
+      await expect(emailMonitor.getMonitoringStats(businessId)).rejects.toThrow('Stats failed');
     });
   });
 

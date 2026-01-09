@@ -122,7 +122,7 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
     // Get monitoring statistics (will return default values if no data)
     let monitoringStats = null;
     try {
-      monitoringStats = await emailMonitor.getMonitoringStats();
+      monitoringStats = await emailMonitor.getMonitoringStats(businessId);
     } catch (error) {
       securityLogger.error('Error getting monitoring stats', {
         operation: 'get-monitoring-stats',
@@ -303,10 +303,13 @@ router.get('/patterns', authenticateToken, validateQuery(phishingPatternsQuerySc
  * @desc Get email monitoring service status
  * @access Private (Business users only)
  */
-router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res, next) => {
+router.get('/monitoring/status', authenticateToken, requireBusiness, async (req: AuthRequest, res, next) => {
   try {
+    const businessId = req.user!.business_id!;
+    
     securityLogger.info('Getting monitoring status', {
-      operation: 'get-monitoring-status'
+      operation: 'get-monitoring-status',
+      businessId
     });
 
     let status = null;
@@ -316,16 +319,18 @@ router.get('/monitoring/status', authenticateToken, async (req: AuthRequest, res
       status = emailMonitor.getMonitoringStatus();
     } catch (error) {
       securityLogger.error('Error getting monitoring status', {
-        operation: 'get-monitoring-status'
+        operation: 'get-monitoring-status',
+        businessId
       }, error as Error);
       status = { isMonitoring: false, interval: 30000 };
     }
 
     try {
-      stats = await emailMonitor.getMonitoringStats();
+      stats = await emailMonitor.getMonitoringStats(businessId);
     } catch (error) {
       securityLogger.error('Error getting monitoring stats', {
-        operation: 'get-monitoring-stats'
+        operation: 'get-monitoring-stats',
+        businessId
       }, error as Error);
       stats = {
         emails: {

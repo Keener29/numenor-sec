@@ -134,10 +134,10 @@ class EmailMonitor {
   }
 
   /**
-   * Get monitoring statistics
+   * Get monitoring statistics for a specific business
    */
-  async getMonitoringStats(): Promise<any> {
-    return monitoringStatsService.getMonitoringStats();
+  async getMonitoringStats(businessId: number): Promise<any> {
+    return monitoringStatsService.getMonitoringStats(businessId);
   }
 }
 

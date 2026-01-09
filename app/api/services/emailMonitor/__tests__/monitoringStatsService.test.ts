@@ -50,6 +50,8 @@ describe('MonitoringStatsService', () => {
 
   describe('getMonitoringStats', () => {
     it('should return monitoring statistics successfully', async () => {
+      const businessId = 1;
+      
       // Mock email stats query
       mockQuery.mockResolvedValueOnce({
         rows: [{
@@ -68,7 +70,7 @@ describe('MonitoringStatsService', () => {
         }]
       });
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       expect(stats).toEqual({
         emails: {
@@ -83,11 +85,21 @@ describe('MonitoringStatsService', () => {
         }
       });
 
-      // Verify both queries were called
+      // Verify both queries were called with businessId
       expect(mockQuery).toHaveBeenCalledTimes(2);
+      expect(mockQuery).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('WHERE me.business_id = $1'),
+        [businessId]
+      );
+      expect(mockQuery).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('WHERE business_id = $1'),
+        [businessId]
+      );
     });
 
     it('should return default values when no data exists', async () => {
+      const businessId = 1;
+      
       // Mock empty email stats
       mockQuery.mockResolvedValueOnce({
         rows: []
@@ -98,7 +110,7 @@ describe('MonitoringStatsService', () => {
         rows: []
       });
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       expect(stats).toEqual({
         emails: {
@@ -115,6 +127,8 @@ describe('MonitoringStatsService', () => {
     });
 
     it('should return default values when rows[0] is undefined', async () => {
+      const businessId = 1;
+      
       // Mock query returning empty rows array
       mockQuery.mockResolvedValueOnce({
         rows: []
@@ -123,17 +137,18 @@ describe('MonitoringStatsService', () => {
         rows: []
       });
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       expect(stats.emails.total_emails).toBe(0);
       expect(stats.scans.total_scans).toBe(0);
     });
 
     it('should handle database errors gracefully and return defaults', async () => {
+      const businessId = 1;
       const dbError = new Error('Database connection failed');
       mockQuery.mockRejectedValueOnce(dbError);
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       // Should return default values instead of throwing
       expect(stats).toEqual({
@@ -151,6 +166,8 @@ describe('MonitoringStatsService', () => {
     });
 
     it('should return defaults when any query fails', async () => {
+      const businessId = 1;
+      
       // Email stats succeed
       mockQuery.mockResolvedValueOnce({
         rows: [{
@@ -163,7 +180,7 @@ describe('MonitoringStatsService', () => {
       // Scan stats fail - this causes the entire try block to fail
       mockQuery.mockRejectedValueOnce(new Error('Scan stats query failed'));
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       // When any query fails, the catch block returns defaults for everything
       expect(stats.emails.total_emails).toBe(0);
@@ -171,6 +188,8 @@ describe('MonitoringStatsService', () => {
     });
 
     it('should handle null values in database results', async () => {
+      const businessId = 1;
+      
       mockQuery.mockResolvedValueOnce({
         rows: [{
           total_emails: null,
@@ -187,7 +206,7 @@ describe('MonitoringStatsService', () => {
         }]
       });
 
-      const stats = await service.getMonitoringStats();
+      const stats = await service.getMonitoringStats(businessId);
 
       // Should handle null values (TypeScript casting will handle this)
       expect(stats).toBeDefined();

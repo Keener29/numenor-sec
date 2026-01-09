@@ -16,9 +16,9 @@ export class MonitoringStatsService {
   }
 
   /**
-   * Get monitoring statistics
+   * Get monitoring statistics for a specific business
    */
-  async getMonitoringStats(): Promise<any> {
+  async getMonitoringStats(businessId: number): Promise<any> {
     try {
       const stats = await query(
         `SELECT 
@@ -26,8 +26,9 @@ export class MonitoringStatsService {
           COUNT(CASE WHEN ot.id IS NOT NULL THEN 1 END) as connected_emails,
           COUNT(CASE WHEN ot.id IS NULL THEN 1 END) as disconnected_emails
          FROM monitored_emails me
-         LEFT JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address`,
-        []
+         LEFT JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+         WHERE me.business_id = $1`,
+        [businessId]
       );
 
       const scanStats = await query(
@@ -36,8 +37,9 @@ export class MonitoringStatsService {
           COUNT(CASE WHEN status = 'completed' THEN 1 END) as successful_scans,
           COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_scans
          FROM email_scans 
-         WHERE created_at > NOW() - INTERVAL '24 hours'`,
-        []
+         WHERE business_id = $1 
+         AND created_at > NOW() - INTERVAL '24 hours'`,
+        [businessId]
       );
 
       // Handle empty data gracefully
