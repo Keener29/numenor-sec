@@ -15,7 +15,7 @@ export default function Privacy() {
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
-            <p className="text-gray-600">Last updated: {new Date().toLocaleDateString()}</p>
+            <p className="text-gray-600">Last updated: 12/26/2025</p>
           </div>
 
           <div className="prose prose-lg max-w-none">
