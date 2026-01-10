@@ -88,7 +88,8 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
       const statsData = await statsResponse.json();
       const statusData = await statusResponse.json();
 
-      console.log("statsData: " + statsData);
+      console.log("statsData:", statsData);
+
 
       setStatistics(statsData.statistics || {
         summary: {
@@ -295,7 +296,7 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
           <div className="bg-white shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                Recent Phishing Alerts
+                Last 30 Days Phishing Alerts
               </h3>
               {statistics && statistics.recentAlerts.length > 0 ? (
                 <div className="overflow-hidden">

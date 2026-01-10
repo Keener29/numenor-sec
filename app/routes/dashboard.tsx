@@ -50,7 +50,6 @@ const processChartData = (dailyAlerts: any[]) => {
     const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1]; // Adjust for Monday start
     
     const alertCount = alertsMap.get(dateString) || 0;
-    console.log(`Date: ${dateString}, Day: ${dayName}, Alerts: ${alertCount}`);
     
     chartData.push({
       uuid: crypto.randomUUID(),
