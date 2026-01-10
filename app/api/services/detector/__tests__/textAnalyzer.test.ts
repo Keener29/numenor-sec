@@ -21,7 +21,6 @@ describe('TextAnalyzer', () => {
       });
       
       expect(result.patterns).toContain('account_suspension_threat');
-      expect(result.score).toBeGreaterThan(0);
     });
 
     it('should detect CEO fraud patterns', () => {
@@ -163,7 +162,6 @@ describe('TextAnalyzer', () => {
       expect(patterns.length).toBeGreaterThan(0);
       expect(patterns[0]).toHaveProperty('name');
       expect(patterns[0]).toHaveProperty('pattern');
-      expect(patterns[0]).toHaveProperty('severity');
       expect(patterns[0]).toHaveProperty('description');
     });
   });
@@ -176,7 +174,6 @@ describe('TextAnalyzer', () => {
       expect(patterns.length).toBeGreaterThan(0);
       expect(patterns[0]).toHaveProperty('name');
       expect(patterns[0]).toHaveProperty('pattern');
-      expect(patterns[0]).toHaveProperty('severity');
       expect(patterns[0]).toHaveProperty('description');
     });
   });

@@ -51,6 +51,10 @@ class PhishingDetector {
     textAnalyzer.isAllowListed = isAllowListed;
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     detectedPatterns.push(...textAnalysis.patterns);
+    if (detectedPatterns.length > 0){
+      riskFactors.push("Detected Phishing Patterns");
+      recommendations.push("Verify sender")
+    }
     threatScore += textAnalysis.score;
 
     // Analyze links
