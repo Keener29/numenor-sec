@@ -5,7 +5,7 @@ import { emailAuthenticationService } from './emailAuthDetector.js';
 import { headerAnalyzerService, type HeaderAnalysis } from './headerAnalyzer.js';
 import { linkAnalyzerService, type LinkAnalysis } from './linkAnalyzer.js';
 import { attachmentAnalyzerService, type AttachmentAnalysis } from './attachmentAnalyzer.js';
-import { textAnalyzer, type EmailTextAnalysis } from './textAnalyzer.js';
+import { textAnalyzer, type EmailTextAnalysis, type TextAnalysisResult } from './textAnalyzer.js';
 
 // Phishing detection patterns and rules
 
@@ -42,16 +42,16 @@ class PhishingDetector {
       sender: emailData.sender,
       recipient: emailData.recipient
     };
-
-    const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
-    detectedPatterns.push(...textAnalysis.patterns);
-    threatScore += textAnalysis.score;
-
     // Check if sender domain is allow-listed (needed for attachment analysis)
     let isAllowListed = false;
     if (businessId) {
       isAllowListed = await emailAuthenticationService.isDomainAllowListed(businessId, emailData.sender);
     }
+
+    textAnalyzer.isAllowListed = isAllowListed;
+    const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
+    detectedPatterns.push(...textAnalysis.patterns);
+    threatScore += textAnalysis.score;
 
     // Analyze links
     let linkAnalysis: LinkAnalysis | undefined;
@@ -67,14 +67,6 @@ class PhishingDetector {
       attachmentAnalysis = attachmentAnalyzerService.analyzeAttachments(emailData.attachments, isAllowListed);
       riskFactors.push(...attachmentAnalysis.risks);
       threatScore += attachmentAnalysis.score;
-    }
-
-    // Check for business email compromise patterns
-    const becAnalysis = this.analyzeBusinessEmailCompromise(emailData);
-    if (becAnalysis.score > 0) {
-      threatScore += becAnalysis.score;
-      riskFactors.push(...becAnalysis.indicators);
-      recommendations.push('Verify sender identity through alternative communication channel');
     }
 
     // Analyze email authentication (SPF, DKIM, DMARC)
@@ -140,42 +132,6 @@ class PhishingDetector {
     } as ThreatAssessment;
   }
 
-
-  /**
-   * Analyze for Business Email Compromise (BEC)
-   */
-  private analyzeBusinessEmailCompromise(emailData: EmailAnalysis): { score: number; indicators: string[] } {
-    const indicators: string[] = [];
-    let score = 0;
-
-    // Check for executive impersonation using new text analyzer
-    const emailTextData: EmailTextAnalysis = {
-      subject: emailData.subject,
-      body: emailData.body,
-      sender: emailData.sender,
-      recipient: emailData.recipient
-    };
-
-    const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
-    if (textAnalysis.patterns.includes('ceo_fraud')) {
-      indicators.push('Executive impersonation detected');
-      score += 30;
-    }
-
-    // Check for wire transfer requests
-    if (/(wire|e-transfer|payment|urgent.*funds|confidential.*transaction)/i.test(emailData.body)) {
-      indicators.push('Wire transfer request');
-      score += 5;
-    }
-
-    // Check for vendor impersonation
-    if (/(invoice|payment.*due|vendor|supplier|urgent.*payment)/i.test(emailData.body)) {
-      indicators.push('Vendor impersonation');
-      score += 10;
-    }
-
-    return { score, indicators };
-  }
   private calculateThreatLevel(score: number): 'low' | 'medium' | 'high' | 'critical' {
     if (score >= 80) return 'critical';
     if (score >= 60) return 'high';

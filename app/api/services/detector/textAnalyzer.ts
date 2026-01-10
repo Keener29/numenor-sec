@@ -8,7 +8,6 @@
 export interface PhishingPattern {
   name: string;
   pattern: RegExp;
-  severity: 'low' | 'medium' | 'high' | 'critical';
   description: string;
 }
 
@@ -29,24 +28,22 @@ export interface EmailTextAnalysis {
 
 export class TextAnalyzer {
   private patterns: string[] = [];
+  public isAllowListed: boolean = false;
   private readonly phishingPatterns: PhishingPattern[] = [
     // High-confidence phishing patterns (more specific)
     {
       name: 'urgent_action_required',
       pattern: /(act now|click here immediately|verify now|respond immediately|urgent action required|immediate response needed)/i,
-      severity: 'high',
       description: 'Uses strong urgency tactics to pressure immediate action'
     },
     {
       name: 'account_suspension_threat',
       pattern: /(your account will be suspended|account suspension|account locked|account disabled|account terminated|account compromised|account expired)/i,
-      severity: 'high',
       description: 'Threatens account suspension or compromise'
     },
     {
       name: 'financial_urgency',
       pattern: /(payment overdue|payment due immediately|urgent payment|wire transfer urgent|confidential transfer|urgent funds)/i,
-      severity: 'high',
       description: 'Financial pressure with urgency tactics'
     },
 
@@ -54,13 +51,11 @@ export class TextAnalyzer {
     {
       name: 'irs_impersonation',
       pattern: /(irs.*audit|irs.*tax|irs.*refund|irs.*payment|internal revenue service)/i,
-      severity: 'critical',
       description: 'IRS impersonation scam'
     },
     {
       name: 'ceo_fraud',
-      pattern: /(ceo.*urgent|president.*confidential|director.*wire|manager.*transfer|executive.*funds)/i,
-      severity: 'critical',
+      pattern: /(ceo|president|director|cfo|controller|vp|executive|owner)/i,
       description: 'CEO fraud or business email compromise'
     },
 
@@ -68,19 +63,16 @@ export class TextAnalyzer {
     {
       name: 'personal_info_request',
       pattern: /(provide your password|enter your ssn|social security number|credit card number|bank account number|personal information required)/i,
-      severity: 'high',
       description: 'Requests sensitive personal information'
     },
     {
       name: 'prize_winner',
       pattern: /(congratulations.*winner|congratulations.*prize|you have won|lottery winner|inheritance.*million)/i,
-      severity: 'medium',
       description: 'Prize or lottery scam tactics'
     },
     {
       name: 'phishing_links',
       pattern: /(click here to verify|click here to confirm|click here to update|download now|install immediately)/i,
-      severity: 'low',
       description: 'Common phishing link text'
     },
 
@@ -88,7 +80,6 @@ export class TextAnalyzer {
     {
       name: 'suspicious_html',
       pattern: /<script|<iframe|<embed|<object/i,
-      severity: 'medium',
       description: 'Potentially malicious HTML content'
     },
 
@@ -96,15 +87,23 @@ export class TextAnalyzer {
     {
       name: 'generic_urgency',
       pattern: /(urgent|asap|immediate|deadline|limited time)/i,
-      severity: 'low',
       description: 'Generic urgency language'
     },
     {
       name: 'generic_verification',
       pattern: /(verify|confirm|update|validate)/i,
-      severity: 'low',
       description: 'Generic verification language'
     },
+    {
+      name: 'vendor_impersonation',
+      pattern: /(invoice|payment.*due|vendor|supplier|urgent.*payment)/i,
+      description: 'Vendor impersonation scam'
+    },
+    {
+      name: 'invoice_payment_due',
+      pattern: /(invoice.*payment due|payment.*due immediately|urgent.*payment)/i,
+      description: 'Invoice payment due scam'
+    }
 
   ];
 
@@ -113,31 +112,26 @@ export class TextAnalyzer {
     {
       name: 'meeting_request',
       pattern: /(meeting|conference call|appointment|schedule|calendar)/i,
-      severity: 'low',
       description: 'Meeting or scheduling related content'
     },
     {
       name: 'business_document',
       pattern: /(contract|agreement|proposal|report|presentation|document|attachment)/i,
-      severity: 'low',
       description: 'Business document related content'
     },
     {
       name: 'project_communication',
       pattern: /(project|task|milestone|deliverable|status update)/i,
-      severity: 'low',
       description: 'Project management communication'
     },
     {
       name: 'customer_service',
       pattern: /(support|help|assistance|ticket|resolution)/i,
-      severity: 'low',
       description: 'Customer service communication'
     },
     {
       name: 'newsletter_marketing',
       pattern: /(newsletter|news|announcement|promotion|offer)/i,
-      severity: 'low',
       description: 'Newsletter or marketing content'
     }
   ];
@@ -150,7 +144,6 @@ export class TextAnalyzer {
   ];
 
   private readonly SUBJECT_WEIGHT = 1.5;
-  private readonly LOW_SEVERITY_CAP = 10; // Maximum contribution from low severity patterns\
 
   public getPatterns(): string[] {
     return this.patterns;
@@ -186,25 +179,15 @@ export class TextAnalyzer {
   }
 
   private analyzePhishingPatterns(text: string): number {
-    let lowSeverityScore = 0;
-    let score = 0;
+    let detectedCategoriesCount = 0;
     // Analyze phishing patterns
     for (const pattern of this.phishingPatterns) {
       if (pattern.pattern.test(text)) {
         this.patterns.push(pattern.name);
-        const patternScore = this.getSeverityScore(pattern.severity);
-
-        if (pattern.severity === 'low') {
-          lowSeverityScore += patternScore;
-        } else {
-          score += patternScore;
-        }
+        detectedCategoriesCount += 1;
       }
     }
-
-    // Cap low severity contributions
-    score += Math.min(lowSeverityScore, this.LOW_SEVERITY_CAP);
-    return score;
+    return this.getSeverityScore(detectedCategoriesCount);
   }
 
   private checkKeywordDensity(text: string): number {
@@ -289,7 +272,7 @@ export class TextAnalyzer {
     for (const pattern of this.legitimatePatterns) {
       if (pattern.pattern.test(text)) {
         // Return negative scores to reduce suspicion
-        legitimateScore -= this.getSeverityScore(pattern.severity);
+        legitimateScore -= 5;
       }
     }
 
@@ -321,14 +304,18 @@ export class TextAnalyzer {
   /**
    * Get severity score for pattern matching
    */
-  private getSeverityScore(severity: string): number {
-    switch (severity) {
-      case 'low': return 5;
-      case 'medium': return 15;
-      case 'high': return 30;
-      case 'critical': return 50;
-      default: return 10;
+  private getSeverityScore(severity: number): number {
+    let score = 0;
+    if (severity <= 1){
+      return 0;
+    } else if (severity == 2){
+      score = 9;
+    } else if (severity == 3) {
+      score = 30;
+    } else {
+      score = 60;
     }
+    return this.isAllowListed ? score/3: score;
   }
 
   /**

@@ -68,7 +68,7 @@ export class HeaderAnalyzerService {
     'hubspot.com', 'salesforce.com', 'zendesk.com', 'freshdesk.com', 'intercom.io', 'helpscout.com',
   
     // Ecommerce / Automation
-    'shopifyemail.com', 'shopify.com', 'stripe.com', 'squareup.com', 'klaviyo.com', 'sendinblue.com', 'brevo.com',
+    'shopifyemail.com', 'shopify.com', 'stripe.com', 'squareup.com', 'klaviyo.com', 'klaviyomail.com', 'sendinblue.com', 'brevo.com',
   
     // Major Email Providers
     'gmail.com', 'googlemail.com', 'outlook.com', 'office365.com', 'microsoft.com', 'protection.outlook.com',

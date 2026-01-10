@@ -5,6 +5,7 @@
 
 import { query } from '../../../db/connection.js';
 import { emailLogger } from '../../../utils/logger.js';
+import { isTrustedDomain } from './domainAgeAnalyzer.js';
 
 // Authentication result types
 export type SPFResult = 'pass' | 'fail' | 'softfail' | 'neutral' | 'none' | 'temperror' | 'permerror';
@@ -305,7 +306,10 @@ export class EmailAuthenticationService {
       );
 
       const count = Number.parseInt((result.rows[0] as { count: string }).count);
-      return count > 0;
+      if (count > 0) {
+        return true;
+      }
+      return await isTrustedDomain(senderDomain, businessId);
     } catch (error) {
       // If there's an error checking the database, default to not allow-listed
       emailLogger.warn(`Error checking if sender domain is allow-listed: ${error}`, { operation: 'email-authentication' }, { error: error instanceof Error ? error.message : String(error) });
