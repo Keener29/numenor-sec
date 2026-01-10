@@ -148,7 +148,7 @@ router.get('/stats', authenticateToken, requireBusiness, async (req: AuthRequest
     const dailyResult = await query(
       `SELECT DATE(created_at) as date, COUNT(*) as count 
        FROM phishing_alerts 
-       WHERE business_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
+       WHERE business_id = $1 AND created_at >= NOW() - INTERVAL '7 days' AND status != 'safe'
        GROUP BY DATE(created_at)
        ORDER BY date`,
       [businessId]

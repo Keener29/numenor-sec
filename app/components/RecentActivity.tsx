@@ -4,6 +4,7 @@ interface Alert {
   subject: string;
   threatLevel: string;
   createdAt: string;
+  status: string;
 }
 
 interface RecentActivityProps {
@@ -40,6 +41,9 @@ export default function RecentActivity({ alerts }: RecentActivityProps) {
         </h3>
         <div className="space-y-3">
           {alerts.length > 0 ? alerts.slice(0, 5).map((alert) => {
+            if (alert.status == 'safe') {
+              return;
+            }
             return (
               <div key={alert.id} className="flex items-center text-sm">
                 <div className="flex-shrink-0">

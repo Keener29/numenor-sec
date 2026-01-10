@@ -239,7 +239,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
                 <div className="ml-5 w-0 flex-1">
                   <dl>
                     <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Alerts This Week
+                      Total Alerts
                     </dt>
                     <dd className="text-lg font-medium text-gray-900">
                       {stats.totalAlerts || 0}

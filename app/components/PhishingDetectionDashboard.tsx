@@ -88,6 +88,8 @@ export default function PhishingDetectionDashboard({ setIsModalOpen }: { readonl
       const statsData = await statsResponse.json();
       const statusData = await statusResponse.json();
 
+      console.log("statsData: " + statsData);
+
       setStatistics(statsData.statistics || {
         summary: {
           totalAlerts: 0,
