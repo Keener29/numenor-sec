@@ -33,8 +33,7 @@ export const createAlertSchema = z.object({
   recipientEmail: z.string().email('Invalid recipient email'),
   threatLevel: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   alertType: z.string().min(1, 'Alert type is required'),
-  description: z.string().optional(),
-  rawEmailData: z.record(z.any()).optional()
+  description: z.string().optional()
 });
 
 export type UpdateAlertData = z.infer<typeof updateAlertSchema>;

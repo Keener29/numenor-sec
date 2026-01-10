@@ -43,7 +43,7 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySche
     // Get alerts with pagination
     const alertsResult = await query(
       `SELECT pa.id, pa.email_id, pa.subject, pa.sender_email, pa.recipient_email,
-              pa.threat_level, pa.status, pa.alert_type, pa.description, pa.raw_email_data,
+              pa.threat_level, pa.status, pa.alert_type, pa.description,
               pa.created_at, pa.updated_at, me.email_address
        FROM phishing_alerts pa
        LEFT JOIN monitored_emails me ON me.id = pa.email_id
@@ -75,7 +75,6 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySche
           status: string;
           alert_type: string;
           description: string;
-          raw_email_data: string;
           created_at: Date;
           updated_at: Date;
         };
@@ -90,7 +89,6 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(alertQuerySche
           status: typedAlert.status,
           alertType: typedAlert.alert_type,
           description: typedAlert.description,
-          rawEmailData: typedAlert.raw_email_data,
           createdAt: typedAlert.created_at,
           updatedAt: typedAlert.updated_at
         };
@@ -191,7 +189,7 @@ router.get('/:id', authenticateToken, requireBusiness, validateParams(alertParam
 
     const result = await query(
       `SELECT pa.id, pa.email_id, pa.subject, pa.sender_email, pa.recipient_email,
-              pa.threat_level, pa.status, pa.alert_type, pa.description, pa.raw_email_data,
+              pa.threat_level, pa.status, pa.alert_type, pa.description,
               pa.created_at, pa.updated_at, me.email_address
        FROM phishing_alerts pa
        LEFT JOIN monitored_emails me ON me.id = pa.email_id
@@ -214,7 +212,6 @@ router.get('/:id', authenticateToken, requireBusiness, validateParams(alertParam
       status: string;
       alert_type: string;
       description: string;
-      raw_email_data: string;
       created_at: Date;
       updated_at: Date;
     };
@@ -230,7 +227,6 @@ router.get('/:id', authenticateToken, requireBusiness, validateParams(alertParam
         status: alert.status,
         alertType: alert.alert_type,
         description: alert.description,
-        rawEmailData: alert.raw_email_data,
         createdAt: alert.created_at,
         updatedAt: alert.updated_at
       }
@@ -280,7 +276,7 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
       UPDATE phishing_alerts 
       SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramCount} AND business_id = $${paramCount + 1}
-      RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at
+      RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, created_at, updated_at
     `;
 
     const result = await query(queryText, values);
@@ -299,7 +295,6 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
       status: string;
       alert_type: string;
       description: string;
-      raw_email_data: string;
       created_at: Date;
       updated_at: Date;
     };
@@ -333,7 +328,6 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
         status: alert.status,
         alertType: alert.alert_type,
         description: alert.description,
-        rawEmailData: alert.raw_email_data,
         createdAt: alert.created_at,
         updatedAt: alert.updated_at
       }
@@ -347,7 +341,7 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(alertParam
 router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSchema), async (req: AuthRequest, res, next) => {
   try {
     const businessId = req.user!.business_id!;
-    const { emailId, subject, senderEmail, recipientEmail, threatLevel, alertType, description, rawEmailData } = req.body;
+    const { emailId, subject, senderEmail, recipientEmail, threatLevel, alertType, description } = req.body;
 
     // Verify the email belongs to this business
     const emailResult = await query(
@@ -361,10 +355,10 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
 
     // Create the alert
     const result = await query(
-      `INSERT INTO phishing_alerts (business_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description, raw_email_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, raw_email_data, created_at, updated_at`,
-      [businessId, Number.parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null, rawEmailData || null]
+      `INSERT INTO phishing_alerts (business_id, email_id, subject, sender_email, recipient_email, threat_level, alert_type, description)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, email_id, subject, sender_email, recipient_email, threat_level, status, alert_type, description, created_at, updated_at`,
+      [businessId, Number.parseInt(emailId), subject, senderEmail, recipientEmail, threatLevel, alertType, description || null]
     );
 
     const alert = result.rows[0] as {
@@ -377,7 +371,6 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
       status: string;
       alert_type: string;
       description: string;
-      raw_email_data: string;
       created_at: Date;
       updated_at: Date;
     };
@@ -411,7 +404,6 @@ router.post('/', authenticateToken, requireBusiness, validateBody(createAlertSch
         status: alert.status,
         alertType: alert.alert_type,
         description: alert.description,
-        rawEmailData: alert.raw_email_data,
         createdAt: alert.created_at,
         updatedAt: alert.updated_at
       }

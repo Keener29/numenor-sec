@@ -73,7 +73,6 @@ describe('POST /api/alerts (create alert)', () => {
       status: 'pending',
       alert_type: 'phishing',
       description: 'Test alert',
-      raw_email_data: null,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -171,7 +170,6 @@ describe('GET /api/alerts (list alerts)', () => {
         status: 'pending',
         alert_type: 'phishing',
         description: 'Test alert',
-        raw_email_data: null,
         created_at: new Date(),
         updated_at: new Date()
       }
@@ -383,7 +381,6 @@ describe('GET /api/alerts/:id', () => {
       status: 'pending',
       alert_type: 'phishing',
       description: 'Test alert',
-      raw_email_data: null,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -451,7 +448,6 @@ describe('PUT /api/alerts/:id', () => {
       status: 'reviewed',
       alert_type: 'phishing',
       description: 'Test alert',
-      raw_email_data: null,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -484,7 +480,6 @@ describe('PUT /api/alerts/:id', () => {
       status: 'pending',
       alert_type: 'phishing',
       description: 'Updated description',
-      raw_email_data: null,
       created_at: new Date(),
       updated_at: new Date()
     };
@@ -516,7 +511,6 @@ describe('PUT /api/alerts/:id', () => {
       status: 'reviewed',
       alert_type: 'phishing',
       description: 'Updated description',
-      raw_email_data: null,
       created_at: new Date(),
       updated_at: new Date()
     };

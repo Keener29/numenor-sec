@@ -211,8 +211,8 @@ class PhishingDetector {
       await query(
         `INSERT INTO phishing_alerts (
           business_id, email_id, subject, sender_email, recipient_email,
-          threat_level, status, alert_type, description, raw_email_data
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          threat_level, status, alert_type, description
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           businessId,
           emailId,

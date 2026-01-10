@@ -227,7 +227,6 @@ export const alertsAPI = {
     threatLevel: string;
     alertType: string;
     description?: string;
-    rawEmailData?: any;
   }) => {
     return apiRequest('/alerts', {
       method: 'POST',
