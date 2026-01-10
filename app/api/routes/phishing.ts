@@ -181,15 +181,25 @@ router.get('/statistics', authenticateToken, requireBusiness, validateQuery(phis
     }) || [];
 
     const summary = {
-      totalAlerts: threatStatsFiltered.length,
-      criticalAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'critical').length || 0,
-      highAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'high').length || 0,
-      mediumAlerts: threatStats?.filter((stat: { threat_level: string }) => stat.threat_level === 'medium').length || 0,
+      totalAlerts: 0,
+      criticalAlerts: 0,
+      highAlerts: 0,
+      mediumAlerts: 0,
       pendingAlerts: recentAlertsFiltered.filter((alert) => {
         const typedAlert = alert as { status: string };
         return typedAlert.status === 'pending';
       }).length
     };
+    
+    for (const stat of threatStatsFiltered) {
+      const count = Number((stat as any).count);
+    
+      summary.totalAlerts += count;
+    
+      if (stat.threat_level === 'critical') summary.criticalAlerts += count;
+      if (stat.threat_level === 'high') summary.highAlerts += count;
+      if (stat.threat_level === 'medium') summary.mediumAlerts += count;
+    }
 
     res.json({
       success: true,
