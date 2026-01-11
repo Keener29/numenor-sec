@@ -109,7 +109,7 @@ async function checkSPF(domain: string) {
     const records = await resolveTxt(domain);
     for (const recordSet of records) {
       const txt = recordSet.join('');
-      if (txt.includes('spf.protection.outlook.com')) return 'outlook';
+      if (txt.includes('spf.protection.outlook.com')) return 'microsoft';
       if (txt.includes('_spf.google.com')) return 'gmail';
     }
     return null;
@@ -120,9 +120,9 @@ async function checkSPF(domain: string) {
 /**
  * Determine OAuth provider based on email domain
  * @param emailAddress - The email address to check
- * @returns 'gmail' for Gmail accounts, 'outlook' for Microsoft/Outlook accounts, or null if unknown
+ * @returns 'gmail' for Gmail accounts, 'microsoft' for Microsoft/Outlook accounts, or null if unknown
  */
-export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 'outlook' | null> {
+export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 'microsoft' | null> {
   if (!emailAddress) return null;
 
   const parts = emailAddress.split("@");
@@ -134,14 +134,14 @@ export async function getOAuthProvider(emailAddress: string): Promise<'gmail' | 
   const gmailDomains = ['gmail.com', 'googlemail.com'];
   const outlookDomains = ['outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'office365.com'];
   if (gmailDomains.includes(domain)) return 'gmail';
-  if (outlookDomains.includes(domain)) return 'outlook';
+  if (outlookDomains.includes(domain)) return 'microsoft';
 
   try {
     const mxRecords = await resolveMx(domain);
     for (const record of mxRecords) {
       const exchange = record.exchange.toLowerCase();
       if (exchange.includes('google.com')) return 'gmail';
-      if (exchange.includes('outlook.com') || exchange.includes('office365.com') || exchange.includes('protection.outlook.com')) return 'outlook';
+      if (exchange.includes('outlook.com') || exchange.includes('office365.com') || exchange.includes('protection.outlook.com')) return 'microsoft';
     }
     return await checkSPF(domain);
     

@@ -212,7 +212,7 @@ router.post('/google', authLimiter, validateBody(googleAuthSchema), async (req, 
 router.post('/microsoft', authLimiter, validateBody(microsoftAuthSchema), async (req, res, next) => {
   try {
     const { idToken } = req.body;
-    const clientId = process.env.AZURE_CLIENT_ID;
+    const clientId = process.env.VITE_MS_LOGIN_CLIENT_ID;
     if (!clientId) {
       return res.status(500).json({ error: 'Microsoft client not configured' });
     }

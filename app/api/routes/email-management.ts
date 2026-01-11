@@ -85,9 +85,9 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
 
     // Check if email is Gmail (only Gmail is supported)
     const oauthProvider = await getOAuthProvider(emailAddress);
-    if (oauthProvider !== 'gmail') {
+    if (oauthProvider !== 'gmail' && oauthProvider !== 'microsoft') {
       return res.status(400).json({ 
-        error: 'Only Gmail accounts are currently supported for email monitoring' 
+        error: 'Only Gmail/Outlook accounts are currently supported for email monitoring' 
       });
     }
 
