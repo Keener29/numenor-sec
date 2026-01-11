@@ -11,7 +11,7 @@ const router = Router();
 
 // Mount provider-specific routes
 router.use('/gmail', gmailRoutes);
-router.use('/outlook', outlookRoutes);
+router.use('/microsoft', outlookRoutes);
 
 /**
  * @route GET /api/oauth/providers

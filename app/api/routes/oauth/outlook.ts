@@ -18,7 +18,7 @@ const connectEmailSchema = z.object({
 });
 
 /**
- * @route GET /api/oauth/outlook/auth-url
+ * @route GET /api/oauth/microsoft/auth-url
  * @desc Generate Outlook OAuth authorization URL
  * @access Public (email approval flow) or Private (dashboard)
  */
@@ -67,7 +67,7 @@ router.get(
 );
 
 /**
- * @route GET /api/oauth/outlook/callback
+ * @route GET /api/oauth/microsoft/callback
  * @desc Handle Outlook OAuth callback from Microsoft
  * @access Public (OAuth callback)
  */
@@ -143,7 +143,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
 });
 
 /**
- * @route POST /api/oauth/outlook/disconnect
+ * @route POST /api/oauth/microsoft/disconnect
  * @desc Disconnect Outlook OAuth for an email
  * @access Private (Business users only)
  */
@@ -186,7 +186,7 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
 });
 
 /**
- * @route POST /api/oauth/outlook/test
+ * @route POST /api/oauth/microsoft/test
  * @desc Test Outlook OAuth connection
  * @access Private (Business users only)
  */

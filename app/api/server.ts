@@ -147,10 +147,10 @@ app.get('/api', (req, res) => {
         'GET /api/oauth/gmail/callback': 'Handle Gmail OAuth callback',
         'POST /api/oauth/gmail/disconnect': 'Disconnect Gmail OAuth',
         'POST /api/oauth/gmail/test': 'Test Gmail OAuth connection',
-        'GET /api/oauth/outlook/auth-url': 'Generate Outlook OAuth authorization URL',
-        'GET /api/oauth/outlook/callback': 'Handle Outlook OAuth callback',
-        'POST /api/oauth/outlook/disconnect': 'Disconnect Outlook OAuth',
-        'POST /api/oauth/outlook/test': 'Test Outlook OAuth connection'
+        'GET /api/oauth/microsoft/auth-url': 'Generate Outlook OAuth authorization URL',
+        'GET /api/oauth/microsoft/callback': 'Handle Outlook OAuth callback',
+        'POST /api/oauth/microsoft/disconnect': 'Disconnect Outlook OAuth',
+        'POST /api/oauth/microsoft/test': 'Test Outlook OAuth connection'
       },
       gmailNotify: {
         'POST /api/gmail-notify': 'Handle Gmail push notifications'
