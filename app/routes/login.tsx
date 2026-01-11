@@ -5,8 +5,8 @@ import { authAPI } from "../utils/api";
 import { redirectIfAuthenticated } from "../utils/serverAuth";
 import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
 import { GoogleLogin } from "@react-oauth/google";
-// import { useMsal } from "@azure/msal-react";
-// import AzureLogin from "~/components/AzureLogin";
+import { useMsal } from "@azure/msal-react";
+import AzureLogin from "~/components/AzureLogin";
 export function meta() {
   return [
     { title: "Login - Numenor Security" },
@@ -29,7 +29,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  // const { instance } = useMsal();
+  const { instance } = useMsal();
 
   useEffect(() => {
     // Prefill email if previously remembered
@@ -81,18 +81,18 @@ export default function Login() {
     }
   };
 
-  // const handleAzureLogin = async () => {
-  //   try {
-  //     setIsLoading(true);
-  //     setError("");
-  //     const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
-  //     await loginWithMicrosoft(response);
-  //     navigate("/dashboard");
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : "Azure sign-in failed");
-  //     setIsLoading(false);
-  //   }
-  // };
+  const handleAzureLogin = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
+      await loginWithMicrosoft(response);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Azure sign-in failed");
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -142,7 +142,7 @@ export default function Login() {
                 logo_alignment="center"
               />
             </div>
-            {/* <AzureLogin handleAzureLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" /> */}
+            <AzureLogin handleAzureLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" />
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
