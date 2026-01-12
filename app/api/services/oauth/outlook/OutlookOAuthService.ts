@@ -32,7 +32,7 @@ export class OutlookOAuthService extends OAuthProvider {
     this.clientSecret = process.env.AZURE_CLIENT_SECRET || '';
     this.redirectUri = process.env.AZURE_REDIRECT_URI || '';
     
-    const baseUrl = process.env.API_URL || '';
+    const baseUrl = process.env.PUBSUB_WEBHOOK_URL || process.env.API_URL || '';
     this.webhookUrl = baseUrl ? `${baseUrl}/api/microsoft-notify` : '';
 
     if (!this.clientId || !this.clientSecret) {

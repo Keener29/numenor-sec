@@ -19,6 +19,9 @@ const router = Router();
  * Returns parsed notification or null if invalid
  */
 function parseNotificationBody(body: unknown): GraphNotification | null {
+  if (!body || typeof body !== 'object') {
+    return null;
+  }
   try {
     // Safe JSON parsing - Microsoft Graph sends valid JSON
     const notification = body as GraphNotification;
@@ -275,6 +278,17 @@ async function markNotificationProcessed(
  * - Always returns 202 to prevent Microsoft retries
  */
 router.post('/', async (req: Request, res: Response) => {
+  const validationToken = req.query.validationToken as string | undefined;
+
+  if (validationToken) {
+    monitoringLogger.info('Microsoft Graph webhook validation received (POST)', {
+      operation: 'microsoft-notify-validation',
+      metadata: { validationToken: validationToken.substring(0, 20) + '...' }
+    });
+
+    res.setHeader('Content-Type', 'text/plain');
+    return res.status(200).send(validationToken);
+  }
   // Always return 202 Accepted - Microsoft Graph requirement
   // Process asynchronously to prevent retries on errors
   res.status(202).json({ status: 'accepted' });
