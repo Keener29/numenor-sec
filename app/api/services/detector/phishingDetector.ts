@@ -222,12 +222,7 @@ class PhishingDetector {
           assessment.threatLevel,
           'pending',
           'phishing_detection',
-          `Threat Level: ${assessment.threatLevel.toUpperCase()}. Confidence: ${assessment.confidence}%. Patterns: ${assessment.detectedPatterns.join(', ')}`,
-          JSON.stringify({
-            assessment,
-            emailData,
-            timestamp: new Date().toISOString()
-          })
+          `Threat Level: ${assessment.threatLevel.toUpperCase()}. Confidence: ${assessment.confidence}%. Patterns: ${assessment.detectedPatterns.join(', ')}`
         ]
       );
     } catch (error) {
