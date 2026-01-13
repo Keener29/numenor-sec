@@ -93,7 +93,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
 
     // Check if email already exists for this business
     const existingEmail = await query(
-      'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2',
+      'SELECT id FROM monitored_emails WHERE email_address = $1',
       [emailAddress, businessId]
     );
 
@@ -416,8 +416,8 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
     // Check if new email address already exists for this business (if changing email)
     if (emailAddress && emailAddress !== existingEmailData.email_address) {
       const duplicateEmail = await query(
-        'SELECT id FROM monitored_emails WHERE email_address = $1 AND business_id = $2 AND id != $3',
-        [emailAddress, businessId, emailId]
+        'SELECT id FROM monitored_emails WHERE email_address = $1 AND id != $2',
+        [emailAddress, emailId]
       );
 
       if (duplicateEmail.rows.length > 0) {
