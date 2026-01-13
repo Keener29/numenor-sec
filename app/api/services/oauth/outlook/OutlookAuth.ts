@@ -164,7 +164,7 @@ export async function storeTokens(
                      token_type = EXCLUDED.token_type,
                      expiry_date = EXCLUDED.expiry_date,
                      updated_at = CURRENT_TIMESTAMP`,
-      [businessId, emailAddress, 'outlook', tokens.accessToken, tokens.refreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
+      [businessId, emailAddress, 'microsoft', tokens.accessToken, tokens.refreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
     );
     oauthLogger.info('Microsoft OAuth tokens stored successfully', context);
   } catch (error) {
