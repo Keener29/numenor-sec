@@ -82,7 +82,7 @@ app.get('/health', (req, res) => {
 // Pub/Sub webhook route and MS graph webhook route - must be registered BEFORE express.json() to handle raw body
 // Pub/Sub sends Base64-encoded payloads that must be decoded before JSON parsing
 app.use('/api/gmail-notify', express.raw({ type: 'application/json', limit: '10mb' }), gmailNotifyRoutes);
-app.use('/api/microsoft-notify', microsoftNotifyRoutes);
+app.use('/api/microsoft-notify', express.json(), microsoftNotifyRoutes);
 
 // Body parsing middleware (for all other routes)
 app.use(express.json({ limit: '10mb' }));
