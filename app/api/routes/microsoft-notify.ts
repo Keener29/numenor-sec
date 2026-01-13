@@ -89,8 +89,7 @@ router.get('/', async (req: Request, res: Response) => {
  * Extract message ID from Graph resource path
  */
 function extractMessageIdFromResource(resource: string): string | null {
-  // Resource format: /me/messages/{messageId} or /Users/{userId}/Messages/{messageId}
-  const regex = /\/(?:me|Users\/[^/]+)\/messages\/([^/]+)/i;
+  const regex = /(?:me|Users\/[^/]+)\/Messages\/([^/]+)/i;
   const match = regex.exec(resource);
   return match ? match[1] : null;
 }
@@ -120,7 +119,7 @@ async function verifyNotificationItem(
   item: GraphNotification['value'][0]
 ): Promise<ProcessedNotification | null> {
   // Handle subscription expiration notification
-  if (item.subscriptionExpirationDateTime) {
+  if (item.subscriptionExpirationDateTime && !item.resourceData) {
     monitoringLogger.debug('Subscription expiration notification received', {
       operation: 'verify-notification-item',
       metadata: {
@@ -371,6 +370,7 @@ async function processNotificationItemInternal(item: GraphNotification['value'][
         businessId,
         emailRecord.id,
         emailAddress,
+        subscriptionId,
         messageId
       );
     } catch (err) {
