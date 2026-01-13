@@ -30,6 +30,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const [bulkEmails, setBulkEmails] = useState("");
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [bulkProgress, setBulkProgress] = useState<{ total: number; current: number; success: number; failed: number; errors: string[] } | null>(null);
   const [actionLoading, setActionLoading] = useState<{ [key: number]: 'resend' | 'delete' | null }>({});
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -264,11 +265,19 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
   const handleResendEmail = async (emailId: number, emailAddress: string) => {
     try {
       setActionLoading(prev => ({ ...prev, [emailId]: 'resend' }));
+      setError(""); // Clear any previous errors
+      setSuccessMessage(""); // Clear any previous success messages
 
       await emailsAPI.resendPermissionEmail(emailId);
-      setError(""); // Clear any previous errors
+      setSuccessMessage(`Permission email successfully resent to ${emailAddress}`);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resend email");
+      setSuccessMessage(""); // Clear success message on error
       console.error("Resend email error:", err);
     } finally {
       setActionLoading(prev => ({ ...prev, [emailId]: null }));
@@ -459,6 +468,18 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                   </div>
                 )}
 
+                {/* Success Message */}
+                {successMessage && (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                    <div className="flex items-center">
+                      <svg className="h-5 w-5 text-green-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <p className="text-sm font-medium text-green-800">{successMessage}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Add New Email Form */}
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center justify-between mb-3">
@@ -470,6 +491,7 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
                       onClick={() => {
                         setIsBulkMode(!isBulkMode);
                         setError("");
+                        setSuccessMessage("");
                         setBulkProgress(null);
                         // Clear the other input when switching modes
                         if (isBulkMode) {
