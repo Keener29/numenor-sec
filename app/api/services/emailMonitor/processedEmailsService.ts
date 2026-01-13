@@ -14,14 +14,15 @@ export class ProcessedEmailsService {
   async tryMarkAsProcessing(
     businessId: number,
     emailAddress: string,
+    subscription_id: string,
     messageId: string
   ): Promise<boolean> {
     const result = await query(
-      `INSERT INTO processed_emails (business_id, email_address, message_id, processed_at)
-       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-       ON CONFLICT (business_id, email_address, message_id) DO NOTHING
+      `INSERT INTO processed_emails (business_id, email_address, subscription_id, message_id, processed_at)
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+       ON CONFLICT (business_id, email_address, subscription_id, message_id) DO NOTHING
        RETURNING 1`,
-      [businessId, emailAddress, messageId]
+      [businessId, emailAddress, subscription_id, messageId]
     );
     return result.rows.length > 0; // true if we got the lock
   }
@@ -29,10 +30,10 @@ export class ProcessedEmailsService {
   /**
    * Check if a message has already been processed
    */
-  async isMessageProcessed(businessId: number, emailAddress: string, messageId: string): Promise<boolean> {
+  async isMessageProcessed(businessId: number, emailAddress: string, subscriptionId: string, messageId: string): Promise<boolean> {
     const res = await query(
-      'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND message_id = $3',
-      [businessId, emailAddress, messageId]
+      'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND subscription_id = $3 ANDmessage_id = $4',
+      [businessId, emailAddress, subscriptionId, messageId]
     );
     return res.rows.length > 0;
   }
@@ -58,12 +59,13 @@ export class ProcessedEmailsService {
   async unmarkMessageProcessed(
     businessId: number,
     emailAddress: string,
+    subscriptionId: string,
     messageId: string
   ): Promise<void> {
     await query(
       `DELETE FROM processed_emails 
-       WHERE business_id = $1 AND email_address = $2 AND message_id = $3`,
-      [businessId, emailAddress, messageId]
+       WHERE business_id = $1 AND email_address = $2 AND subscription_id = $3 AND message_id = $4`,
+      [businessId, emailAddress, subscriptionId, messageId]
     );
   }
 

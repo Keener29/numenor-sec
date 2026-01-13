@@ -43,12 +43,12 @@ describe('ProcessedEmailsService', () => {
         rows: [{ '1': 1 }] // Return row indicates successful insert
       });
 
-      const result = await service.tryMarkAsProcessing(1, 'test@example.com', 'msg-123');
+      const result = await service.tryMarkAsProcessing(1, 'test@example.com', 'sub-123', 'msg-123');
 
       expect(result).toBe(true);
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO processed_emails'),
-        [1, 'test@example.com', 'msg-123']
+        [1, 'test@example.com', 'sub-123', 'msg-123']
       );
     });
 
@@ -58,12 +58,12 @@ describe('ProcessedEmailsService', () => {
         rows: [] // Empty rows means conflict occurred
       });
 
-      const result = await service.tryMarkAsProcessing(1, 'test@example.com', 'msg-123');
+      const result = await service.tryMarkAsProcessing(1, 'test@example.com', 'sub-123', 'msg-123');
 
       expect(result).toBe(false);
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO processed_emails'),
-        [1, 'test@example.com', 'msg-123']
+        [1, 'test@example.com', 'sub-123', 'msg-123']
       );
     });
 
@@ -72,7 +72,7 @@ describe('ProcessedEmailsService', () => {
       mockQuery.mockRejectedValueOnce(dbError);
 
       await expect(
-        service.tryMarkAsProcessing(1, 'test@example.com', 'msg-123')
+        service.tryMarkAsProcessing(1, 'test@example.com', 'sub-123', 'msg-123')
       ).rejects.toThrow('Database connection failed');
     });
   });
@@ -83,12 +83,12 @@ describe('ProcessedEmailsService', () => {
         rows: [{ '1': 1 }] // Row exists = message processed
       });
 
-      const result = await service.isMessageProcessed(1, 'test@example.com', 'msg-123');
+      const result = await service.isMessageProcessed(1, 'test@example.com', 'sub-123', 'msg-123');
 
       expect(result).toBe(true);
       expect(mockQuery).toHaveBeenCalledWith(
-        'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND message_id = $3',
-        [1, 'test@example.com', 'msg-123']
+        'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND subscription_id = $3 AND message_id = $4',
+        [1, 'test@example.com', 'sub-123', 'msg-123']
       );
     });
 
@@ -97,7 +97,7 @@ describe('ProcessedEmailsService', () => {
         rows: [] // No rows = message not processed
       });
 
-      const result = await service.isMessageProcessed(1, 'test@example.com', 'msg-123');
+      const result = await service.isMessageProcessed(1, 'test@example.com', 'sub-123', 'msg-123');
 
       expect(result).toBe(false);
     });
@@ -107,7 +107,7 @@ describe('ProcessedEmailsService', () => {
       mockQuery.mockRejectedValueOnce(dbError);
 
       await expect(
-        service.isMessageProcessed(1, 'test@example.com', 'msg-123')
+        service.isMessageProcessed(1, 'test@example.com', 'sub-123', 'msg-123')
       ).rejects.toThrow('Database error');
     });
   });
@@ -118,11 +118,11 @@ describe('ProcessedEmailsService', () => {
         rows: []
       });
 
-      await service.unmarkMessageProcessed(1, 'test@example.com', 'msg-123');
+      await service.unmarkMessageProcessed(1, 'test@example.com', 'sub-123', 'msg-123');
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM processed_emails'),
-        [1, 'test@example.com', 'msg-123']
+        [1, 'test@example.com', 'sub-123', 'msg-123']
       );
     });
 
@@ -131,7 +131,7 @@ describe('ProcessedEmailsService', () => {
       mockQuery.mockRejectedValueOnce(dbError);
 
       await expect(
-        service.unmarkMessageProcessed(1, 'test@example.com', 'msg-123')
+        service.unmarkMessageProcessed(1, 'test@example.com', 'sub-123', 'msg-123')
       ).rejects.toThrow('Delete failed');
     });
   });

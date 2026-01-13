@@ -114,9 +114,10 @@ CREATE TABLE IF NOT EXISTS email_offsets (
 CREATE TABLE IF NOT EXISTS processed_emails (
     business_id INTEGER NOT NULL,
     email_address TEXT NOT NULL,
+    subscription_id TEXT NOT NULL,
     message_id TEXT NOT NULL,
     processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (business_id, email_address, message_id)
+    PRIMARY KEY (business_id, email_address, subscription_id, message_id)
 );
 
 -- Gmail watch subscriptions (for Pub/Sub push notifications)

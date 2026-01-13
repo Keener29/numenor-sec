@@ -26,6 +26,7 @@ export class MicrosoftEmailSyncService {
     businessId: number,
     emailId: number,
     emailAddress: string,
+    subscriptionId: string,
     messageId: string
   ): Promise<void> {
     try {
@@ -39,6 +40,7 @@ export class MicrosoftEmailSyncService {
       const acquired = await processedEmailsService.tryMarkAsProcessing(
         businessId,
         emailAddress,
+        subscriptionId,
         messageId
       );
       if (!acquired) {
@@ -79,14 +81,14 @@ export class MicrosoftEmailSyncService {
         await emailProcessor.processEmailMessage(monitoredEmail, emailMessage);
         
         // Success - message is already marked as processed by tryMarkAsProcessing
-        monitoringLogger.info('Successfully processed Microsoft Graph message', {
+        monitoringLogger.info(`Successfully processed Microsoft Graph message, ${emailAddress}, ${emailMessage.subject}`, {
           operation: 'process-message-notification',
           emailAddress,
           metadata: { messageId, subject: emailMessage.subject }
         });
       } catch (error) {
         // On failure, unmark the message so it can be retried via fallback polling
-        await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, messageId);
+        await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, subscriptionId, messageId);
         throw error;
       }
     } catch (error) {
@@ -106,6 +108,7 @@ export class MicrosoftEmailSyncService {
     businessId: number,
     emailId: number,
     emailAddress: string,
+    subscriptionId: string,
     lastChecked?: Date
   ): Promise<void> {
     try {
@@ -165,6 +168,7 @@ export class MicrosoftEmailSyncService {
             this.processFallbackPollingMessageWithRetry(
               businessId,
               emailAddress,
+              subscriptionId,
               graphMessage,
               monitoredEmail,
               graphClient
@@ -209,6 +213,7 @@ export class MicrosoftEmailSyncService {
    private async processFallbackPollingMessageWithRetry(
     businessId: number,
     emailAddress: string,
+    subscriptionId: string,
     graphMessage: GraphMessage,
     monitoredEmail: MonitoredEmail,
     graphClient: MicrosoftGraphClient,
@@ -221,6 +226,7 @@ export class MicrosoftEmailSyncService {
             await this.processFallbackPollingMessage(
                 businessId,
                 emailAddress,
+                subscriptionId,
                 graphMessage,
                 monitoredEmail,
                 graphClient
@@ -261,6 +267,7 @@ export class MicrosoftEmailSyncService {
     private async processFallbackPollingMessage(
         businessId: number,
         emailAddress: string,
+        subscriptionId: string,
         graphMessage: GraphMessage,
         monitoredEmail: MonitoredEmail,
         graphClient: MicrosoftGraphClient
@@ -269,6 +276,7 @@ export class MicrosoftEmailSyncService {
         const acquired = await processedEmailsService.tryMarkAsProcessing(
             businessId,
             emailAddress,
+            subscriptionId,
             graphMessage.id
         );
         if (!acquired) {
@@ -296,6 +304,7 @@ export class MicrosoftEmailSyncService {
             await processedEmailsService.unmarkMessageProcessed(
             businessId,
             emailAddress,
+            subscriptionId,
             graphMessage.id
             );
             monitoringLogger.warn('Failed to process message, unmarked for retry', {

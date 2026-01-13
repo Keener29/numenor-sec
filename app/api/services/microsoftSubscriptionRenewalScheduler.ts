@@ -125,6 +125,7 @@ class MicrosoftSubscriptionRenewalScheduler {
       subscription.businessId,
       emailId,
       subscription.emailAddress,
+      subscription.subscriptionId,
       lastChecked
     );
   }
