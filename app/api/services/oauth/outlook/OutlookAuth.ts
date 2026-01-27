@@ -9,6 +9,7 @@ import { ErrorFactory, ErrorCodes } from '../../errorHandler.js';
 import type { OAuthTokens, OAuthState, OAuthConnectionStatus, LogContext } from '../base/types.js';
 import { validateOAuthState, generateNonce } from '../base/stateValidation.js';
 import { signOAuthState } from '../base/stateSigning.js';
+import { encryptToken, decryptToken } from '../../../utils/tokenEncryption.js';
 
 const GRAPH_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
 
@@ -154,7 +155,11 @@ export async function storeTokens(
   const context: LogContext = { operation: 'store-tokens', businessId, emailAddress };
   try {
     oauthLogger.info('Storing Microsoft OAuth tokens in database', context);
-    await query(
+
+    const encryptedAccessToken = encryptToken(tokens.accessToken);
+    const encryptedRefreshToken = encryptToken(tokens.refreshToken);
+    
+    const result = await query(
       `INSERT INTO oauth_tokens (business_id, email_address, provider, access_token, refresh_token, scope, token_type, expiry_date, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT (business_id, email_address, provider)
@@ -164,8 +169,11 @@ export async function storeTokens(
                      token_type = EXCLUDED.token_type,
                      expiry_date = EXCLUDED.expiry_date,
                      updated_at = CURRENT_TIMESTAMP`,
-      [businessId, emailAddress, 'microsoft', tokens.accessToken, tokens.refreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
+      [businessId, emailAddress, 'microsoft', encryptedAccessToken, encryptedRefreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
     );
+    if (result.rows.length === 0) {
+        throw new Error('Database accepted the query but no record was created or updated.');
+    }
     oauthLogger.info('Microsoft OAuth tokens stored successfully', context);
   } catch (error) {
     oauthLogger.error('Failed to store Microsoft OAuth tokens', context, error as Error);
@@ -185,9 +193,13 @@ export async function getTokens(businessId: number, emailAddress: string): Promi
       return null;
     }
     const row = result.rows[0] as any;
+
+    const accessToken = decryptToken(row.access_token);
+    const refreshToken = decryptToken(row.refresh_token);
+    
     const tokens: OAuthTokens = {
-      accessToken: row.access_token,
-      refreshToken: row.refresh_token,
+      accessToken,
+      refreshToken,
       scope: row.scope,
       tokenType: row.token_type,
       expiryDate: row.expiry_date
