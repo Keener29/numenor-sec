@@ -32,7 +32,7 @@ export class ProcessedEmailsService {
    */
   async isMessageProcessed(businessId: number, emailAddress: string, subscriptionId: string, messageId: string): Promise<boolean> {
     const res = await query(
-      'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND subscription_id = $3 ANDmessage_id = $4',
+      'SELECT 1 FROM processed_emails WHERE business_id = $1 AND email_address = $2 AND subscription_id = $3 AND message_id = $4',
       [businessId, emailAddress, subscriptionId, messageId]
     );
     return res.rows.length > 0;
