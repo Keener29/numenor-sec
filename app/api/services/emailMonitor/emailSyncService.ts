@@ -17,16 +17,14 @@ export class EmailSyncService {
     businessId: number,
     emailId: number,
     emailAddress: string,
-    startHistoryId: string,
-    endHistoryId: string
+    startHistoryId: string
   ): Promise<string> {
     try {
       monitoringLogger.info('Processing new emails from history', {
         operation: 'process-new-emails-history',
         emailAddress,
         metadata: {
-          startHistoryId,
-          endHistoryId
+          startHistoryId
         }
       });
 
@@ -83,6 +81,7 @@ export class EmailSyncService {
         const acquired = await processedEmailsService.tryMarkAsProcessing(
           businessId,
           emailAddress,
+          "",
           emailMessage.id
         );
         if (!acquired) {
@@ -100,7 +99,7 @@ export class EmailSyncService {
           // Success - message is already marked as processed by tryMarkAsProcessing
         } catch (emailError) {
           // On failure, unmark the message so it can be retried
-          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, emailMessage.id);
+          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, "", emailMessage.id);
           monitoringLogger.error('Error processing individual email message', {
             operation: 'process-new-emails-history',
             emailAddress,
@@ -241,6 +240,7 @@ export class EmailSyncService {
         const acquired = await processedEmailsService.tryMarkAsProcessing(
           businessId,
           emailAddress,
+          "",
           emailMessage.id
         );
         if (!acquired) {
@@ -253,7 +253,7 @@ export class EmailSyncService {
           // Success - message is already marked as processed by tryMarkAsProcessing
         } catch (emailError) {
           // On failure, unmark the message so it can be retried
-          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, emailMessage.id);
+          await processedEmailsService.unmarkMessageProcessed(businessId, emailAddress, "", emailMessage.id);
           monitoringLogger.error('Error processing individual email message', {
             operation: 'full-sync-fallback',
             emailAddress,

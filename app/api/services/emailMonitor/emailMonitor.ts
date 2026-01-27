@@ -60,15 +60,13 @@ class EmailMonitor {
     businessId: number,
     emailId: number,
     emailAddress: string,
-    startHistoryId: string,
-    endHistoryId: string
+    startHistoryId: string
   ): Promise<string> {
     return emailSyncService.processNewEmailsFromHistory(
       businessId,
       emailId,
       emailAddress,
-      startHistoryId,
-      endHistoryId
+      startHistoryId
     );
   }
 
