@@ -4,6 +4,7 @@ import { validateBody } from '../middleware/validation.js';
 import { deleteAccountSchema } from '../schemas/user.js';
 import { query } from '../../db/connection.js';
 import { logger } from '../../utils/logger.js';
+import { removeAllBusinessSubscriptions } from '../utils/oauthUtils.js';
 
 const router = Router();
 
@@ -89,6 +90,11 @@ router.delete('/:accountId', authenticateToken, validateBody(deleteAccountSchema
           userId: accountId
         });
       });
+    }
+
+    // Before deleting business, unsubscribe from all email monitoring subscriptions
+    if (businessId) {
+      await removeAllBusinessSubscriptions(businessId);
     }
 
     // Delete business first - CASCADE will automatically delete all related records:

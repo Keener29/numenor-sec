@@ -8,6 +8,9 @@ import { query } from '../../db/connection.js';
 import { securityEventLogger } from './securityEventLogger.js';
 import { oauthLogger } from '../../utils/logger.js';
 import { OAuthStateValidationError } from '../services/oauth/base/stateValidation.js';
+import { gmailOAuthService } from '../services/oauth/gmail/GmailOAuthService.js';
+import { outlookOAuthService } from '../services/oauth/outlook/OutlookOAuthService.js';
+import { microsoftSubscriptionService } from '../services/oauth/outlook/MicrosoftSubscriptionService.js';
 
 /**
  * Get target business ID from request (either from query params, approve token, or JWT)
@@ -182,5 +185,81 @@ export async function handleOAuthStateValidationError(
     }
   }
   return `${frontendUrl}/success?oauth_error=invalid_state`;
+}
+
+/**
+ * Remove all email monitoring subscriptions for a business
+ * Unsubscribes from Gmail watches and Microsoft Graph subscriptions before business deletion
+ * 
+ * @param businessId - The business ID to remove subscriptions for
+ * @returns Promise that resolves when cleanup is complete (errors are logged but don't throw)
+ */
+export async function removeAllBusinessSubscriptions(businessId: number): Promise<void> {
+  try {
+    const monitoredEmailsResult = await query(
+      `SELECT DISTINCT me.email_address, ot.provider
+       FROM monitored_emails me
+       INNER JOIN oauth_tokens ot ON me.business_id = ot.business_id AND me.email_address = ot.email_address
+       WHERE me.business_id = $1`,
+      [businessId]
+    );
+
+    const monitoredEmails = monitoredEmailsResult.rows as Array<{
+      email_address: string;
+      provider: string;
+    }>;
+
+    // Remove subscriptions for each monitored email
+    for (const email of monitoredEmails) {
+      try {
+        if (email.provider === 'gmail') {
+          // Remove Gmail watch subscription
+          await gmailOAuthService.stopWatch(businessId, email.email_address);
+          oauthLogger.info('Gmail subscription removed during business deletion', {
+            operation: 'business-deletion-cleanup',
+            businessId,
+            emailAddress: email.email_address
+          });
+        } else if (email.provider === 'microsoft') {
+          // Remove Microsoft Graph subscription
+          const tokens = await outlookOAuthService.getTokens(businessId, email.email_address);
+          if (tokens) {
+            await microsoftSubscriptionService.deleteSubscription(
+              businessId,
+              email.email_address,
+              tokens.accessToken,
+              {
+                operation: 'business-deletion-cleanup',
+                businessId,
+                emailAddress: email.email_address
+              }
+            );
+            oauthLogger.info('Microsoft subscription removed during business deletion', {
+              operation: 'business-deletion-cleanup',
+              businessId,
+              emailAddress: email.email_address
+            });
+          }
+        }
+      } catch (subscriptionError) {
+        // Log but continue - subscription might already be deleted or expired
+        oauthLogger.warn('Failed to remove subscription during business deletion', {
+          operation: 'business-deletion-cleanup',
+          businessId,
+          emailAddress: email.email_address,
+          metadata: {
+            provider: email.provider,
+            error: subscriptionError instanceof Error ? subscriptionError.message : String(subscriptionError)
+          }
+        });
+      }
+    }
+  } catch (cleanupError) {
+    // Log but don't throw - don't fail business deletion if subscription cleanup fails
+    oauthLogger.error('Error during subscription cleanup', {
+      operation: 'business-deletion-cleanup',
+      businessId
+    }, cleanupError as Error);
+  }
 }
 
