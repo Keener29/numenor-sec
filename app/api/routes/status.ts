@@ -51,7 +51,7 @@ router.get('/:emailAddress', authenticateToken, requireBusiness, async (req: Aut
       }
       
       // Check Outlook if Gmail didn't return a connection
-      if (!connectionStatus?.isConnected && providers.has('outlook')) {
+      if (!connectionStatus?.isConnected && providers.has('microsoft')) {
         const outlookStatus = await outlookOAuthService.getConnectionStatus(businessId, emailAddress);
         connectionStatus = {
           ...outlookStatus,

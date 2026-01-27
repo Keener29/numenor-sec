@@ -111,7 +111,6 @@ router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySche
       emails: (emailsResult.rows as { id: number; email_address: string; last_checked: Date | null; created_at: Date; updated_at: Date }[]).map((email) => ({
         id: email.id,
         emailAddress: email.email_address,
-        isConnected: false, // Will be determined by OAuth status check on frontend
         lastChecked: email.last_checked,
         createdAt: email.created_at,
         updatedAt: email.updated_at
@@ -206,7 +205,6 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
         email: {
           id: email.id,
           emailAddress: email.email_address,
-          isConnected: false, // Will be determined by OAuth status check on frontend
           lastChecked: email.last_checked,
           createdAt: email.created_at,
           updatedAt: email.updated_at
@@ -235,7 +233,6 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
         email: {
           id: email.id,
           emailAddress: email.email_address,
-          isConnected: false, // Will be determined by OAuth status check on frontend
           lastChecked: email.last_checked,
           createdAt: email.created_at,
           updatedAt: email.updated_at
@@ -408,7 +405,6 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
         id: result.rows[0].id,
         businessId: result.rows[0].business_id,
         emailAddress: result.rows[0].email_address,
-        isConnected: false,
         lastChecked: result.rows[0].last_checked,
         createdAt: result.rows[0].created_at,
         updatedAt: result.rows[0].updated_at
@@ -428,7 +424,6 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
       emails: insertedEmails.map(email => ({
         id: email.id,
         emailAddress: email.emailAddress,
-        isConnected: false,
         lastChecked: email.lastChecked,
         createdAt: email.createdAt,
         updatedAt: email.updatedAt
@@ -517,7 +512,6 @@ router.put('/:id', authenticateToken, requireBusiness, validateParams(emailParam
       email: {
         id: email.id,
         emailAddress: email.email_address,
-        isConnected: false, // Will be determined by OAuth status check on frontend
         lastChecked: email.last_checked,
         createdAt: email.created_at,
         updatedAt: email.updated_at

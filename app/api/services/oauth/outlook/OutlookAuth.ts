@@ -168,10 +168,11 @@ export async function storeTokens(
                      scope = EXCLUDED.scope,
                      token_type = EXCLUDED.token_type,
                      expiry_date = EXCLUDED.expiry_date,
-                     updated_at = CURRENT_TIMESTAMP`,
+                     updated_at = CURRENT_TIMESTAMP
+      RETURNING *;`,
       [businessId, emailAddress, 'microsoft', encryptedAccessToken, encryptedRefreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
     );
-    if (result.rowCount === 0) {
+    if (result.rows.length === 0) {
         throw new Error('Database accepted the query but no record was created or updated.');
     }
     oauthLogger.info('Microsoft OAuth tokens stored successfully', context);

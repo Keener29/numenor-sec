@@ -40,7 +40,6 @@ export interface MonitoredEmail {
   readonly id: number;
   readonly businessId: number;
   readonly emailAddress: string;
-  readonly isConnected: boolean;
   readonly lastChecked: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;

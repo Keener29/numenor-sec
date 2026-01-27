@@ -227,8 +227,7 @@ async function processEmailsWithFallback(
       businessId,
       emailId,
       emailAddress,
-      lastHistoryId,
-      newHistoryId
+      lastHistoryId
     );
     await storeHistoryId(businessId, emailAddress, processedHistoryId);
   } catch (error: any) {
