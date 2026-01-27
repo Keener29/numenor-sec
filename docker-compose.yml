@@ -57,6 +57,7 @@ services:
       # Security (from .env file)
       JWT_SECRET: ${JWT_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
+      OAUTH_TOKEN_ENCRYPTION_KEY: ${OAUTH_TOKEN_ENCRYPTION_KEY}
 
       # Email Configuration (from .env file)
       SMTP_HOST: ${SMTP_HOST}
