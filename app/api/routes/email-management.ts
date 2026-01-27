@@ -150,10 +150,10 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       });
     }
 
-    // Check if email already exists for this business
+    // Check if email already exists for any business
     const existingEmail = await query(
       'SELECT id FROM monitored_emails WHERE email_address = $1',
-      [emailAddress, businessId]
+      [emailAddress]
     );
 
     if (existingEmail.rows.length > 0) {
@@ -230,6 +230,7 @@ router.post('/', authenticateToken, requireBusiness, validateBody(addEmailSchema
       );
 
       res.status(201).json({
+        status: 'partial_success',
         message: 'Email added successfully but failed to send permission request',
         email: {
           id: email.id,
