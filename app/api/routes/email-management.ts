@@ -320,14 +320,14 @@ router.post('/bulk', authenticateToken, requireBusiness, validateBody(addBulkEma
     const invalidEmails: string[] = [];
     for (const email of normalizedEmails) {
       const oauthProvider = await getOAuthProvider(email);
-      if (oauthProvider !== 'gmail') {
+      if (oauthProvider !== 'gmail' && oauthProvider !== 'microsoft') {
         invalidEmails.push(email);
       }
     }
 
     if (invalidEmails.length > 0) {
       return res.status(400).json({ 
-        error: 'Only Gmail accounts are currently supported for email monitoring',
+        error: 'Only Gmail/Outlook accounts are currently supported for email monitoring',
         invalidEmails
       });
     }
