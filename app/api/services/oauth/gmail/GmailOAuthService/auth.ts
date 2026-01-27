@@ -123,7 +123,7 @@ export async function storeTokens(
                      updated_at = CURRENT_TIMESTAMP`,
       [businessId, emailAddress, 'gmail', encryptedAccessToken, encryptedRefreshToken, tokens.scope, tokens.tokenType, tokens.expiryDate]
     );
-    if (result.rows.length === 0) {
+    if (result.rowCount === 0) {
       throw new Error('Database accepted the query but no record was created or updated.');
     }
     oauthLogger.info('Gmail OAuth tokens stored successfully', context);
