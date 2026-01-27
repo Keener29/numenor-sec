@@ -3,6 +3,7 @@
 
 # Environment variables
 .env
+prod.env
 
 # React Router
 /.react-router/
