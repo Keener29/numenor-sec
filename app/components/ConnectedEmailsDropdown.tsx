@@ -139,12 +139,16 @@ export default function ConnectedEmailsDropdown({ isModalOpen, setIsModalOpen, e
       setError("");
 
       console.log("Attempting to add email:", newEmail.trim());
-      const result = await emailsAPI.addEmail({ emailAddress: newEmail.trim() });
-      console.log("Add email result:", result);
+      const data = await emailsAPI.addEmail({ emailAddress: newEmail.trim() });
+
+      if (data.status === 'partial_success'){
+        setError("Email added successfully, but failed to send invitation. Try resending.")
+      } else {
+        setIsModalOpen(false);
+      }
 
       setNewEmail("");
       onEmailsUpdate(); // Refresh the emails list
-      setIsModalOpen(false); // Close modal after successful addition
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add email");
       console.error("Add email error:", err);
