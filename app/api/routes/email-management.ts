@@ -8,8 +8,67 @@ import { emailLogger } from '../../utils/logger.js';
 import type { MonitoredEmail } from '../types/email.js';
 import { securityEventLogger } from '../utils/securityEventLogger.js';
 import { getOAuthProvider } from '../utils/emailUtils.js';
+import { gmailOAuthService } from '../services/oauth/gmail/GmailOAuthService.js';
+import { outlookOAuthService } from '../services/oauth/outlook/OutlookOAuthService.js';
+import { microsoftSubscriptionService } from '../services/oauth/outlook/MicrosoftSubscriptionService.js';
+import { oauthLogger } from '../../utils/logger.js';
 
 const router = Router();
+
+/**
+ * Remove email subscription for microsoft
+ * Deletes Microsoft Graph subscription via API
+ */
+async function removeMicrosoftSubscription(
+  businessId: number,
+  emailAddress: string
+): Promise<void> {
+  const context = {
+    operation: 'remove-subscription',
+    businessId,
+    emailAddress,
+  };
+  // For Outlook, get tokens and delete subscription via Graph API
+  const tokens = await outlookOAuthService.getTokens(businessId, emailAddress);
+  if (tokens) {
+    try {
+      await microsoftSubscriptionService.deleteSubscription(
+        businessId,
+        emailAddress,
+        tokens.accessToken,
+        context
+      );
+      oauthLogger.info('Microsoft subscription removed successfully', context);
+    } catch (error) {
+      oauthLogger.warn('Failed to delete Microsoft subscription via API', context, { message: (error as Error).message });
+      // Continue - subscription might already be deleted or expired
+    }
+  } else {
+    oauthLogger.debug('No OAuth tokens found for Microsoft subscription removal', context);
+  }
+}
+
+/**
+ * Remove email subscription for Gmail
+ * Stops Gmail watch subscription (pub/sub)
+ */
+async function removeGmailSubscription(
+  businessId: number,
+  emailAddress: string
+): Promise<void> {
+  const context = {
+    operation: 'remove-subscription',
+    businessId,
+    emailAddress,
+  };
+  try {
+    await gmailOAuthService.stopWatch(businessId, emailAddress);
+    oauthLogger.info('Gmail watch subscription stopped successfully', context);
+  } catch (error) {
+    oauthLogger.warn('Failed to stop Gmail watch subscription', context, { message: (error as Error).message });
+    // Continue - watch might already be stopped or expired
+  }
+}
 
 // Get all monitored emails for the business
 router.get('/', authenticateToken, requireBusiness, validateQuery(emailQuerySchema), async (req: AuthRequest, res, next) => {
@@ -487,16 +546,25 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
     const emailData = emailResult.rows[0] as { id: number; email_address: string };
     const emailAddress = emailData.email_address;
 
-    // Disconnect OAuth tokens before deleting the email
+    // Remove subscriptions and OAuth tokens before deleting the email
     try {
-      // Check if there are OAuth tokens for this email
+      // Check if there are OAuth tokens for this email to determine provider
       const oauthResult = await query(
         'SELECT provider FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
         [businessId, emailAddress]
       );
       
       if (oauthResult.rows.length > 0) {
-        // Disconnect OAuth tokens
+        const provider = (oauthResult.rows[0] as { provider: string }).provider as 'gmail' | 'microsoft';
+        
+        // Remove subscription based on provider
+        if (provider === 'gmail'){
+          await removeGmailSubscription(businessId, emailAddress);
+        } else {
+          await removeMicrosoftSubscription(businessId, emailAddress);
+        }
+
+        // Delete OAuth tokens from database
         await query(
           'DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
           [businessId, emailAddress]
@@ -504,7 +572,11 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
       }
     } catch (oauthError) {
       // Log OAuth cleanup error but don't fail the email deletion
-      console.error('Failed to cleanup OAuth tokens during email deletion:', oauthError);
+      emailLogger.error('Failed to cleanup OAuth tokens/subscriptions during email deletion', {
+        operation: 'delete-email-cleanup',
+        businessId,
+        emailAddress
+      }, oauthError as Error);
     }
 
     // Delete the email
