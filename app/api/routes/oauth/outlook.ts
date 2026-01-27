@@ -80,7 +80,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
   // Handle OAuth error parameter first (before validation)
   const { error } = req.query;
   if (error) {
-    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'outlook');
+    const errorRedirectUrl = await handleOAuthCallbackError(error, req.query.state as string | undefined, req, frontendUrl, 'microsoft');
     if (errorRedirectUrl) {
       return res.redirect(errorRedirectUrl);
     }
@@ -100,7 +100,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
     const { code, state } = req.query;
 
     // SECURITY: Validate and parse signed state (prevents tampering)
-    const stateData = await validateOAuthState(state as string, 'outlook');
+    const stateData = await validateOAuthState(state as string, 'microsoft');
     const { businessId, emailAddress } = stateData;
 
     // Exchange code for tokens
@@ -121,7 +121,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
       'oauth_connected',
       `Outlook OAuth connected for: ${emailAddress}`,
       {
-        provider: 'outlook',
+        provider: 'microsoft',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }
@@ -137,7 +137,7 @@ router.get("/callback", oauthCallbackLimiter, async (req, res, next) => {
     res.redirect(`${frontendUrl}/success?email=${encodeURIComponent(emailAddress)}`);
 
   } catch (err) {
-    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'outlook');
+    const redirectUrl = await handleOAuthStateValidationError(err, req, frontendUrl, 'microsoft');
     return res.redirect(redirectUrl);
   }
 });
@@ -167,7 +167,7 @@ router.post('/disconnect', authenticateToken, requireBusiness, validateBody(conn
       'oauth_disconnected',
       `Outlook OAuth disconnected for: ${emailAddress}`,
       {
-        provider: 'outlook',
+        provider: 'microsoft',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       }

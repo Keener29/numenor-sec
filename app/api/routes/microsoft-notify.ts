@@ -327,8 +327,8 @@ async function processNotificationItemInternal(item: GraphNotification['value'][
 
     const { subscriptionId, messageId, businessId, emailAddress } = processed;
 
-    // Find monitored email record (filter by 'outlook' provider)
-    const emailRecord = await findMonitoredEmail(emailAddress, 'outlook');
+    // Find monitored email record (filter by 'microsoft' provider)
+    const emailRecord = await findMonitoredEmail(emailAddress, 'microsoft');
     if (!emailRecord) {
       monitoringLogger.debug('Monitored email not found for notification', {
         operation: 'microsoft-notify',

@@ -559,7 +559,7 @@ router.delete('/:id', authenticateToken, requireBusiness, validateParams(emailPa
           await removeMicrosoftSubscription(businessId, emailAddress);
         }
 
-        // Delete OAuth tokens from database
+        // Delete OAuth tokens from database AFTER subscription removal
         await query(
           'DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2',
           [businessId, emailAddress]

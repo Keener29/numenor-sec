@@ -29,8 +29,8 @@ router.get('/providers', (req, res) => {
         enabled: true
       },
       {
-        id: 'outlook',
-        name: 'Outlook',
+        id: 'microsoft',
+        name: 'Microsoft',
         description: 'Microsoft Outlook email service',
         enabled: true
       }

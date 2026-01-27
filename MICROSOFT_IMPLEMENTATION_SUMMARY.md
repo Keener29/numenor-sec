@@ -84,7 +84,7 @@ Cron job runs every 6 hours
 - Cascades on business deletion
 
 ### `oauth_tokens`
-- Stores Microsoft OAuth tokens (provider='outlook')
+- Stores Microsoft OAuth tokens (provider='microsoft')
 - Supports token refresh
 
 ## 🚀 Next Steps (Optional Enhancements)

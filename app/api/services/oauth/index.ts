@@ -12,7 +12,7 @@ import type { OAuthProviderType } from './base/types.js';
 export class OAuthProviderFactory {
   private static readonly providers = new Map<OAuthProviderType, OAuthProvider>([
     ['gmail', gmailOAuthService],
-    ['outlook', outlookOAuthService],
+    ['microsoft', outlookOAuthService],
   ]);
 
   /**

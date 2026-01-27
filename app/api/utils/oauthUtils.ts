@@ -89,7 +89,7 @@ export async function handleApprovalToken(
  * @param state - State query parameter from OAuth callback
  * @param req - Express request object
  * @param frontendUrl - Frontend URL for redirect (can be undefined)
- * @param provider - OAuth provider name (e.g., 'outlook', 'gmail')
+ * @param provider - OAuth provider name (e.g., 'microsoft', 'gmail')
  * @returns Redirect URL string if error was handled, null otherwise
  */
 export async function handleOAuthCallbackError(
@@ -97,7 +97,7 @@ export async function handleOAuthCallbackError(
   state: string | undefined,
   req: Request,
   frontendUrl: string | undefined,
-  provider: 'gmail' | 'outlook'
+  provider: 'gmail' | 'microsoft'
 ): Promise<string | null> {
   if (!error) {
     return null;
@@ -122,7 +122,7 @@ export async function handleOAuthCallbackError(
       await securityEventLogger.logSecurityEvent(
         businessId,
         'oauth_failed',
-        `${provider === 'outlook' ? 'Outlook' : 'Gmail'} OAuth connection failed for: ${emailAddress}`,
+        `${provider === 'microsoft' ? 'Microsoft' : 'Gmail'} OAuth connection failed for: ${emailAddress}`,
         {
           error: msg,
           ipAddress: req.ip,
@@ -147,14 +147,14 @@ export async function handleOAuthCallbackError(
  * @param err - Error caught from OAuth callback handler
  * @param req - Express request object
  * @param frontendUrl - Frontend URL for redirect
- * @param provider - OAuth provider name (e.g., 'outlook', 'gmail')
+ * @param provider - OAuth provider name (e.g., 'microsoft', 'gmail')
  * @returns Redirect URL string for invalid state error
  */
 export async function handleOAuthStateValidationError(
   err: unknown,
   req: Request,
   frontendUrl: string,
-  provider: 'gmail' | 'outlook'
+  provider: 'gmail' | 'microsoft'
 ): Promise<string> {
   // Handle OAuth state validation errors with safe metadata extraction
   if (err instanceof OAuthStateValidationError && err.metadata) {
@@ -164,7 +164,7 @@ export async function handleOAuthStateValidationError(
         await securityEventLogger.logSecurityEvent(
           businessId,
           'oauth_failed',
-          `${provider === 'outlook' ? 'Outlook' : 'Gmail'} OAuth connection failed - invalid state for: ${emailAddress}`,
+          `${provider === 'microsoft' ? 'Microsoft' : 'Gmail'} OAuth connection failed - invalid state for: ${emailAddress}`,
           {
             error: err.message,
             ipAddress: req.ip,

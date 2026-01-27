@@ -11,7 +11,7 @@ import type { EmailRecord } from '../types/email.js';
  * Filters by OAuth provider to ensure we get the correct connection
  * 
  * @param emailAddress - The email address to look up
- * @param provider - OAuth provider filter ('gmail', 'outlook', etc.)
+ * @param provider - OAuth provider filter ('gmail', 'microsoft', etc.)
  * @returns EmailRecord if found, null otherwise
  */
 export async function findMonitoredEmail(

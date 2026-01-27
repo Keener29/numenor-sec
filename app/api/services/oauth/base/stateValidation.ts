@@ -51,13 +51,13 @@ export function generateNonce(): string {
  * Prevents CSRF attacks by verifying the nonce was issued by the server
  * 
  * @param state - The OAuth state string from the callback
- * @param expectedProvider - The expected provider ('gmail' or 'outlook')
+ * @param expectedProvider - The expected provider ('gmail' or 'microsoft')
  * @returns Validated OAuth state data
  * @throws OAuthServiceError if validation fails
  */
 export async function validateOAuthState(
   state: string,
-  expectedProvider: 'gmail' | 'outlook'
+  expectedProvider: 'gmail' | 'microsoft'
 ): Promise<OAuthState> {
   const context: LogContext = { operation: 'validate-state' };
   

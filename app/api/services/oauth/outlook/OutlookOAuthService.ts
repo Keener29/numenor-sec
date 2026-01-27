@@ -27,7 +27,7 @@ export class OutlookOAuthService extends OAuthProvider {
   private readonly webhookUrl: string;
 
   constructor() {
-    super('outlook');
+    super('microsoft');
     this.clientId = process.env.AZURE_CLIENT_ID || '';
     this.clientSecret = process.env.AZURE_CLIENT_SECRET || '';
     this.redirectUri = process.env.AZURE_REDIRECT_URI || '';

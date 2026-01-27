@@ -47,12 +47,12 @@ jest.mock('../../../errorHandler.js', () => {
 
 // Mock state validation
 jest.mock('../../base/stateValidation.js', () => {
-  const mockValidate = jest.fn<(state: string, expectedProvider: 'gmail' | 'outlook') => Promise<{ businessId: number; emailAddress: string; nonce: string; timestamp: number; provider: string }>>().mockResolvedValue({
+  const mockValidate = jest.fn<(state: string, expectedProvider: 'gmail' | 'microsoft') => Promise<{ businessId: number; emailAddress: string; nonce: string; timestamp: number; provider: string }>>().mockResolvedValue({
     businessId: 1,
     emailAddress: 'test@example.com',
     nonce: 'nonce-123',
     timestamp: Date.now(),
-    provider: 'outlook'
+    provider: 'microsoft'
   });
   return {
     validateOAuthState: mockValidate,
@@ -96,7 +96,7 @@ describe('OutlookAuth', () => {
       expect(url).toContain('state=signed-state-123');
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO oauth_nonces'),
-        expect.arrayContaining(['nonce-123', 1, 'test@example.com', 'outlook'])
+        expect.arrayContaining(['nonce-123', 1, 'test@example.com', 'microsoft'])
       );
     });
 
@@ -235,7 +235,7 @@ describe('OutlookAuth', () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO oauth_tokens'),
-        expect.arrayContaining([1, 'test@example.com', 'outlook', 'access-123', 'refresh-123'])
+        expect.arrayContaining([1, 'test@example.com', 'microsoft', 'access-123', 'refresh-123'])
       );
     });
 
@@ -272,7 +272,7 @@ describe('OutlookAuth', () => {
       expect(tokens?.accessToken).toBe('access-123');
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('SELECT'),
-        [1, 'test@example.com', 'outlook']
+        [1, 'test@example.com', 'microsoft']
       );
     });
 
@@ -435,7 +435,7 @@ describe('OutlookAuth', () => {
       const status = await getConnectionStatus(1, 'test@example.com');
 
       expect(status.isConnected).toBe(true);
-      expect(status.provider).toBe('outlook');
+      expect(status.provider).toBe('microsoft');
       expect(status.connectedAt).toBeInstanceOf(Date);
     });
 
@@ -482,7 +482,7 @@ describe('OutlookAuth', () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM oauth_tokens'),
-        [1, 'test@example.com', 'outlook']
+        [1, 'test@example.com', 'microsoft']
       );
     });
 
@@ -499,7 +499,7 @@ describe('OutlookAuth', () => {
 
       expect(state.businessId).toBe(1);
       expect(state.emailAddress).toBe('test@example.com');
-      expect(state.provider).toBe('outlook');
+      expect(state.provider).toBe('microsoft');
     });
   });
 });

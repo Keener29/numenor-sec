@@ -39,7 +39,7 @@ export async function generateAuthUrl(
     await query(
       `INSERT INTO oauth_nonces (nonce, business_id, email_address, provider, expires_at)
        VALUES ($1, $2, $3, $4, $5)`,
-      [nonce, businessId, emailAddress, 'outlook', expiresAt]
+      [nonce, businessId, emailAddress, 'microsoft', expiresAt]
     );
 
     const state: OAuthState = {
@@ -47,7 +47,7 @@ export async function generateAuthUrl(
       emailAddress,
       nonce,
       timestamp: Date.now(),
-      provider: 'outlook'
+      provider: 'microsoft'
     };
 
     // SECURITY: Sign state to prevent tampering
@@ -187,7 +187,7 @@ export async function getTokens(businessId: number, emailAddress: string): Promi
   try {
     const result = await query(
       'SELECT access_token, refresh_token, scope, token_type, expiry_date FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3',
-      [businessId, emailAddress, 'outlook']
+      [businessId, emailAddress, 'microsoft']
     );
     if (result.rows.length === 0) {
       oauthLogger.debug('No Microsoft OAuth tokens found', context);
@@ -278,7 +278,7 @@ export async function getConnectionStatus(businessId: number, emailAddress: stri
   try {
     const tokenResult = await query(
       'SELECT created_at, updated_at, expiry_date FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3',
-      [businessId, emailAddress, 'outlook']
+      [businessId, emailAddress, 'microsoft']
     );
     const emailResult = await query(
       'SELECT id FROM monitored_emails WHERE business_id = $1 AND email_address = $2',
@@ -291,7 +291,7 @@ export async function getConnectionStatus(businessId: number, emailAddress: stri
       ...context,
       metadata: { isConnected, connectedAt, tokenExpiry }
     });
-    return { isConnected, connectedAt, provider: 'outlook', tokenExpiry };
+    return { isConnected, connectedAt, provider: 'microsoft', tokenExpiry };
   } catch (error) {
     oauthLogger.error('Failed to get Microsoft OAuth connection status', context, error as Error);
     throw ErrorFactory.oauthService(ErrorCodes.DATABASE_QUERY_ERROR, 'Failed to get OAuth connection status');
@@ -301,7 +301,7 @@ export async function getConnectionStatus(businessId: number, emailAddress: stri
 export async function disconnect(businessId: number, emailAddress: string): Promise<void> {
   const context: LogContext = { operation: 'disconnect-oauth', businessId, emailAddress };
   try {
-    await query('DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3', [businessId, emailAddress, 'outlook']);
+    await query('DELETE FROM oauth_tokens WHERE business_id = $1 AND email_address = $2 AND provider = $3', [businessId, emailAddress, 'microsoft']);
     oauthLogger.info('Microsoft OAuth disconnected successfully', context);
   } catch (error) {
     oauthLogger.error('Failed to disconnect Microsoft OAuth', context, error as Error);
@@ -310,6 +310,6 @@ export async function disconnect(businessId: number, emailAddress: string): Prom
 }
 
 export async function validateState(state: string): Promise<OAuthState> {
-  return validateOAuthState(state, 'outlook');
+  return validateOAuthState(state, 'microsoft');
 }
 

@@ -126,14 +126,14 @@ describe('OutlookOAuthService', () => {
   describe('constructor', () => {
     it('should initialize with environment variables', () => {
       const newService = new OutlookOAuthService();
-      expect(newService.getProviderType()).toBe('outlook');
+      expect(newService.getProviderType()).toBe('microsoft');
     });
 
     it('should handle missing credentials gracefully', () => {
       process.env.AZURE_CLIENT_ID = '';
       process.env.AZURE_CLIENT_SECRET = '';
       const newService = new OutlookOAuthService();
-      expect(newService.getProviderType()).toBe('outlook');
+      expect(newService.getProviderType()).toBe('microsoft');
     });
   });
 
@@ -515,7 +515,7 @@ describe('OutlookOAuthService', () => {
       const mockStatus = {
         isConnected: true,
         connectedAt: new Date(),
-        provider: 'outlook' as const
+        provider: 'microsoft' as const
       };
       mockGetConnectionStatus.mockResolvedValue(mockStatus);
 
