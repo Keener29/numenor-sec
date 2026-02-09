@@ -52,7 +52,7 @@ class PhishingDetector {
     const textAnalysis = textAnalyzer.analyzeEmailText(emailTextData);
     detectedPatterns.push(...textAnalysis.patterns);
     if (detectedPatterns.length > 0){
-      riskFactors.push("Detected Phishing Patterns");
+      riskFactors.push(`Detected Phishing Patterns ${detectedPatterns.length}`);
       recommendations.push("Verify sender")
     }
     threatScore += textAnalysis.score;
