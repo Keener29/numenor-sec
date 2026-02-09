@@ -308,7 +308,7 @@ function cleanDomainName(input: string): string | null {
 /**
  * Check if domain is a known trusted domain (skip age analysis)
  */
-function isKnownTrustedDomain(domain: string): boolean {
+export function isKnownTrustedDomain(domain: string): boolean {
   const trustedDomains = [
     // Internal systems (always safe)
     'localhost', '127.0.0.1', 'numenorsecurity.com',
@@ -322,7 +322,7 @@ function isKnownTrustedDomain(domain: string): boolean {
     'twitter.com', 'linkedin.com', 'instagram.com', 'youtube.com', 
     'youtu.be', 'grammarly.com', 'mailsuite.com',
     'slack.com', 'zoom.us', 'discord.com', 'pinterest.com', 'reddit.com', 
-    'tiktok.com', 'spotify.com', 'shopify.com', 'fitbit.com',
+    'tiktok.com', 'spotify.com', 'shopify.com', 'fitbit.com', 'crave.ca',
     
     // Major financial institutions
     'paypal.com', 'visa.com', 'mastercard.com', 'americanexpress.com',

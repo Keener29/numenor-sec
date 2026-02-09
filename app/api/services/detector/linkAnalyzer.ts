@@ -406,7 +406,6 @@ export class LinkAnalyzerService {
       // Extra penalty ONLY if domain looks off
       if (!trustedDomain) {
         score += 10;
-        this.linkRisks.push("Suspicious login-like path on untrusted domain");
       }
     }
     return score;

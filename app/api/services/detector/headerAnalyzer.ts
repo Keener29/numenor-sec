@@ -23,6 +23,7 @@
 
 import { query } from '../../../db/connection.js';
 import { oauthLogger } from '../../../utils/logger.js';
+import { isKnownTrustedDomain } from './domainAgeAnalyzer.js';
 import { analyzeDomain, extractDomain as extractDomainUtil, isTemporaryEmailDomain } from './domainAnalyzer.js';
 import { getDomain } from 'tldts';
 
@@ -48,12 +49,6 @@ export function getOrgDomain(domain: string): string {
  * Header Analyzer Service Class
  */
 export class HeaderAnalyzerService {
-  private readonly builtInTrustedDomains: string[] = [
-    // Internal systems (always safe)
-    'localhost',
-    '127.0.0.1',
-  ];
-
   // Legitimate email service providers that businesses commonly use
   private readonly legitimateEmailServices: string[] = [
     // Transactional ESPs
@@ -322,9 +317,7 @@ export class HeaderAnalyzerService {
     }
 
     // Check against built-in trusted domains
-    const isBuiltInTrusted = this.builtInTrustedDomains.some(trusted => 
-      senderDomain === trusted || senderDomain.endsWith('.' + trusted)
-    );
+    const isBuiltInTrusted = isKnownTrustedDomain(senderEmail)
 
     if (isBuiltInTrusted) {
       return true;
