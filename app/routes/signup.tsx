@@ -193,7 +193,7 @@ export default function Signup() {
                 text="signup_with"
                 theme="outline"
                 shape="pill"
-                auto_select={true}
+                auto_select={false}
                 useOneTap={true}
                 width="220px"
                 logo_alignment="center"

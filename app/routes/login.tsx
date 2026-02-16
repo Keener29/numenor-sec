@@ -134,7 +134,7 @@ export default function Login() {
               <GoogleLogin 
                 onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
                 onError={() => {setError("Google sign-in failed");}} 
-                auto_select={true}
+                auto_select={false}
                 shape="pill"
                 text="signin_with"
                 useOneTap={true}
