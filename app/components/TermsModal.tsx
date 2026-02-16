@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router";
 
 type TermsModalProps = {
   onSuccess: () => void; // Callback for when user accepts terms and completes onboarding
@@ -10,7 +11,7 @@ export default function TermsModal({ onSuccess }: TermsModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg max-w-md shadow-2xl">
-        <h2 className="text-xl font-bold mb-4">
+        <h2 className="text-gray-800 text-xl font-bold mb-4">
           Final Step: Secure Your Account
         </h2>
         <p className="text-gray-600 text-sm mb-6">
@@ -18,15 +19,34 @@ export default function TermsModal({ onSuccess }: TermsModalProps) {
           dashboard, please review our Beta Participation terms.
         </p>
 
-        <div className="flex items-start mb-6">
+        <div className="flex items-center mb-6">
           <input
+            id="agree-terms"
+            name="agree-terms"
             type="checkbox"
-            id="modal-agree"
+            required
             checked={agreed}
-            onChange={() => setAgreed(!agreed)}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="form-checkbox"
           />
-          <label htmlFor="modal-agree" className="ml-2 text-sm text-gray-700">
-            I agree to the Beta Terms and Conditions
+          <label
+            htmlFor="agree-terms"
+            className="ml-2 block text-sm text-gray-900"
+          >
+            I have read and agree to the <br />
+            <Link
+              to="/terms"
+              className="text-blue-600 hover:text-blue-500 underline"
+            >
+              Beta Participation Terms
+            </Link>{" "}
+            and{" "}
+            <Link
+              to="/privacy"
+              className="text-blue-600 hover:text-blue-500 underline"
+            >
+              Privacy Policy
+            </Link>
           </label>
         </div>
 
