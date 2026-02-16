@@ -40,8 +40,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="text-center">
                   <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-              <span className="block">Automated Phishing Detection</span>{" "}
-              <span className="block text-blue-600">for Small & Medium Businesses</span>
+              <span className="block">Stopping Phishing Attacks</span>{" "}
+              {/* Stop Phishing Attacks Before Your Team Ever Sees Them */}
+              {/* One Phishing Email Can Shut Down Your Business.*/}
+              {/* Enterprise-Grade Phishing Protection — Built for SMBs */}
+              <span className="block text-blue-600">Against Waterloo Businesses</span>
                   </h1>
             <p className="mt-6 max-w-3xl mx-auto text-xl text-gray-600">
               Simple, reliable email security that works automatically. Get peace of mind knowing every email is scanned for threats before they reach your team.
@@ -196,11 +199,11 @@ export default function Home() {
               <p className="text-gray-900 font-medium">Agencies</p>
             </div>
           </div>
-          <div className="mt-8 text-center">
+          {/* <div className="mt-8 text-center">
             <p className="text-gray-600">
               Perfect for businesses with <strong className="text-gray-900">1 to 500 email accounts</strong>
             </p>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -366,7 +369,7 @@ export default function Home() {
               </Link>
             </div>
             <p className="mt-4 text-sm text-gray-500">
-              © 2025 Numenor Security. All rights reserved.
+              © 2026 Numenor Security. All rights reserved.
             </p>
           </div>
         </div>

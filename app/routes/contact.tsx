@@ -107,7 +107,7 @@ export default function Contact() {
               </Link>
             </div>
             <p className="mt-4 text-sm text-gray-500">
-              © 2025 Numenor Security. All rights reserved.
+              © 2026 Numenor Security. All rights reserved.
             </p>
           </div>
         </div>
