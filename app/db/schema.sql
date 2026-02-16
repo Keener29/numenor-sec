@@ -12,6 +12,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+
+    terms_accepted BOOLEAN NOT NULL DEFAULT false,
+    terms_version VARCHAR(50) NOT NULL,
+    terms_accepted_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    signup_ip_address VARCHAR(45),
+
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
