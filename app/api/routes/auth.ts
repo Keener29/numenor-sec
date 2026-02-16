@@ -204,7 +204,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { credential, termsAccepted } = req.body;
-      let requiresOnboarding = false;
+      let requiresOnboarding = true;
 
       const rawIp =
         req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0.0.0.0";
@@ -233,7 +233,6 @@ router.post(
       if (!user) {
         // Create user with a random password (unused for Google login)
         const randomPassword = crypto.randomBytes(32).toString("hex");
-        requiresOnboarding = true;
         user = await createUser(
           email,
           randomPassword,
@@ -261,6 +260,7 @@ router.post(
         };
       } else if (!businessId) {
         // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+        requiresOnboarding = user?.terms_accepted ? false : true; // If user exists but hasn't accepted terms, require onboarding
         const ownerBusiness = await query(
           "SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1",
           [user.id],
@@ -295,24 +295,26 @@ router.post(
             business_name: business.business_name || undefined,
           };
         }
+      } else {
+        requiresOnboarding = user?.terms_accepted ? false : true; // If user exists but hasn't accepted terms, require onboarding
       }
 
       // Generate token and set cookie (include business info if available)
-      const token = generateToken({
-        ...user,
-        business_id: businessId,
-        business_name: user.business_name,
-      });
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      let token = null;
+      if (!requiresOnboarding) {
+        token = generateToken({ ...user, business_id: businessId });
+
+        res.cookie("authToken", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          domain:
+            process.env.NODE_ENV === "production"
+              ? ".numenorsecurity.com"
+              : "localhost",
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+      }
 
       return res.json({
         message: "Google login successful",
@@ -346,7 +348,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { idToken, termsAccepted } = req.body;
-      let requiresOnboarding = false;
+      let requiresOnboarding = true;
 
       const rawIp =
         req.headers["x-forwarded-for"] || req.socket.remoteAddress || "0.0.0.0";
@@ -384,7 +386,6 @@ router.post(
       if (!user) {
         // Create user with a random password (unused for Microsoft login)
         const randomPassword = crypto.randomBytes(32).toString("hex");
-        requiresOnboarding = true;
         user = await createUser(
           email,
           randomPassword,
@@ -412,6 +413,8 @@ router.post(
         };
       } else if (!businessId) {
         // If the user exists but has no business_id resolved via LEFT JOIN, try to find owner's business
+        requiresOnboarding = user?.terms_accepted ? false : true; // If user exists but hasn't accepted terms, require onboarding
+
         const ownerBusiness = await query(
           "SELECT id, business_name FROM businesses WHERE owner_id = $1 LIMIT 1",
           [user.id],
@@ -446,24 +449,29 @@ router.post(
             business_name: business.business_name || undefined,
           };
         }
+      } else {
+        requiresOnboarding = user?.terms_accepted ? false : true; // If user exists but hasn't accepted terms, require onboarding
       }
 
       // Generate token and set cookie (include business info if available)
-      const token = generateToken({
-        ...user,
-        business_id: businessId,
-        business_name: user.business_name,
-      });
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      let token = null;
+      if (!requiresOnboarding) {
+        const token = generateToken({
+          ...user,
+          business_id: businessId,
+          business_name: user.business_name,
+        });
+        res.cookie("authToken", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          domain:
+            process.env.NODE_ENV === "production"
+              ? ".numenorsecurity.com"
+              : "localhost",
+          maxAge: 24 * 60 * 60 * 1000,
+        });
+      }
 
       return res.json({
         message: "Microsoft login successful",
@@ -737,29 +745,39 @@ router.put("/update-terms-accepted", async (req, res, next) => {
     }
 
     // We only update if terms_accepted is currently false (idempotency)
-    const userUpdateResult = await query(
-      `UPDATE users 
-       SET 
-         terms_accepted = $1, 
-         terms_version = $2, 
-         terms_accepted_at = CURRENT_TIMESTAMP,
-         signup_ip_address = $3
-       WHERE id = $4 AND terms_accepted = false
-       RETURNING id, email, first_name, last_name, business_id, business_name`,
+    const result = await query(
+      `WITH updated_user AS (
+        UPDATE users 
+        SET 
+          terms_accepted = $1, 
+          terms_version = $2, 
+          terms_accepted_at = CURRENT_TIMESTAMP,
+          signup_ip_address = $3
+        WHERE id = $4 AND terms_accepted = false
+        RETURNING id, email, first_name, last_name
+      )
+      SELECT 
+        u.*, 
+        b.id AS business_id, 
+        b.business_name AS business_name
+      FROM updated_user u
+      LEFT JOIN businesses b ON b.owner_id = u.id
+      LIMIT 1`,
       [true, "v1.0-beta-2026", ipAddress, userId],
     );
 
-    if (userUpdateResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res
         .status(404)
         .json({ error: "User not found or terms already accepted" });
     }
 
-    const user = userUpdateResult.rows[0] as User;
+    const user = result.rows[0] as User;
     const token = generateToken({
       ...user,
+      business_id: user.business_id,
+      business_name: user.business_name,
     });
-
     // Set the cookie
     res.cookie("authToken", token, {
       httpOnly: true,

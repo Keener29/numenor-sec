@@ -29,35 +29,35 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 // Function to process daily alerts data for the chart
 const processChartData = (dailyAlerts: any[]) => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const today = new Date();
-  
+
   // Create a map of date to count for quick lookup
   const alertsMap = new Map();
   for (const alert of dailyAlerts) {
     // Convert ISO date to YYYY-MM-DD format for consistent lookup
-    const dateString = new Date(alert.date).toISOString().split('T')[0];
+    const dateString = new Date(alert.date).toISOString().split("T")[0];
     alertsMap.set(dateString, alert.count);
   }
-    
+
   // Generate chart data for the last 7 days
   const chartData = [];
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
-    const dateString = date.toISOString().split('T')[0];
+    const dateString = date.toISOString().split("T")[0];
     const dayIndex = date.getDay();
     const dayName = days[dayIndex === 0 ? 6 : dayIndex - 1]; // Adjust for Monday start
-    
+
     const alertCount = alertsMap.get(dateString) || 0;
-    
+
     chartData.push({
       uuid: crypto.randomUUID(),
       day: dayName,
-      alerts: alertCount
+      alerts: alertCount,
     });
   }
-  
+
   return chartData;
 };
 
@@ -76,7 +76,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
   const { instance } = useMsal();
 
   // Use the OAuth statuses hook
-  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(emails, process.env.VITE_API_URL || "");
+  const { oauthStatuses, refreshOAuthStatuses } = useOAuthStatuses(
+    emails,
+    process.env.VITE_API_URL || "",
+  );
 
   // Load dashboard data on component mount
   useEffect(() => {
@@ -85,10 +88,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
   // Check if business name is missing and show modal
   useEffect(() => {
-    if (user && stats.businessName === null) {
+    if (!isLoading && user && stats.businessName === null) {
       setIsBusinessNameModalOpen(true);
     }
-  }, [user, stats.businessName]);
+  }, [user, stats.businessName, isLoading]);
 
   const loadDashboardData = async () => {
     try {
@@ -96,7 +99,13 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       setError("");
 
       // Load emails, alerts, stats, and business info in parallel
-      const [emailsResponse, alertsResponse, emailStats, alertStats, businessResponse] = await Promise.all([
+      const [
+        emailsResponse,
+        alertsResponse,
+        emailStats,
+        alertStats,
+        businessResponse,
+      ] = await Promise.all([
         emailsAPI.getEmails({ limit: 10 }),
         alertsAPI.getAlerts({ limit: 10 }),
         emailsAPI.getEmailStats(),
@@ -104,9 +113,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         businessAPI.getBusiness(),
       ]);
 
-      console.log('Emails data:', emailsResponse.emails);
-      console.log('Alerts data:', alertsResponse.alerts);
-      
+      console.log("Emails data:", emailsResponse.emails);
+      console.log("Alerts data:", alertsResponse.alerts);
+
       setEmails(emailsResponse.emails || []);
       setAlerts(alertsResponse.alerts || []);
       setStats({
@@ -117,12 +126,14 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
       // Process daily alerts data for the chart
       const dailyAlerts = alertStats.stats?.dailyAlerts || [];
-      console.log('Daily alerts data:', dailyAlerts);
+      console.log("Daily alerts data:", dailyAlerts);
       const processedChartData = processChartData(dailyAlerts);
-      console.log('Processed chart data:', processedChartData);
+      console.log("Processed chart data:", processedChartData);
       setChartData(processedChartData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard data",
+      );
       console.error("Dashboard error:", err);
     } finally {
       setIsLoading(false);
@@ -135,19 +146,21 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
       // Reload alerts and stats to get updated data
       const [alertsResponse, alertStats] = await Promise.all([
         alertsAPI.getAlerts({ limit: 10 }),
-        alertsAPI.getAlertStats()
+        alertsAPI.getAlertStats(),
       ]);
       setAlerts(alertsResponse.alerts || []);
       setStats((prev: any) => ({
         ...prev,
-        ...(alertStats?.stats)
+        ...alertStats?.stats,
       }));
       // Update chart with latest daily alerts
       const dailyAlerts = alertStats?.stats?.dailyAlerts || [];
       setChartData(processChartData(dailyAlerts));
       // Notify other dashboard components to refresh (e.g., PhishingDetectionDashboard)
       if (globalThis.window !== undefined) {
-        globalThis.window.dispatchEvent(new CustomEvent("phishing:statsUpdated"));
+        globalThis.window.dispatchEvent(
+          new CustomEvent("phishing:statsUpdated"),
+        );
       }
     } catch (err) {
       console.error("Failed to mark alert as safe:", err);
@@ -164,7 +177,6 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
     handleLogout(instance);
   };
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -173,7 +185,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/">
-                <h1 className="text-2xl font-bold text-gray-900">Numenor Security</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Numenor Security
+                </h1>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
@@ -199,7 +213,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
         <div className="px-4 py-6 sm:px-0">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="mt-2 text-gray-600">
-            Monitor your business's email security and phishing protection status
+            Monitor your business's email security and phishing protection
+            status
           </p>
         </div>
 
@@ -219,8 +234,8 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <ConnectedEmailsDropdown 
-            emails={emails} 
+          <ConnectedEmailsDropdown
+            emails={emails}
             onEmailsUpdate={handleEmailsUpdate}
             isModalOpen={isModalOpen}
             setIsModalOpen={setIsModalOpen}
@@ -274,9 +289,9 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Email Monitoring */}
-          <EmailMonitoring 
-            emails={emails} 
-            alerts={alerts} 
+          <EmailMonitoring
+            emails={emails}
+            alerts={alerts}
             onMarkSafe={handleMarkSafe}
             oauthStatuses={oauthStatuses}
           />
@@ -290,7 +305,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 
         {/* Phishing Detection Dashboard */}
         <div className="mt-8">
-          <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen}/>
+          <PhishingDetectionDashboard setIsModalOpen={setIsModalOpen} />
         </div>
       </div>
 
