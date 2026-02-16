@@ -382,7 +382,7 @@ export default function Signup() {
                 htmlFor="agree-terms"
                 className="ml-2 block text-sm text-gray-900"
               >
-                I have read and agree to the{"\n"}
+                I have read and agree to the <br />
                 <Link
                   to="/terms"
                   className="text-blue-600 hover:text-blue-500 underline"
