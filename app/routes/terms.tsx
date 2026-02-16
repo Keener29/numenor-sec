@@ -15,10 +15,26 @@ export default function Terms() {
         <div className="bg-white shadow-lg rounded-lg p-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-4">Terms and Conditions</h1>
-            <p className="text-gray-600">Last updated: 12/26/2025</p>
+            <p className="text-gray-600">Last updated: 02/16/2026</p>
           </div>
 
           <div className="prose prose-lg max-w-none">
+            {/* START BETA ADDENDUM SECTION */}
+            <section className="mb-12 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
+              <h2 className="text-2xl font-bold text-blue-900 mb-4">BETA PARTICIPATION ADDENDUM</h2>
+              <p className="text-blue-800 font-medium mb-4">
+                IMPORTANT: You are participating in a Beta Test. Notwithstanding anything in the Terms and Conditions below, you acknowledge and agree that:
+              </p>
+              <ul className="list-disc list-inside text-blue-800 space-y-2">
+                <li><strong>Early Access & Optimization:</strong> This Service is currently in "Live Beta." While we utilize advanced detection logic, this version is provided for optimization and field-testing. Users acknowledge that as a pre-release security tool, performance may vary, and the Service is provided on an "As-Is" basis to allow for rapid iterative improvements.</li>
+                <li><strong>No Fees:</strong> While in Beta, the service is provided free of charge in exchange for your feedback and bug reports.</li>
+                <li><strong>Feedback Ownership:</strong> You grant Numenor Security a worldwide, perpetual, irrevocable license to use any feedback or suggestions you provide without compensation to you.</li>
+                <li><strong>Confidentiality:</strong> You agree not to share screenshots, performance data, or details of the internal detection logic with third parties without our written consent.</li>
+                <li><strong>Termination:</strong> We may end this Beta and your access at any time for any reason.</li>
+              </ul>
+            </section>
+            {/* END BETA ADDENDUM SECTION */}
+
             <section className="mb-8">
               <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
               <p className="text-gray-700 mb-4">

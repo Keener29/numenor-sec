@@ -1,11 +1,14 @@
 // API utility functions for frontend-backend communication
 
 // Generic API request function
-const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<any> => {
+const apiRequest = async (
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<any> => {
   const config: RequestInit = {
-    credentials: 'include',
+    credentials: "include",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...options.headers,
     },
     ...options,
@@ -13,24 +16,28 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}): Promise<
   let apiUrl = process.env.VITE_API_URL;
 
   const response = await fetch(`${apiUrl}${endpoint}`, config);
-  
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ error: 'Network error' }));
-    
+    const errorData = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
+
     // Handle validation errors with detailed messages
     if (errorData.details && Array.isArray(errorData.details)) {
-      const validationMessages = errorData.details.map((detail: any) => detail.message).join(', ');
+      const validationMessages = errorData.details
+        .map((detail: any) => detail.message)
+        .join(", ");
       const error = new Error(validationMessages);
       (error as any).errorData = errorData;
       throw error;
     }
-    
+
     // Preserve error data for bulk operations and other structured errors
     const error = new Error(errorData.error || `HTTP ${response.status}`);
     (error as any).errorData = errorData;
     throw error;
   }
-  
+
   return response.json();
 };
 
@@ -43,27 +50,41 @@ export const authAPI = {
     firstName: string;
     lastName: string;
     businessName: string;
+    termsAccepted: boolean;
   }) => {
-    const response = await apiRequest('/auth/register', {
-      method: 'POST',
+    const response = await apiRequest("/auth/register", {
+      method: "POST",
       body: JSON.stringify(userData),
     });
     return response;
   },
 
   // Login user
-  login: async (credentials: { email: string; password: string; rememberMe?: boolean }) => {
-    const response = await apiRequest('/auth/login', {
-      method: 'POST',
+  login: async (credentials: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => {
+    const response = await apiRequest("/auth/login", {
+      method: "POST",
       body: JSON.stringify(credentials),
+    });
+    return response;
+  },
+
+  // Update user
+  updateTermsAccepted: async (userData: any) => {
+    const response = await apiRequest("/auth/update-terms-accepted", {
+      method: "PUT",
+      body: JSON.stringify(userData),
     });
     return response;
   },
 
   // Forgot password
   forgotPassword: async (data: { email: string }) => {
-    return apiRequest('/auth/forgot-password', {
-      method: 'POST',
+    return apiRequest("/auth/forgot-password", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   },
@@ -73,8 +94,8 @@ export const authAPI = {
     currentPassword: string;
     newPassword: string;
   }) => {
-    return apiRequest('/auth/change-password', {
-      method: 'POST',
+    return apiRequest("/auth/change-password", {
+      method: "POST",
       body: JSON.stringify(passwordData),
     });
   },
@@ -82,7 +103,7 @@ export const authAPI = {
   // Logout
   logout: async () => {
     try {
-      await apiRequest('/auth/logout', { method: 'POST' });
+      await apiRequest("/auth/logout", { method: "POST" });
     } finally {
       // Server clears HttpOnly cookie; no client-side token to remove
     }
@@ -90,24 +111,24 @@ export const authAPI = {
 
   // Reset password
   resetPassword: async (data: { token: string; newPassword: string }) => {
-    return apiRequest('/auth/reset-password', {
-      method: 'POST',
+    return apiRequest("/auth/reset-password", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   },
-  
+
   // Google Login with GIS credential
-  googleLogin: async (data: { credential: string }) => {
-    return apiRequest('/auth/google', {
-      method: 'POST',
+  googleLogin: async (data: { credential: string; termsAccepted: boolean }) => {
+    return apiRequest("/auth/google", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   },
 
   // Microsoft Login with MSAL ID token
-  microsoftLogin: async (data: { idToken: string }) => {
-    return apiRequest('/auth/microsoft', {
-      method: 'POST',
+  microsoftLogin: async (data: { idToken: string; termsAccepted: boolean }) => {
+    return apiRequest("/auth/microsoft", {
+      method: "POST",
       body: JSON.stringify(data),
     });
   },
@@ -115,7 +136,7 @@ export const authAPI = {
   // Delete account and business
   deleteAccount: async (accountId: number, reason?: string) => {
     return apiRequest(`/accounts/${accountId}`, {
-      method: 'DELETE',
+      method: "DELETE",
       body: JSON.stringify({ reason }),
     });
   },
@@ -124,28 +145,33 @@ export const authAPI = {
 // Emails API functions
 export const emailsAPI = {
   // Get all monitored emails
-  getEmails: async (params?: { page?: number; limit?: number; connected?: boolean }) => {
+  getEmails: async (params?: {
+    page?: number;
+    limit?: number;
+    connected?: boolean;
+  }) => {
     const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.connected !== undefined) queryParams.append('connected', params.connected.toString());
+    if (params?.page) queryParams.append("page", params.page.toString());
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.connected !== undefined)
+      queryParams.append("connected", params.connected.toString());
     const qs = queryParams.toString();
-    const url = qs ? `/emails?${qs}` : '/emails';
-    return apiRequest(url);    
+    const url = qs ? `/emails?${qs}` : "/emails";
+    return apiRequest(url);
   },
 
   // Add new email to monitor
   addEmail: async (emailData: { emailAddress: string }) => {
-    return apiRequest('/emails', {
-      method: 'POST',
+    return apiRequest("/emails", {
+      method: "POST",
       body: JSON.stringify(emailData),
     });
   },
 
   // Add multiple emails to monitor (bulk)
   addBulkEmails: async (emailData: { emailAddresses: string[] }) => {
-    return apiRequest('/emails/bulk', {
-      method: 'POST',
+    return apiRequest("/emails/bulk", {
+      method: "POST",
       body: JSON.stringify(emailData),
     });
   },
@@ -153,7 +179,7 @@ export const emailsAPI = {
   // Update email connection status
   updateEmail: async (emailId: number, updates: { isConnected?: boolean }) => {
     return apiRequest(`/emails/${emailId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(updates),
     });
   },
@@ -161,20 +187,20 @@ export const emailsAPI = {
   // Remove email from monitoring
   removeEmail: async (emailId: number) => {
     return apiRequest(`/emails/${emailId}`, {
-      method: 'DELETE',
+      method: "DELETE",
     });
   },
 
   // Resend permission request email
   resendPermissionEmail: async (emailId: number) => {
     return apiRequest(`/emails/${emailId}/resend`, {
-      method: 'POST',
+      method: "POST",
     });
   },
 
   // Get email statistics
   getEmailStats: async () => {
-    return apiRequest('/emails/stats');
+    return apiRequest("/emails/stats");
   },
 };
 
@@ -196,9 +222,9 @@ export const alertsAPI = {
         queryParams.append(key, value.toString());
       }
     }
-    
+
     const qs = queryParams.toString();
-    const url = qs ? `/alerts?${qs}` : '/alerts';
+    const url = qs ? `/alerts?${qs}` : "/alerts";
     return apiRequest(url);
   },
 
@@ -208,12 +234,15 @@ export const alertsAPI = {
   },
 
   // Update alert status
-  updateAlert: async (alertId: number, updates: {
-    status?: string;
-    description?: string;
-  }) => {
+  updateAlert: async (
+    alertId: number,
+    updates: {
+      status?: string;
+      description?: string;
+    },
+  ) => {
     return apiRequest(`/alerts/${alertId}`, {
-      method: 'PUT',
+      method: "PUT",
       body: JSON.stringify(updates),
     });
   },
@@ -228,15 +257,15 @@ export const alertsAPI = {
     alertType: string;
     description?: string;
   }) => {
-    return apiRequest('/alerts', {
-      method: 'POST',
+    return apiRequest("/alerts", {
+      method: "POST",
       body: JSON.stringify(alertData),
     });
   },
 
   // Get alert statistics
   getAlertStats: async () => {
-    return apiRequest('/alerts/stats');
+    return apiRequest("/alerts/stats");
   },
 };
 
@@ -244,7 +273,7 @@ export const alertsAPI = {
 export const businessAPI = {
   // Get business information
   getBusiness: async () => {
-    return apiRequest('/business');
+    return apiRequest("/business");
   },
 
   // Update business information
@@ -254,14 +283,14 @@ export const businessAPI = {
     phone?: string;
     website?: string;
   }) => {
-    return apiRequest('/business', {
-      method: 'PUT',
+    return apiRequest("/business", {
+      method: "PUT",
       body: JSON.stringify(updates),
     });
   },
 
   // Get business statistics
   getBusinessStats: async () => {
-    return apiRequest('/business/stats');
+    return apiRequest("/business/stats");
   },
 };

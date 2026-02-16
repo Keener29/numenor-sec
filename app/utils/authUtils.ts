@@ -1,16 +1,21 @@
 // Client-side authentication utilities
 
 import { googleLogout } from "@react-oauth/google";
-import type { IPublicClientApplication, AuthenticationResult } from "@azure/msal-browser";
+import type {
+  IPublicClientApplication,
+  AuthenticationResult,
+} from "@azure/msal-browser";
 import { authAPI } from "./api";
 
 /**
  * Handles logout for all authentication providers (Google, Microsoft, Email/Password)
  * Clears all sessions and redirects to login page
- * 
+ *
  * @param msalInstance - Optional MSAL instance for Microsoft logout
  */
-export async function handleLogout(msalInstance?: IPublicClientApplication): Promise<void> {
+export async function handleLogout(
+  msalInstance?: IPublicClientApplication,
+): Promise<void> {
   try {
     // Logout from Google OAuth (safe to call even if not logged in with Google)
     try {
@@ -41,7 +46,7 @@ export async function handleLogout(msalInstance?: IPublicClientApplication): Pro
         console.debug("Microsoft logout:", err);
       }
     }
-    
+
     // Navigate to login page (only if not redirected by Microsoft logout)
     globalThis.window.location.href = "/login";
   } catch (err) {
@@ -55,12 +60,19 @@ export async function handleLogout(msalInstance?: IPublicClientApplication): Pro
  * Extracts the credential and sends it to the backend for verification.
  * Throws if the credential is missing or the backend rejects it.
  */
-export async function loginWithGoogle(credentialResponse: any): Promise<void> {
+export async function loginWithGoogle(
+  credentialResponse: any,
+  termsAccepted: boolean,
+): Promise<{ id: string; requiresOnboarding: boolean }> {
   const credential = credentialResponse?.credential;
   if (!credential) {
     throw new Error("Google credential not found");
   }
-  await authAPI.googleLogin({ credential });
+  const response = await authAPI.googleLogin({ credential, termsAccepted });
+  return {
+    id: response.user.id,
+    requiresOnboarding: response.requiresOnboarding,
+  };
 }
 
 /**
@@ -68,14 +80,17 @@ export async function loginWithGoogle(credentialResponse: any): Promise<void> {
  * Extracts the ID token and sends it to the backend for verification.
  * Throws if the token is missing or the backend rejects it.
  */
-export async function loginWithMicrosoft(authenticationResult: AuthenticationResult): Promise<void> {
+export async function loginWithMicrosoft(
+  authenticationResult: AuthenticationResult,
+  termsAccepted: boolean,
+): Promise<{ id: string; requiresOnboarding: boolean }> {
   const idToken = authenticationResult?.idToken;
   if (!idToken) {
     throw new Error("Microsoft ID token not found");
   }
-  await authAPI.microsoftLogin({ idToken });
+  const response = await authAPI.microsoftLogin({ idToken, termsAccepted });
+  return {
+    id: response.user.id,
+    requiresOnboarding: response.requiresOnboarding,
+  };
 }
-
-
-
-

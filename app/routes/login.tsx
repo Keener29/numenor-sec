@@ -7,10 +7,14 @@ import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
 import { GoogleLogin } from "@react-oauth/google";
 import { useMsal } from "@azure/msal-react";
 import AzureLogin from "~/components/AzureLogin";
+import TermsModal from "~/components/TermsModal";
 export function meta() {
   return [
     { title: "Login - Numenor Security" },
-    { name: "description", content: "Login to your Numenor Security dashboard" },
+    {
+      name: "description",
+      content: "Login to your Numenor Security dashboard",
+    },
   ];
 }
 
@@ -29,14 +33,16 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [onboardingUserId, setOnboardingUserId] = useState<string>("");
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const { instance } = useMsal();
 
   useEffect(() => {
     // Prefill email if previously remembered
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    const savedRemember = localStorage.getItem('rememberMe') === 'true';
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    const savedRemember = localStorage.getItem("rememberMe") === "true";
     if (savedEmail) {
-      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setFormData((prev) => ({ ...prev, email: savedEmail }));
     }
     setRememberMe(savedRemember);
   }, []);
@@ -49,16 +55,16 @@ export default function Login() {
     try {
       // Persist email choice if rememberMe
       if (rememberMe) {
-        localStorage.setItem('rememberedEmail', formData.email);
-        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem("rememberedEmail", formData.email);
+        localStorage.setItem("rememberMe", "true");
       } else {
-        localStorage.removeItem('rememberedEmail');
-        localStorage.setItem('rememberMe', 'false');
+        localStorage.removeItem("rememberedEmail");
+        localStorage.setItem("rememberMe", "false");
       }
 
       const response = await authAPI.login({ ...formData, rememberMe });
       console.log("Login successful:", response);
-      
+
       // Use React Router navigation to trigger server-side authentication check
       navigate("/dashboard");
     } catch (err) {
@@ -73,8 +79,14 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError("");
-      await loginWithGoogle(credentialResponse);
-      navigate("/dashboard");
+      const loginResponse = await loginWithGoogle(credentialResponse, false);
+
+      if (loginResponse.requiresOnboarding) {
+        setShowTermsModal(true);
+        setOnboardingUserId(loginResponse.id);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-in failed");
       setIsLoading(false);
@@ -85,13 +97,27 @@ export default function Login() {
     try {
       setIsLoading(true);
       setError("");
-      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
-      await loginWithMicrosoft(response);
-      navigate("/dashboard");
+      const response = await instance.loginPopup({
+        scopes: ["openid", "profile", "email"],
+      });
+      const loginResponse = await loginWithMicrosoft(response, false);
+      if (loginResponse.requiresOnboarding) {
+        setOnboardingUserId(loginResponse.id);
+        setShowTermsModal(true);
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Azure sign-in failed");
       setIsLoading(false);
     }
+  };
+  const finalizeSignup = async () => {
+    await authAPI.updateTermsAccepted({
+      userId: onboardingUserId,
+      termsAccepted: true,
+    });
+    navigate("/dashboard");
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -106,7 +132,9 @@ export default function Login() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Numenor Security</h1>
-          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Small & Medium Businesses</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Phishing Protection for Small & Medium Businesses
+          </p>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Sign in to your account
@@ -131,9 +159,13 @@ export default function Login() {
           )}
           <div className="mb-6">
             <div className="w-full flex justify-center mb-3">
-              <GoogleLogin 
-                onSuccess={(credentialResponse)=>handleGoogleLogin(credentialResponse)} 
-                onError={() => {setError("Google sign-in failed");}} 
+              <GoogleLogin
+                onSuccess={(credentialResponse) =>
+                  handleGoogleLogin(credentialResponse)
+                }
+                onError={() => {
+                  setError("Google sign-in failed");
+                }}
                 auto_select={false}
                 shape="pill"
                 text="signin_with"
@@ -142,19 +174,28 @@ export default function Login() {
                 logo_alignment="center"
               />
             </div>
-            <AzureLogin handleAzureLogin={handleAzureLogin} isLoading={isLoading} text="Sign in with Microsoft" />
+            <AzureLogin
+              handleAzureLogin={handleAzureLogin}
+              isLoading={isLoading}
+              text="Sign in with Microsoft"
+            />
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+              <span className="px-2 bg-white text-gray-500">
+                Or continue with email
+              </span>
             </div>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -173,7 +214,10 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1">
@@ -197,19 +241,25 @@ export default function Login() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                className="form-checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
+                  className="form-checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   Remember me
                 </label>
               </div>
 
               <div className="text-sm">
-              <Link to="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link
+                  to="/forgot-password"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
                   Forgot your password?
-              </Link>
+                </Link>
               </div>
             </div>
 
@@ -225,6 +275,14 @@ export default function Login() {
           </form>
         </div>
       </div>
+      {showTermsModal && (
+        <TermsModal
+          onSuccess={() => {
+            setShowTermsModal(false);
+            finalizeSignup();
+          }}
+        />
+      )}
     </div>
   );
 }
