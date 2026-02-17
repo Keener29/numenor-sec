@@ -72,15 +72,16 @@ router.put(
   async (req: AuthRequest, res, next) => {
     try {
       const businessId = req.user!.business_id!;
+      const userId = req.user!.id;
       const { businessName, termsAccepted } = req.body;
       await query("BEGIN");
 
       const bizResult = await query(
         `UPDATE businesses 
-   SET business_name = $1, updated_at = CURRENT_TIMESTAMP
-   WHERE id = $2
-   RETURNING *`,
-        [businessName, businessId],
+        SET business_name = $1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND owner_id = $3
+        RETURNING *`,
+        [businessName, businessId, userId],
       );
 
       if (bizResult.rows.length === 0) {

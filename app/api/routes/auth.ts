@@ -37,7 +37,14 @@ router.post(
   validateBody(registerSchema),
   async (req, res, next) => {
     try {
-      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
+      // 1. Clear with your standard options
+      res.clearCookie("authToken", COOKIE_OPTIONS);
+
+      // 2. Clear with NO domain (implicit)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: undefined });
+
+      // 3. Clear with 'localhost' explicitly (common local dev ghost)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: "localhost" });
       const {
         email,
         password,
@@ -139,6 +146,14 @@ router.post(
   validateBody(loginSchema),
   async (req, res, next) => {
     try {
+      // 1. Clear with your standard options
+      res.clearCookie("authToken", COOKIE_OPTIONS);
+
+      // 2. Clear with NO domain (implicit)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: undefined });
+
+      // 3. Clear with 'localhost' explicitly (common local dev ghost)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: "localhost" });
       const { email, password, rememberMe } = req.body as {
         email: string;
         password: string;
@@ -186,7 +201,14 @@ router.post(
   validateBody(googleAuthSchema),
   async (req, res, next) => {
     try {
-      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
+      // 1. Clear with your standard options
+      res.clearCookie("authToken", COOKIE_OPTIONS);
+
+      // 2. Clear with NO domain (implicit)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: undefined });
+
+      // 3. Clear with 'localhost' explicitly (common local dev ghost)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: "localhost" });
       const { credential, termsAccepted } = req.body;
 
       const ipAddress =
@@ -316,7 +338,14 @@ router.post(
   validateBody(microsoftAuthSchema),
   async (req, res, next) => {
     try {
-      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
+      // 1. Clear with your standard options
+      res.clearCookie("authToken", COOKIE_OPTIONS);
+
+      // 2. Clear with NO domain (implicit)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: undefined });
+
+      // 3. Clear with 'localhost' explicitly (common local dev ghost)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: "localhost" });
       const { idToken, termsAccepted } = req.body;
 
       const ipAddress =
@@ -663,7 +692,14 @@ router.post(
       );
 
       // Clear the HTTP-only cookie
+      // 1. Clear with your standard options
       res.clearCookie("authToken", COOKIE_OPTIONS);
+
+      // 2. Clear with NO domain (implicit)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: undefined });
+
+      // 3. Clear with 'localhost' explicitly (common local dev ghost)
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, domain: "localhost" });
 
       res.json({ message: "Logout successful" });
     } catch (error) {
