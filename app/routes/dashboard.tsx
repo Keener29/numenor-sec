@@ -24,7 +24,6 @@ export function meta() {
 // Server-side authentication check
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireServerAuth(request);
-  console.log("termsaccepted", user.termsAccepted);
   return { user };
 }
 

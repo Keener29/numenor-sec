@@ -3,7 +3,6 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { query } from "../../db/connection.js";
 import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import jwksClient from "jwks-rsa";
-import { oauthLogger } from "~/utils/logger.js";
 
 export interface User {
   id: number;
@@ -164,10 +163,6 @@ export const getUserById = async (id: number): Promise<User | null> => {
      WHERE u.id = $1 AND u.is_active = true`,
     [id],
   );
-  oauthLogger.info(`getUserById query result: ${JSON.stringify(result.rows)}`, {
-    operation: "getUserById",
-    userId: id,
-  });
   if (result.rows.length === 0) {
     return null;
   }

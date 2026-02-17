@@ -22,7 +22,6 @@ export default function BusinessNameModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const allowCloseRef = useRef(false);
-  console.log("termsaccepted", termsAccepted);
 
   // Open/close dialog using native API
   useEffect(() => {

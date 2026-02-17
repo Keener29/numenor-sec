@@ -596,7 +596,7 @@ router.get("/me", authenticateToken, async (req: AuthRequest, res, next) => {
         lastName: user.last_name,
         businessName: user.business_name,
         businessId: user.business_id,
-        termsAccpeted: user.terms_accepted,
+        termsAccepted: user.terms_accepted,
       },
     });
   } catch (error) {

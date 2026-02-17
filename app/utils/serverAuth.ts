@@ -67,7 +67,6 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
     }
 
     const userData = await response.json();
-    console.log("USER", userData.user);
     return { user: userData.user, isAuthenticated: true };
   } catch (error) {
     console.error("Server auth verification failed:", error);
