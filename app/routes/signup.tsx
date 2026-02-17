@@ -4,7 +4,8 @@ import { authAPI } from "../utils/api";
 import { loginWithGoogle, loginWithMicrosoft } from "../utils/authUtils";
 import { useMsal } from "@azure/msal-react";
 import AzureLogin from "~/components/AzureLogin";
-import { GoogleLogin } from "@react-oauth/google";export function meta() {
+import { GoogleLogin } from "@react-oauth/google";
+export function meta() {
   return [
     { title: "Sign Up - Numenor Security" },
     { name: "description", content: "Create your Numenor Security account" },
@@ -24,13 +25,14 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordLengthError, setPasswordLengthError] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const { instance } = useMsal();
 
   const handleGoogleSignup = async (credentialResponse: any) => {
     try {
       setIsLoading(true);
       setError("");
-      await loginWithGoogle(credentialResponse);
+      await loginWithGoogle(credentialResponse, termsAccepted);
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Google sign-up failed");
@@ -43,8 +45,10 @@ export default function Signup() {
     try {
       setIsLoading(true);
       setError("");
-      const response = await instance.loginPopup({ scopes: ["openid", "profile", "email"] });
-      await loginWithMicrosoft(response);
+      const response = await instance.loginPopup({
+        scopes: ["openid", "profile", "email"],
+      });
+      await loginWithMicrosoft(response, termsAccepted);
       navigate("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Azure sign-up failed");
@@ -78,7 +82,7 @@ export default function Signup() {
       return;
     }
 
-    if (!formData.email.includes('@')) {
+    if (!formData.email.includes("@")) {
       setError("Please enter a valid email address");
       setIsLoading(false);
       return;
@@ -110,8 +114,9 @@ export default function Signup() {
         firstName,
         lastName,
         businessName: formData.businessName,
+        termsAccepted,
       });
-      
+
       console.log("Registration successful:", response);
       navigate("/dashboard");
     } catch (err) {
@@ -124,7 +129,8 @@ export default function Signup() {
 
   const validatePassword = (value: string, name: string) => {
     const password = name === "password" ? value : formData.password;
-    const confirmPassword = name === "confirmPassword" ? value : formData.confirmPassword;
+    const confirmPassword =
+      name === "confirmPassword" ? value : formData.confirmPassword;
 
     // Check password length
     if (name === "password") {
@@ -162,7 +168,9 @@ export default function Signup() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">Numenor Security</h1>
-          <p className="mt-2 text-sm text-gray-600">Phishing Protection for Small & Medium Businesses</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Phishing Protection for Small & Medium Businesses
+          </p>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           Create your account
@@ -185,33 +193,71 @@ export default function Signup() {
               {error}
             </div>
           )}
-          <div className="mb-6">
-            <div className="w-full flex justify-center mb-3">
-              <GoogleLogin 
-                onSuccess={(credentialResponse)=>handleGoogleSignup(credentialResponse)} 
-                onError={()=>setError("Google sign-up failed")} 
-                text="signup_with"
-                theme="outline"
-                shape="pill"
-                auto_select={false}
-                useOneTap={true}
-                width="220px"
-                logo_alignment="center"
+          <div className="space-y-4 mb-6">
+            {/* Google Login Wrapper */}
+            <div
+              className={`w-full flex flex-col items-center transition-all duration-200 ${
+                !termsAccepted
+                  ? "opacity-50 grayscale pointer-events-none"
+                  : "opacity-100"
+              }`}
+            >
+              <div className="w-full flex justify-center mb-3">
+                <GoogleLogin
+                  onSuccess={(credentialResponse) =>
+                    handleGoogleSignup(credentialResponse)
+                  }
+                  onError={() => setError("Google sign-up failed")}
+                  text="signup_with"
+                  theme="outline"
+                  shape="pill"
+                  auto_select={false}
+                  // Recommended: only use OneTap if terms are already accepted
+                  useOneTap={termsAccepted}
+                  width="220px"
+                  logo_alignment="center"
+                />
+              </div>
+            </div>
+
+            {/* Microsoft Login Wrapper */}
+            <div
+              className={`transition-all duration-200 ${
+                !termsAccepted
+                  ? "opacity-50 grayscale pointer-events-none"
+                  : "opacity-100"
+              }`}
+            >
+              <AzureLogin
+                handleAzureLogin={() => handleAzureSignup()}
+                isLoading={isLoading}
+                text="Sign up with Microsoft"
               />
             </div>
-            <AzureLogin handleAzureLogin={handleAzureSignup} isLoading={isLoading} text="Sign up with Microsoft" />
+
+            {/* Helpful hint for the user if they try to click while disabled */}
+            {!termsAccepted && (
+              <p className="text-center text-[10px] text-gray-400 uppercase tracking-widest animate-pulse">
+                Accept terms above to enable social sign-up
+              </p>
+            )}
           </div>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-300"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+              <span className="px-2 bg-white text-gray-500">
+                Or continue with email
+              </span>
             </div>
           </div>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="businessName"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Business Name
               </label>
               <div className="mt-1">
@@ -229,7 +275,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="ownerName" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="ownerName"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Contact Name
               </label>
               <div className="mt-1">
@@ -247,7 +296,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -266,7 +318,10 @@ export default function Signup() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <div className="mt-1">
@@ -278,19 +333,20 @@ export default function Signup() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className={`form-input ${passwordLengthError ? 'form-input-error' : ''}`}
+                  className={`form-input ${passwordLengthError ? "form-input-error" : ""}`}
                   placeholder="Create a password"
                 />
                 {passwordLengthError && (
-                  <div className="error-message">
-                    {passwordLengthError}
-                  </div>
+                  <div className="error-message">{passwordLengthError}</div>
                 )}
               </div>
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="confirmPassword"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Confirm Password
               </label>
               <div className="mt-1">
@@ -302,14 +358,12 @@ export default function Signup() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`form-input ${passwordError ? 'form-input-error' : ''}`}
+                  className={`form-input ${passwordError ? "form-input-error" : ""}`}
                   placeholder="Confirm your password"
                 />
               </div>
               {passwordError && (
-                <div className="error-message">
-                  {passwordError}
-                </div>
+                <div className="error-message">{passwordError}</div>
               )}
             </div>
 
@@ -319,15 +373,26 @@ export default function Signup() {
                 name="agree-terms"
                 type="checkbox"
                 required
+                checked={termsAccepted}
+                onChange={(e) => setTermsAccepted(e.target.checked)}
                 className="form-checkbox"
               />
-              <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-900">
-                I agree to the{" "}
-                <Link to="/terms" className="text-blue-600 hover:text-blue-500 underline">
+              <label
+                htmlFor="agree-terms"
+                className="ml-2 block text-sm text-gray-900"
+              >
+                I have read and agree to the <br />
+                <Link
+                  to="/terms"
+                  className="text-blue-600 hover:text-blue-500 underline"
+                >
                   Terms of Service
                 </Link>{" "}
                 and{" "}
-                <Link to="/privacy" className="text-blue-600 hover:text-blue-500 underline">
+                <Link
+                  to="/privacy"
+                  className="text-blue-600 hover:text-blue-500 underline"
+                >
                   Privacy Policy
                 </Link>
               </label>
