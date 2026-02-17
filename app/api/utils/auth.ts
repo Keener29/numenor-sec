@@ -11,7 +11,7 @@ export interface User {
   last_name: string;
   business_name?: string; // From businesses.name via JOIN
   business_id?: number; // From businesses.id via JOIN
-  terms_accepted?: boolean;
+  terms_accepted: boolean;
 }
 
 export const verifyGoogleToken = async (

@@ -581,8 +581,6 @@ SMTP_FROM=Numenor Security <your-email@gmail.com>
 1. **Side-car tool** - "Phishing Risk Score" tool on your website to collect leads
 2. **Paid WHOIS lookups** - Consider upgrading to paid WHOIS API services for better reliability and to fix current warnings
 3. **Provide email for pdf and tool**
-4. **Beta agreement** https://gemini.google.com/app/7a0e855d1e795c51?is_sa=1&is_sa=1&android-min-version=301356232&ios-min-version=322.0&campaign_id=bkws&utm_source=sem&utm_medium=paid-media&utm_campaign=bkws&pt=9008&mt=8&ct=p-growth-sem-bkws&gclsrc=aw.ds&gad_source=1&gad_campaignid=21012668539&gbraid=0AAAAApk5BhmiipcmCzak7inVFndgpwvBa&gclid=Cj0KCQiA7rDMBhCjARIsAGDBuEBNZvW65l4Bdjhzm27-x5t3GmbA0DQiL4Q_4EK7AP0tPzTLRRm4fLAaAjytEALw_wcB
-5. **Redirect on login page after logging out bug**
 
 ### Future Enhancements
 

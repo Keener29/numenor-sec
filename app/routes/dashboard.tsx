@@ -317,7 +317,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           // Reload dashboard data to get updated business name
           loadDashboardData();
         }}
-        termsAccepted={user?.termsAccepted || false}
+        termsAccepted={user.termsAccepted}
       />
     </div>
   );
