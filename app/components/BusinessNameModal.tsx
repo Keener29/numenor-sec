@@ -223,7 +223,7 @@ export default function BusinessNameModal({
         </div>
 
         {!termsAccepted && (
-          <div className="bg-black/50 flex items-center justify-center z-50">
+          <div className="flex items-center z-50 mb-6">
             <input
               id="agree-terms"
               name="agree-terms"
@@ -237,7 +237,7 @@ export default function BusinessNameModal({
               htmlFor="agree-terms"
               className="ml-2 block text-sm text-gray-900"
             >
-              I have read and agree to the <br />
+              I have read and agree to the
               <Link
                 to="/terms"
                 className="text-blue-600 hover:text-blue-500 underline"
