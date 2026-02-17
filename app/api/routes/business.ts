@@ -107,7 +107,7 @@ router.put(
        signup_ip_address = $3
    WHERE id = $4
    RETURNING id, first_name, last_name, email`,
-        [termsAccepted, "v1.0-2026", req.ip, business.owner_id],
+        [termsAccepted, "v1.0-beta-2026", req.ip, business.owner_id],
       );
       if (userResult.rows.length === 0) {
         await query("ROLLBACK");

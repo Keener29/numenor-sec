@@ -171,7 +171,7 @@ export const getUserById = async (id: number): Promise<User | null> => {
   return result.rows[0] as User;
 };
 
-export const CURRENT_TERMS_VERSION = "v1.0-beta-2026-02";
+export const CURRENT_TERMS_VERSION = "v1.0-beta-2026";
 
 export const createUser = async (
   email: string,
