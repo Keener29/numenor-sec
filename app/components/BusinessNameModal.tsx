@@ -237,7 +237,7 @@ export default function BusinessNameModal({
               htmlFor="agree-terms"
               className="ml-2 block text-sm text-gray-900"
             >
-              I have read and agree to the
+              I have read and agree to the{" "}
               <Link
                 to="/terms"
                 className="text-blue-600 hover:text-blue-500 underline"
