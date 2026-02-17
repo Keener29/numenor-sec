@@ -349,7 +349,7 @@ The PostgreSQL database includes:
   - **What it is**: Technical logs of the email scanning process
   - **Purpose**: Tracks the health and performance of email monitoring operations
   - **Contains**: Scan timestamps, success/failure status, processing times, error messages
-  - **Example**: "Scan completed for info@mybusiness.com at 2025-01-02 10:30:00", "Connection timeout error"
+  - **Example**: "Scan completed for <info@mybusiness.com> at 2025-01-02 10:30:00", "Connection timeout error"
 
 - **Email Offsets**: History anchors per mailbox (Gmail)
   - **What it is**: Stores `last_history_id` for each connected Gmail mailbox

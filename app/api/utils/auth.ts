@@ -3,6 +3,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { query } from "../../db/connection.js";
 import { OAuth2Client, type TokenPayload } from "google-auth-library";
 import jwksClient from "jwks-rsa";
+import { oauthLogger } from "~/utils/logger.js";
 
 export interface User {
   id: number;
@@ -141,7 +142,7 @@ export const generateToken = (
 
 export const getUserByEmail = async (email: string): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id, u.terms_accepted as terms_accepted
      FROM users u
      LEFT JOIN businesses b ON b.owner_id = u.id
      WHERE u.email = $1 AND u.is_active = true`,
@@ -163,7 +164,10 @@ export const getUserById = async (id: number): Promise<User | null> => {
      WHERE u.id = $1 AND u.is_active = true`,
     [id],
   );
-
+  oauthLogger.info(`getUserById query result: ${JSON.stringify(result.rows)}`, {
+    operation: "getUserById",
+    userId: id,
+  });
   if (result.rows.length === 0) {
     return null;
   }
