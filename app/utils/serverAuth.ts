@@ -21,42 +21,51 @@ export interface AuthResult {
 export async function verifyServerAuth(request: Request): Promise<AuthResult> {
   try {
     // Get the token from cookies (SSR) if available
-    const cookieHeader = request.headers.get('cookie');
-    const userAgent = request.headers.get('user-agent') || '';
+    const cookieHeader = request.headers.get("cookie");
+    const userAgent = request.headers.get("user-agent") || "";
 
     // Verify auth by calling the API; prefer forwarding cookies (SSR) or credentials (CSR)
     // Use internal Docker URL if available (SSR), otherwise use the public URL (Client)
     const apiUrl = process.env.DOCKER_API_URL || process.env.VITE_API_URL;
-    
+
     if (!apiUrl) {
-      console.error('API URL not configured - DOCKER_API_URL and VITE_API_URL are both undefined');
+      console.error(
+        "API URL not configured - DOCKER_API_URL and VITE_API_URL are both undefined",
+      );
       return { user: null, isAuthenticated: false };
     }
 
-    const response = await fetch(`${apiUrl}/auth/me`, cookieHeader ? {
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cookie': cookieHeader || '',
-        'User-Agent': userAgent
-      }
-    } : {
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const response = await fetch(
+      `${apiUrl}/auth/me`,
+      cookieHeader
+        ? {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              Cookie: cookieHeader || "",
+              "User-Agent": userAgent,
+            },
+          }
+        : {
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Backend rejected auth. Status: ${response.status}. Body: ${errorText}`);
+      console.error(
+        `Backend rejected auth. Status: ${response.status}. Body: ${errorText}`,
+      );
       return { user: null, isAuthenticated: false };
     }
 
     const userData = await response.json();
     return { user: userData.user, isAuthenticated: true };
   } catch (error) {
-    console.error('Server auth verification failed:', error);
+    console.error("Server auth verification failed:", error);
     return { user: null, isAuthenticated: false };
   }
 }
@@ -67,16 +76,16 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
  */
 export async function requireServerAuth(request: Request): Promise<AuthUser> {
   const { user, isAuthenticated } = await verifyServerAuth(request);
-  
+
   if (!isAuthenticated || !user) {
     throw new Response(null, {
       status: 302,
       headers: {
-        Location: '/login',
+        Location: "/login",
       },
     });
   }
-  
+
   return user;
 }
 
@@ -86,12 +95,12 @@ export async function requireServerAuth(request: Request): Promise<AuthUser> {
  */
 export async function redirectIfAuthenticated(request: Request): Promise<void> {
   const { isAuthenticated } = await verifyServerAuth(request);
-  
+
   if (isAuthenticated) {
     throw new Response(null, {
       status: 302,
       headers: {
-        Location: '/dashboard',
+        Location: "/dashboard",
       },
     });
   }
