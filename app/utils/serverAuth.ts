@@ -1,5 +1,7 @@
 // Server-side authentication utilities for React Router loaders
 
+import { redirect } from "react-router";
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -41,6 +43,7 @@ export async function verifyServerAuth(request: Request): Promise<AuthResult> {
       cookieHeader
         ? {
             headers: {
+              "Cache-Control": "no-cache",
               "Content-Type": "application/json",
               Accept: "application/json",
               Cookie: cookieHeader || "",
@@ -98,10 +101,9 @@ export async function redirectIfAuthenticated(request: Request): Promise<void> {
   const { isAuthenticated } = await verifyServerAuth(request);
 
   if (isAuthenticated) {
-    throw new Response(null, {
-      status: 302,
+    throw redirect("/dashboard", {
       headers: {
-        Location: "/dashboard",
+        "Cache-Control": "no-store",
       },
     });
   }
