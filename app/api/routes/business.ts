@@ -104,7 +104,7 @@ router.put(
    SET terms_accepted = $1, 
        terms_accepted_at = CURRENT_TIMESTAMP, 
        terms_version = $2,
-       terms_ip = $3
+       signup_ip_address = $3
    WHERE id = $4
    RETURNING id, first_name, last_name, email`,
         [termsAccepted, "v1.0-2026", req.ip, business.owner_id],
