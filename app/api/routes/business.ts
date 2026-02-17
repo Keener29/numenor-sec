@@ -9,6 +9,7 @@ import { completeOnboardingSchema } from "../schemas/business.js";
 import { query } from "../../db/connection.js";
 import { securityEventLogger } from "../utils/securityEventLogger.js";
 import { generateToken } from "../utils/auth.js";
+import { COOKIE_OPTIONS } from "../constants/values.js";
 
 const router = Router();
 
@@ -139,12 +140,7 @@ router.put(
         business_id: businessId,
       });
 
-      res.cookie("authToken", newToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      res.cookie("authToken", newToken, COOKIE_OPTIONS);
 
       res.json({
         message: "Business updated successfully",

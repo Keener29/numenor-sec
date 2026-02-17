@@ -26,6 +26,7 @@ import { query } from "../../db/connection.js";
 import crypto from "node:crypto";
 import { emailService } from "../services/emailService.js";
 import { securityEventLogger } from "../utils/securityEventLogger.js";
+import { COOKIE_OPTIONS } from "../constants/values.js";
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.post(
   validateBody(registerSchema),
   async (req, res, next) => {
     try {
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
       const {
         email,
         password,
@@ -110,16 +112,7 @@ router.post(
       });
 
       // Set HTTP-only cookie for server-side authentication (same as login)
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: 24 * 60 * 60 * 1000, // 1 day
-      });
+      res.cookie("authToken", token, COOKIE_OPTIONS);
 
       res.status(201).json({
         message: "User registered successfully",
@@ -161,16 +154,7 @@ router.post(
       const token = generateToken(user, tokenExpiry);
 
       // Set HTTP-only cookie for server-side authentication
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: (rememberMe ? 30 : 1) * 24 * 60 * 60 * 1000,
-      });
+      res.cookie("authToken", token, COOKIE_OPTIONS);
 
       res.json({
         message: "Login successful",
@@ -202,6 +186,7 @@ router.post(
   validateBody(googleAuthSchema),
   async (req, res, next) => {
     try {
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
       const { credential, termsAccepted } = req.body;
 
       const ipAddress =
@@ -299,16 +284,7 @@ router.post(
         business_id: businessId,
         business_name: user.business_name,
       });
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      res.cookie("authToken", token, COOKIE_OPTIONS);
 
       return res.json({
         message: "Google login successful",
@@ -340,6 +316,7 @@ router.post(
   validateBody(microsoftAuthSchema),
   async (req, res, next) => {
     try {
+      res.clearCookie("authToken", { ...COOKIE_OPTIONS, maxAge: undefined });
       const { idToken, termsAccepted } = req.body;
 
       const ipAddress =
@@ -446,16 +423,7 @@ router.post(
         business_id: businessId,
         business_name: user.business_name,
       });
-      res.cookie("authToken", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      res.cookie("authToken", token, COOKIE_OPTIONS);
 
       return res.json({
         message: "Microsoft login successful",
@@ -695,15 +663,7 @@ router.post(
       );
 
       // Clear the HTTP-only cookie
-      res.clearCookie("authToken", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        domain:
-          process.env.NODE_ENV === "production"
-            ? ".numenorsecurity.com"
-            : "localhost",
-      });
+      res.clearCookie("authToken", COOKIE_OPTIONS);
 
       res.json({ message: "Logout successful" });
     } catch (error) {
