@@ -11,6 +11,7 @@ export interface User {
   last_name: string;
   business_name?: string; // From businesses.name via JOIN
   business_id?: number; // From businesses.id via JOIN
+  terms_accepted?: boolean;
 }
 
 export const verifyGoogleToken = async (
@@ -156,7 +157,7 @@ export const getUserByEmail = async (email: string): Promise<User | null> => {
 
 export const getUserById = async (id: number): Promise<User | null> => {
   const result = await query(
-    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id
+    `SELECT u.id, u.email, u.first_name, u.last_name, b.business_name as business_name, b.id as business_id, u.terms_accepted as terms_accepted
      FROM users u
      LEFT JOIN businesses b ON b.owner_id = u.id
      WHERE u.id = $1 AND u.is_active = true`,

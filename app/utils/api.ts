@@ -268,15 +268,10 @@ export const businessAPI = {
   },
 
   // Update business information
-  updateBusiness: async (updates: {
-    name?: string;
-    address?: string;
-    phone?: string;
-    website?: string;
-  }) => {
-    return apiRequest("/business", {
+  completeOnboarding: async (businessName: string, termsAccepted: boolean) => {
+    return apiRequest(`/business/complete-onboarding`, {
       method: "PUT",
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ businessName, termsAccepted }),
     });
   },
 

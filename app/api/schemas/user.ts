@@ -65,6 +65,11 @@ export const deleteAccountSchema = z.object({
   ),
 });
 
+export const updateTermsAcceptedSchema = z.object({
+  userId: z.number(),
+  termsAccepted: z.boolean(),
+});
+
 export type RegisterData = z.infer<typeof registerSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
 export type UpdateUserData = z.infer<typeof updateUserSchema>;

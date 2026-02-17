@@ -7,6 +7,7 @@ export interface AuthUser {
   lastName: string;
   businessName: string;
   businessId: number;
+  termsAccepted?: boolean;
 }
 
 export interface AuthResult {

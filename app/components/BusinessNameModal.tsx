@@ -1,20 +1,24 @@
 import { useState, useEffect, useRef } from "react";
 import { businessAPI } from "../utils/api";
+import { Link } from "react-router";
 
 interface BusinessNameModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSuccess: () => void;
+  readonly termsAccepted: boolean;
 }
 
 export default function BusinessNameModal({
   isOpen,
   onClose,
   onSuccess,
+  termsAccepted,
 }: BusinessNameModalProps) {
   const [businessName, setBusinessName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [isTermsChecked, setIsTermsChecked] = useState(termsAccepted);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const allowCloseRef = useRef(false);
@@ -56,9 +60,9 @@ export default function BusinessNameModal({
 
     // Store original close method
     const originalClose = dialog.close.bind(dialog);
-    
+
     // Override close method to prevent unauthorized closing
-    dialog.close = function() {
+    dialog.close = function () {
       if (allowCloseRef.current) {
         originalClose();
         allowCloseRef.current = false; // Reset after closing
@@ -68,7 +72,7 @@ export default function BusinessNameModal({
 
     // Intercept Escape key presses at multiple levels
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dialog.hasAttribute('open')) {
+      if (e.key === "Escape" && dialog.hasAttribute("open")) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -78,7 +82,7 @@ export default function BusinessNameModal({
 
     // Also intercept on the dialog element itself
     const handleDialogKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -88,7 +92,7 @@ export default function BusinessNameModal({
 
     // Watch for 'open' attribute changes and reopen if closed unexpectedly
     const observer = new MutationObserver(() => {
-      if (!dialog.hasAttribute('open') && isOpen) {
+      if (!dialog.hasAttribute("open") && isOpen) {
         setTimeout(() => {
           dialog.showModal();
         }, 0);
@@ -97,32 +101,40 @@ export default function BusinessNameModal({
 
     observer.observe(dialog, {
       attributes: true,
-      attributeFilter: ['open'],
+      attributeFilter: ["open"],
     });
 
     // Add event listeners
-    document.addEventListener('keydown', handleKeyDown, true);
-    dialog.addEventListener('keydown', handleDialogKeyDown, true);
-    dialog.addEventListener('cancel', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-    }, true);
+    document.addEventListener("keydown", handleKeyDown, true);
+    dialog.addEventListener("keydown", handleDialogKeyDown, true);
+    dialog.addEventListener(
+      "cancel",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      },
+      true,
+    );
 
     return () => {
       // Restore original close method
       dialog.close = originalClose;
-      document.removeEventListener('keydown', handleKeyDown, true);
-      dialog.removeEventListener('keydown', handleDialogKeyDown, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      dialog.removeEventListener("keydown", handleDialogKeyDown, true);
       observer.disconnect();
     };
   }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!businessName.trim()) {
       setError("Business name is required");
+      return;
+    }
+    if (!isTermsChecked) {
+      setError("You must accept the terms to continue.");
       return;
     }
 
@@ -130,8 +142,8 @@ export default function BusinessNameModal({
       setIsSubmitting(true);
       setError("");
 
-      await businessAPI.updateBusiness({ name: businessName.trim() });
-      
+      await businessAPI.completeOnboarding(businessName.trim(), isTermsChecked);
+
       // Success - allow closing and close modal, then refresh dashboard
       allowCloseRef.current = true;
       onSuccess();
@@ -140,7 +152,7 @@ export default function BusinessNameModal({
       setError(
         err instanceof Error
           ? err.message
-          : "Failed to save business name. Please try again."
+          : "Failed to save business name. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -155,9 +167,7 @@ export default function BusinessNameModal({
       aria-labelledby="business-name-modal-title"
       aria-describedby="business-name-modal-description"
     >
-      <div
-        className="relative bg-white rounded-lg w-full p-6"
-      >
+      <div className="relative bg-white rounded-lg w-full p-6">
         {/* Modal Header */}
         <h2
           id="business-name-modal-title"
@@ -169,7 +179,8 @@ export default function BusinessNameModal({
         {/* Modal Body */}
         <div id="business-name-modal-description" className="mb-6">
           <p className="text-sm text-gray-700 mb-4">
-            Please provide your business name to continue. This helps us personalize your experience.
+            Please provide your business name to continue. This helps us
+            personalize your experience.
           </p>
 
           <form onSubmit={handleSubmit}>
@@ -211,11 +222,44 @@ export default function BusinessNameModal({
           </form>
         </div>
 
+        {!termsAccepted && (
+          <div className="bg-black/50 flex items-center justify-center z-50">
+            <input
+              id="agree-terms"
+              name="agree-terms"
+              type="checkbox"
+              required
+              checked={isTermsChecked}
+              onChange={(e) => setIsTermsChecked(e.target.checked)}
+              className="form-checkbox"
+            />
+            <label
+              htmlFor="agree-terms"
+              className="ml-2 block text-sm text-gray-900"
+            >
+              I have read and agree to the <br />
+              <Link
+                to="/terms"
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                to="/privacy"
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Privacy Policy
+              </Link>
+            </label>
+          </div>
+        )}
+
         {/* Modal Footer */}
         <div className="flex justify-end space-x-3">
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !businessName.trim()}
+            disabled={isSubmitting || !businessName.trim() || !isTermsChecked}
             className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
           >
             {isSubmitting ? (
@@ -251,4 +295,3 @@ export default function BusinessNameModal({
     </dialog>
   );
 }
-
